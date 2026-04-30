@@ -19,9 +19,10 @@ export default function ArchContract({
   feeAmount        = "Rs 2,30,000.00 (Two Lakhs Thirty Thousand Only)",
   architectName    = "Rohit Kannagatha",
   outstationCharge = "Rs 2,000/-",
-  place ="",
-  paymentStages = [],
-  totalPercentage = "100%",
+  address          = "",
+  place            = "",
+  paymentStages    = [],
+  totalPercentage  = "100%",
 }) {
   return (
     <div style={S.root}>
@@ -37,6 +38,7 @@ export default function ArchContract({
 
         <p style={S.body}>To,</p>
         <p style={S.body}>{clientName}</p>
+        {address && <p style={S.body}>{address}</p>}
         <br />
         <p style={S.body}>Dear {salutation},</p>
         <br />

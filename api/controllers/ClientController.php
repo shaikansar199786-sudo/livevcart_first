@@ -13,7 +13,7 @@ class ClientController
 
     public function getAll()
     {
-        $query = "SELECT c.*, p.project_id, p.project_name 
+        $query = "SELECT c.*, p.project_id, COALESCE(p.project_name, c.projectname) as projectname, p.project_name as p_project_name 
                   FROM " . $this->table_name . " c
                   LEFT JOIN projects p ON c.client_id = p.client_id AND p.status = 'active'
                   WHERE c.status = 'active' 
@@ -36,12 +36,13 @@ class ClientController
     {
         $client_code = $this->generateClientCode();
         $query = "INSERT INTO " . $this->table_name . " 
-                (client_code, name, email, phone, address, lead_source, created_by, status) 
-                VALUES (:code, :name, :email, :phone, :address, :source, :created_by, 'active')";
+                (client_code, name, projectname, email, phone, address, lead_source, created_by, status) 
+                VALUES (:code, :name, :projectname, :email, :phone, :address, :source, :created_by, 'active')";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':code', $client_code);
         $stmt->bindParam(':name', $data['name']);
+        $stmt->bindParam(':projectname', $data['projectname']);
         $stmt->bindParam(':email', $data['email']);
         $stmt->bindParam(':phone', $data['phone']);
         $stmt->bindParam(':address', $data['address']);

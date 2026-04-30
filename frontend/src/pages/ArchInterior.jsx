@@ -36,6 +36,7 @@ export default function ArchInterior({
 
         <p style={S.body}>To,</p>
         <p style={S.body}>{clientName}</p>
+        {address && <p style={S.body}>{address}</p>}
         <br />
         <p style={S.body}>Dear {salutation},</p>
         <br />

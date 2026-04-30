@@ -19,6 +19,42 @@ class VendorController {
         }
     }
 
+    public function getLaborVendors() {
+        try {
+            $query = "SELECT 
+                        ft.person_name, 
+                        p.project_name as site,
+                        ft.transaction_date as payment_date,
+                        ft.amount as payment_amount,
+                        ft.payment_mode as remarks
+                      FROM finance_transactions ft
+                      JOIN projects p ON ft.project_id = p.project_id
+                      WHERE ft.category = 'Labor' AND ft.person_name IS NOT NULL AND ft.person_name != ''
+                      ORDER BY ft.person_name ASC, ft.transaction_date ASC";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $grouped = [];
+            foreach ($transactions as $t) {
+                $name = $t['person_name'];
+                if (!isset($grouped[$name])) {
+                    $grouped[$name] = [
+                        'person_name' => $name,
+                        'transactions' => [],
+                        'total_payment' => 0
+                    ];
+                }
+                $grouped[$name]['transactions'][] = $t;
+                $grouped[$name]['total_payment'] += $t['payment_amount'];
+            }
+
+            return ["success" => true, "data" => array_values($grouped)];
+        } catch (PDOException $e) {
+            return ["success" => false, "message" => "Database Error: " . $e->getMessage()];
+        }
+    }
+
     public function create($data) {
         $vendor = $data['vendor'] ?? '';
         $user_id = $data['user_id'] ?? 1;

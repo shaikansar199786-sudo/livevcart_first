@@ -33,7 +33,11 @@ export const Login: React.FC = () => {
                 // ✅ Set in context
                 login(userData);
             
-                navigate('/');
+                if (userData.role === 'site_engineer') {
+                    navigate('/projects');
+                } else {
+                    navigate('/');
+                }
             } else {
                 setError(response.data.message);
             }

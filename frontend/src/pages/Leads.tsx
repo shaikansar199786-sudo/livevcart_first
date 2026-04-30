@@ -116,7 +116,7 @@ export const Leads: React.FC = () => {
         status: 'won',
         data: {
           ...convertData,
-          total_budget: convertData.total_budget || 0,
+          total_budget: 0,
           advance_paid: 0, // Accountant will record this in Finance
           created_by: user?.user_id
         }
@@ -333,17 +333,6 @@ export const Leads: React.FC = () => {
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>End Date</label>
                   <input type="date" required value={convertData.expected_end_date} onChange={(e) => setConvertData({ ...convertData, expected_end_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                 </div>
-              </div>
-              <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 700, color: '#1e293b' }}>Total Project Budget (₹)</label>
-                  <input 
-                      type="number" 
-                      required 
-                      placeholder="Enter total agreed budget"
-                      value={convertData.total_budget} 
-                      onChange={(e) => setConvertData({ ...convertData, total_budget: e.target.value })} 
-                      style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #253b50', fontSize: '1.1rem', fontWeight: 600 }} 
-                  />
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>

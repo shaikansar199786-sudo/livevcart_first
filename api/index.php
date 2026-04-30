@@ -201,7 +201,11 @@ switch ($resource) {
     case 'vendors':
         $vendorCtrl = new VendorController($conn);
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-            echo json_encode($vendorCtrl->getAll());
+            if (isset($path_parts[1]) && $path_parts[1] === 'labor') {
+                echo json_encode($vendorCtrl->getLaborVendors());
+            } else {
+                echo json_encode($vendorCtrl->getAll());
+            }
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode($vendorCtrl->create($input));
         }

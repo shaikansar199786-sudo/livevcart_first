@@ -200,13 +200,19 @@ export const ProjectDetails: React.FC = () => {
 
     const handleRecordPayment = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!payment.amount || parseFloat(payment.amount) <= 0) {
+            alert('Please enter a valid amount.');
+            return;
+        }
         setSubmitting(true);
         try {
             const response = await axios.post('http://localhost/ARK/api/finance', {
                 project_id: id,
                 type: 'credit',
                 amount: payment.amount,
+                category: 'Payment',
                 description: payment.description,
+                date: new Date().toISOString().split('T')[0],
                 recorded_by: user?.user_id
             });
             if (response.data.success) {
@@ -214,9 +220,11 @@ export const ProjectDetails: React.FC = () => {
                 setPayment({ amount: '', description: 'Advance Payment' });
                 fetchProjectDetails();
                 fetchTransactions();
+            } else {
+                alert('Failed to record payment: ' + (response.data.message || 'Unknown error'));
             }
-        } catch (err) {
-            alert('Failed to record payment');
+        } catch (err: any) {
+            alert('Failed to record payment: ' + (err?.response?.data?.message || err.message));
         } finally {
             setSubmitting(false);
         }
@@ -269,9 +277,14 @@ export const ProjectDetails: React.FC = () => {
                 return true;
             }
 
-            // Site Engineer and Project Head see specific tabs ONLY
-            if (user?.role === 'site_engineer' || user?.role === 'project_head') {
+            // Project Head sees these tabs
+            if (user?.role === 'project_head') {
                 return ['timeline', 'quote', 'used_quote', 'vendor_quta', 'transport', 'labor', 'miscellaneous'].includes(tab);
+            }
+
+            // Site Engineer ONLY sees timeline and used_quote
+            if (user?.role === 'site_engineer') {
+                return ['timeline', 'used_quote'].includes(tab);
             }
 
             // Default visibility
@@ -530,7 +543,7 @@ const OverviewTab = ({ project, completionPercentage, isAccountant, setShowBudge
                             </div>
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#6b7280', fontSize: '0.85rem' }}>
                                 <MapPin size={14} style={{ marginTop: '2px' }} />
-                                <span><strong>Billing:</strong> {project.client_address}</span>
+                                <span>{project.site_address}</span>
                             </div>
                         </div>
                     </div>
@@ -538,7 +551,7 @@ const OverviewTab = ({ project, completionPercentage, isAccountant, setShowBudge
                         <h4 style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '8px' }}>Project Site Location</h4>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#253b50', fontWeight: 500 }}>
                             <MapPin size={16} style={{ marginTop: '4px' }} />
-                            <span style={{ fontSize: '0.95rem' }}>{project.site_address}</span>
+                            <span style={{ fontSize: '0.95rem' }}>{project.client_address}</span>
                         </div>
                     </div>
                 </div>
@@ -1740,8 +1753,15 @@ const printBtn = {
 };
 
 const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions, user }: any) => {
+    // Standard fields
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
+    
+    // Labor specific fields
+    const [name, setName] = useState('');
+    const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+    const [paymentMode, setPaymentMode] = useState('Cash');
+
     const [submitting, setSubmitting] = useState(false);
 
     const filteredTransactions = transactions.filter((t: any) => t.type === 'debit' && t.category === category);
@@ -1750,17 +1770,31 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/finance', {
+            const payload: any = {
                 project_id: project.project_id,
                 type: 'debit',
-                amount: amount,
                 category: category,
-                description: description,
                 recorded_by: user?.user_id
-            });
+            };
+
+            if (category === 'Labor') {
+                payload.amount = amount;
+                payload.person_name = name;
+                payload.date = paymentDate;
+                payload.payment_mode = paymentMode;
+                payload.description = `Labor Payment - Mode: ${paymentMode}`; // Fallback description
+            } else {
+                payload.amount = amount;
+                payload.description = description;
+            }
+
+            const response = await axios.post('http://localhost/ARK/api/finance', payload);
             if (response.data.success) {
                 setAmount('');
                 setDescription('');
+                setName('');
+                setPaymentDate(new Date().toISOString().split('T')[0]);
+                setPaymentMode('Cash');
                 fetchTransactions();
             }
         } catch (err) {
@@ -1774,39 +1808,86 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
         <div className="premium-card" style={{ padding: '30px' }}>
             <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '20px' }}>{category} Expenses</h3>
 
-            <form onSubmit={handleAddExpense} style={{ display: 'flex', gap: '15px', marginBottom: '30px', alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Amount (₹)</label>
-                    <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="0.00" />
-                </div>
-                <div style={{ flex: 2 }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Description</label>
-                    <input type="text" required value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter details..." />
-                </div>
-                <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 25px' }}>
-                    {submitting ? 'Saving...' : 'Add Expense'}
-                </button>
-            </form>
+            {category === 'Labor' ? (
+                <form onSubmit={handleAddExpense} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '15px', marginBottom: '30px', alignItems: 'end' }}>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Name</label>
+                        <input type="text" required value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter name" />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Date</label>
+                        <input type="date" required value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Amount (₹)</label>
+                        <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="0.00" />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Mode</label>
+                        <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="UPI">UPI</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+                    </div>
+                    <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 20px', height: '42px' }}>
+                        {submitting ? 'Saving...' : 'Add'}
+                    </button>
+                </form>
+            ) : (
+                <form onSubmit={handleAddExpense} style={{ display: 'flex', gap: '15px', marginBottom: '30px', alignItems: 'flex-end' }}>
+                    <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Amount (₹)</label>
+                        <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="0.00" />
+                    </div>
+                    <div style={{ flex: 2 }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Description</label>
+                        <input type="text" required value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter details..." />
+                    </div>
+                    <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 25px' }}>
+                        {submitting ? 'Saving...' : 'Add Expense'}
+                    </button>
+                </form>
+            )}
 
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                     <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
                         <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DATE</th>
-                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DESCRIPTION</th>
+                        {category === 'Labor' ? (
+                            <>
+                                <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>NAME</th>
+                                <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>MODE</th>
+                            </>
+                        ) : (
+                            <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DESCRIPTION</th>
+                        )}
                         <th style={{ padding: '12px', textAlign: 'right', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>AMOUNT</th>
                     </tr>
                 </thead>
                 <tbody>
                     {filteredTransactions.map((t: any, i: number) => (
                         <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '12px', fontSize: '0.9rem' }}>{new Date(t.transaction_date).toLocaleDateString()}</td>
-                            <td style={{ padding: '12px', fontSize: '0.9rem' }}>{t.description}</td>
-                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: '#ef4444' }}>₹{parseFloat(t.amount).toLocaleString()}</td>
+                            <td style={{ padding: '12px', color: '#64748b' }}>{new Date(t.transaction_date).toLocaleDateString()}</td>
+                            {category === 'Labor' ? (
+                                <>
+                                    <td style={{ padding: '12px', fontWeight: 500 }}>{t.person_name || '-'}</td>
+                                    <td style={{ padding: '12px', color: '#64748b' }}>{t.payment_mode || '-'}</td>
+                                </>
+                            ) : (
+                                <td style={{ padding: '12px', fontWeight: 500 }}>{t.description}</td>
+                            )}
+                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>
+                                ₹{parseFloat(t.amount).toLocaleString()}
+                            </td>
                         </tr>
                     ))}
                     {filteredTransactions.length === 0 && (
                         <tr>
-                            <td colSpan={3} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No expenses recorded for this category.</td>
+                            <td colSpan={category === 'Labor' ? 4 : 3} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                No expenses recorded yet.
+                            </td>
                         </tr>
                     )}
                 </tbody>

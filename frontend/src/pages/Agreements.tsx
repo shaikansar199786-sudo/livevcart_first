@@ -43,9 +43,35 @@ function PrintStyles() {
   return <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />;
 }
 
+function convertNumberToWords(price) {
+  if (!price) return "";
+  const num = parseInt(price.toString().replace(/,/g, '').replace(/[^\d]/g, ''), 10);
+  if (isNaN(num)) return "";
+
+  if (num === 0) return "Zero";
+
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  let numStr = num.toString();
+  if (numStr.length > 9) return "overflow";
+  let n = ('000000000' + numStr).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  if (!n) return "";
+
+  let str = '';
+  str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
+  str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
+  str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
+  str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
+  str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+
+  return str.trim() + " Only";
+}
+
 export default function Agreements() {
   const [templateType, setTemplateType] = useState("arch_interior");
   const [refId, setRefId] = useState("PR_2026_009/01");
+  const [title, setTitle] = useState("Mr.");
   const [clientName, setClientName] = useState("");
   const [address, setAddress] = useState("");
   const [feeAmount, setFeeAmount] = useState("");
@@ -87,13 +113,18 @@ export default function Agreements() {
 
   const renderTemplate = () => {
     const totalPercentage = calculateTotalPercentage();
-    const props = { 
-      clientName, 
-      refId, 
-      address, 
-      feeAmount, 
-      date, 
-      place, 
+    const salutation = title === "Mr." ? "Sir" : "Madam";
+    const feeWords = convertNumberToWords(feeAmount);
+    const displayFee = feeWords ? `Rs. ${feeAmount}/- (Rupees ${feeWords})` : feeAmount;
+
+    const props = {
+      clientName: clientName,
+      salutation,
+      refId,
+      address,
+      feeAmount: displayFee,
+      date,
+      place,
       paymentStages,
       totalPercentage: totalPercentage + "%"
     };
@@ -126,7 +157,7 @@ export default function Agreements() {
       <div style={styles.container}>
 
         {/* LEFT SIDEBAR FORM */}
-        <div className="no-print" style={styles.sidebar}>
+        <div className="no-print" style={styles.sidebar} id="agreement-sidebar">
           <h2 style={styles.title}>Proposal Generator</h2>
           <p style={styles.subtitle}>
             Select consultation type and fill details
@@ -155,30 +186,43 @@ export default function Agreements() {
               />
             </div>
 
-            <div style={styles.row}>
-              <div style={styles.group}>
-                <label>Ref Number</label>
-                <input style={styles.input}
-                  value={refId}
-                  onChange={(e) => setRefId(e.target.value)}
-                />
-              </div>
 
-              <div style={styles.group}>
-                <label>Place</label>
-                <input style={styles.input}
-                  value={place}
-                  onChange={(e) => setPlace(e.target.value)}
-                />
-              </div>
+            <div style={styles.group}>
+              <label>Place</label>
+              <input style={styles.input}
+                value={place}
+                onChange={(e) => setPlace(e.target.value)}
+              />
+            </div>
+
+            <div style={styles.group}>
+              <label>Ref Number</label>
+              <input style={styles.input}
+                value={refId}
+                onChange={(e) => setRefId(e.target.value)}
+              />
+
             </div>
 
             <div style={styles.group}>
               <label>Client Name</label>
-              <input style={styles.input}
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-              />
+              <div style={{ display: "flex", gap: "10px" }}>
+                <select
+                  style={{ ...styles.input, width: "90px" }}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                >
+                  <option value="Mr.">Mr.</option>
+                  <option value="Ms.">Ms.</option>
+                  <option value="Mrs.">Mrs.</option>
+                  <option value="Miss">Miss</option>
+                </select>
+                <input style={{ ...styles.input, flex: 1 }}
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="First and Last Name"
+                />
+              </div>
             </div>
 
             <div style={styles.group}>
@@ -268,18 +312,21 @@ const styles = {
     display: "flex",
     gap: "20px",
     padding: "20px",
-    // background: "#f1f5f9",
+    alignItems: "flex-start",
     minHeight: "100vh"
   },
 
   sidebar: {
     width: "340px",
+    flexShrink: 0,
     background: "#ffffff",
     padding: "20px",
     borderRadius: "12px",
     boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-    maxHeight: "calc(100vh - 40px)",
-    overflowY: "auto"
+    maxHeight: "calc(100vh - 160px)",
+    overflowY: "auto" as const,
+    position: "sticky" as const,
+    top: "20px"
   },
 
   title: {
@@ -337,7 +384,7 @@ const styles = {
 
   preview: {
     flex: 1,
-  
+
     padding: "20px",
     borderRadius: "12px",
     overflow: "auto"

@@ -43,8 +43,8 @@ const TASKS = [
   { id: 30, name: "FURNITURE", isHeader: true },
   { id: 31, name: "Loose furniture / artefacts fixing", cat: "FURNITURE", start: 21, dur: 5 },
   { id: 32, name: "DEEP CLEANING", isHeader: true },
-  { id: 33, name: "Deep cleaning", cat: "DEEP CLEANING", start: 26, dur: 2 },
-  { id: 34, name: "Curtain rods and curtains", cat: "DEEP CLEANING", start: 26, dur: 3 },
+  { id: 33, name: "Deep cleaning", cat: "Deep cleaning", start: 26, dur: 2 },
+  { id: 34, name: "Curtain rods and curtains", cat: "FINISHING", start: 26, dur: 3 },
   { id: 35, name: "Handover", cat: "HANDOVER", start: 29, dur: 2 },
 ];
 

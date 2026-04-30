@@ -14,15 +14,19 @@ class FinanceController
     {
         // type: 'credit' (client payment) or 'debit' (expense)
         $query = "INSERT INTO finance_transactions 
-                (project_id, type, amount, category, description, transaction_date, recorded_by) 
-                VALUES (:project_id, :type, :amount, :category, :description, :date, :recorded_by)";
+                (project_id, type, amount, payment_mode, category, person_name, description, transaction_date, recorded_by) 
+                VALUES (:project_id, :type, :amount, :payment_mode, :category, :person_name, :description, :date, :recorded_by)";
 
         $stmt = $this->conn->prepare($query);
 
         $stmt->bindParam(':project_id', $data['project_id']);
         $stmt->bindParam(':type', $data['type']);
         $stmt->bindParam(':amount', $data['amount']);
+        $payment_mode = $data['payment_mode'] ?? null;
+        $stmt->bindParam(':payment_mode', $payment_mode);
         $stmt->bindParam(':category', $data['category']);
+        $person_name = $data['person_name'] ?? null;
+        $stmt->bindParam(':person_name', $person_name);
         $stmt->bindParam(':description', $data['description']);
         $date = $data['date'] ?? date('Y-m-d');
         $stmt->bindParam(':date', $date);

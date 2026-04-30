@@ -87,7 +87,10 @@ export const Projects: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/projects', formData);
+            const response = await axios.post('http://localhost/ARK/api/projects', {
+                ...formData,
+                total_budget: 0
+            });
             if (response.data.success) {
                 setShowAddModal(false);
                 setFormData({
@@ -217,7 +220,7 @@ export const Projects: React.FC = () => {
                                 <textarea rows={2} required value={formData.site_address} onChange={(e) => setFormData({ ...formData, site_address: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Start Date</label>
                                     <input type="date" required value={formData.start_date} onChange={(e) => setFormData({ ...formData, start_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
@@ -225,10 +228,6 @@ export const Projects: React.FC = () => {
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Expected End Date</label>
                                     <input type="date" required value={formData.expected_end_date} onChange={(e) => setFormData({ ...formData, expected_end_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Total Budget (₹)</label>
-                                    <input type="number" required value={formData.total_budget} onChange={(e) => setFormData({ ...formData, total_budget: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                                 </div>
                             </div>
 

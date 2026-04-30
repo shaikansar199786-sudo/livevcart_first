@@ -21,6 +21,9 @@ class ProjectController
 
         $stmt = $this->conn->prepare($query);
 
+        // Primary head for main table
+        $primary_head_id = (!empty($data['project_heads']) && is_array($data['project_heads'])) ? $data['project_heads'][0] : ($data['project_head_id'] ?? null);
+
         $stmt->bindParam(':project_code', $project_code);
         $stmt->bindParam(':project_name', $data['project_name']);
         $stmt->bindParam(':client_id', $data['client_id']);
@@ -29,7 +32,7 @@ class ProjectController
         $stmt->bindParam(':start_date', $data['start_date']);
         $stmt->bindParam(':expected_end_date', $expected_end_date);
         $stmt->bindParam(':total_budget', $total_budget);
-        $stmt->bindParam(':project_head_id', $data['project_head_id']);
+        $stmt->bindParam(':project_head_id', $primary_head_id);
         $stmt->bindParam(':created_by', $data['created_by']);
 
         if ($stmt->execute()) {
@@ -41,7 +44,14 @@ class ProjectController
             $timeline->generateMasterTimeline($project_id, $data['start_date'], $expected_end_date, $data['created_by']);
 
             // 2. Assign Project Head explicitly in assignments table
-            $this->assignTeam($project_id, $data['project_head_id'], 'project_head');
+            if (isset($data['project_head_id']) && !empty($data['project_head_id'])) {
+                $this->assignTeam($project_id, $data['project_head_id'], 'project_head');
+            }
+            if (isset($data['project_heads']) && is_array($data['project_heads'])) {
+                foreach ($data['project_heads'] as $ph_id) {
+                    $this->assignTeam($project_id, $ph_id, 'project_head');
+                }
+            }
 
             // 3. Assign Site Engineers if provided
             if (isset($data['site_engineer_id'])) {

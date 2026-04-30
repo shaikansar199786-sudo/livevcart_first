@@ -85,5 +85,69 @@ class VendorController {
             return ["status" => "error", "message" => "Database Error: " . $e->getMessage()];
         }
     }
+
+    public function getGlobalData() {
+        try {
+            $response = [
+                'vendor_quta' => [],
+                'transport' => [],
+                'labor' => [],
+                'miscellaneous' => [],
+                'balance_sheet' => []
+            ];
+
+            // 1. Vendor Quta (from project_inventory)
+            $stmt1 = $this->conn->query("SELECT pi.*, p.project_name as site FROM project_inventory pi JOIN projects p ON pi.project_id = p.project_id");
+            $inventory = $stmt1->fetchAll(PDO::FETCH_ASSOC);
+            $groupedInventory = [];
+            foreach ($inventory as $row) {
+                $v = $row['vendor'] ? $row['vendor'] : 'Unknown Vendor';
+                if (!isset($groupedInventory[$v])) {
+                    $groupedInventory[$v] = ['vendor_name' => $v, 'items' => [], 'total_amount' => 0];
+                }
+                $groupedInventory[$v]['items'][] = $row;
+                $groupedInventory[$v]['total_amount'] += floatval($row['total']);
+            }
+            $response['vendor_quta'] = array_values($groupedInventory);
+
+            // 2. Finance categories
+            $stmt2 = $this->conn->query("SELECT ft.*, p.project_name as site FROM finance_transactions ft JOIN projects p ON ft.project_id = p.project_id WHERE ft.category IN ('Transport', 'Labor', 'Miscellaneous')");
+            $transactions = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+            
+            $groupedTransport = [];
+            $groupedLabor = [];
+            $groupedMisc = [];
+
+            foreach ($transactions as $t) {
+                $name = $t['person_name'] ? $t['person_name'] : 'Unknown';
+                $cat = strtolower($t['category']);
+                
+                if ($cat == 'transport') {
+                    if (!isset($groupedTransport[$name])) $groupedTransport[$name] = ['person_name' => $name, 'transactions' => [], 'total_payment' => 0];
+                    $groupedTransport[$name]['transactions'][] = $t;
+                    $groupedTransport[$name]['total_payment'] += $t['amount'];
+                } elseif ($cat == 'labor') {
+                    if (!isset($groupedLabor[$name])) $groupedLabor[$name] = ['person_name' => $name, 'transactions' => [], 'total_payment' => 0];
+                    $groupedLabor[$name]['transactions'][] = $t;
+                    $groupedLabor[$name]['total_payment'] += $t['amount'];
+                } elseif ($cat == 'miscellaneous') {
+                    if (!isset($groupedMisc[$name])) $groupedMisc[$name] = ['person_name' => $name, 'transactions' => [], 'total_payment' => 0];
+                    $groupedMisc[$name]['transactions'][] = $t;
+                    $groupedMisc[$name]['total_payment'] += $t['amount'];
+                }
+            }
+
+            $response['transport'] = array_values($groupedTransport);
+            $response['labor'] = array_values($groupedLabor);
+            $response['miscellaneous'] = array_values($groupedMisc);
+
+            // 3. Balance Sheet (Sum of vendor quta vs paid? The user just requested the tab. We can show overall balance per vendor)
+            // For now, we will return an empty array or basic stats for balance sheet
+            
+            return ["success" => true, "data" => $response];
+        } catch (PDOException $e) {
+            return ["success" => false, "message" => "Database Error: " . $e->getMessage()];
+        }
+    }
 }
 

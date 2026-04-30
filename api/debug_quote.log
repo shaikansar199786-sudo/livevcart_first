@@ -18619,3 +18619,1771 @@ Array
 
     [created_by] => 1
 )
+SAVE CALLED: 2026-04-30 12:44:37
+Array
+(
+    [project_id] => 12
+    [is_used_quote] => 
+    [total_amount] => 6122460
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [id] => 112
+                    [name] => A. FALSE CEILING
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1417
+                                    [particulars] => GYPSUM
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 10000
+                                    [used_quantity] => 0
+                                    [rate] => 70
+                                    [amount] => 700000
+                                )
+
+                            [1] => Array
+                                (
+                                    [id] => 1418
+                                    [particulars] => PVC CEILING (IN BALCONY)
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 68
+                                    [used_quantity] => 0
+                                    [rate] => 420
+                                    [amount] => 28560
+                                )
+
+                            [2] => Array
+                                (
+                                    [id] => 1419
+                                    [particulars] => WOODEN CEILING (IN HALL)
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 45
+                                    [used_quantity] => 0
+                                    [rate] => 1500
+                                    [amount] => 67500
+                                )
+
+                        )
+
+                )
+
+            [1] => Array
+                (
+                    [id] => 113
+                    [name] => B. ELECTRICAL
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1420
+                                    [particulars] => 15W Lights
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 30
+                                    [used_quantity] => 0
+                                    [rate] => 700
+                                    [amount] => 21000
+                                )
+
+                            [1] => Array
+                                (
+                                    [id] => 1421
+                                    [particulars] => 6W Lights
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 5
+                                    [used_quantity] => 0
+                                    [rate] => 700
+                                    [amount] => 3500
+                                )
+
+                            [2] => Array
+                                (
+                                    [id] => 1422
+                                    [particulars] => 3W Lights
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 6
+                                    [used_quantity] => 0
+                                    [rate] => 700
+                                    [amount] => 4200
+                                )
+
+                            [3] => Array
+                                (
+                                    [id] => 1423
+                                    [particulars] => ROPE LIGHTS
+                                    [brand] => 
+                                    [unit] => rft
+                                    [quantity] => 75
+                                    [used_quantity] => 0
+                                    [rate] => 220
+                                    [amount] => 16500
+                                )
+
+                            [4] => Array
+                                (
+                                    [id] => 1424
+                                    [particulars] => PROFILE LIGHTS
+                                    [brand] => 
+                                    [unit] => rft
+                                    [quantity] => 44
+                                    [used_quantity] => 0
+                                    [rate] => 400
+                                    [amount] => 17600
+                                )
+
+                            [5] => Array
+                                (
+                                    [id] => 1425
+                                    [particulars] => FANS
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 7
+                                    [used_quantity] => 0
+                                    [rate] => 7500
+                                    [amount] => 52500
+                                )
+
+                            [6] => Array
+                                (
+                                    [id] => 1426
+                                    [particulars] => EXHAUST FANS IN WASH ROOMS
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 3
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 6000
+                                )
+
+                            [7] => Array
+                                (
+                                    [id] => 1427
+                                    [particulars] => ELECTRICIAN CHARGES
+                                    [brand] => 
+                                    [unit] => lumpsum
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 50000
+                                    [amount] => 50000
+                                )
+
+                            [8] => Array
+                                (
+                                    [id] => 1428
+                                    [particulars] => WIRING AND OTHER MATERIAL
+                                    [brand] => 
+                                    [unit] => lumpsum
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 50000
+                                    [amount] => 50000
+                                )
+
+                        )
+
+                )
+
+            [2] => Array
+                (
+                    [id] => 114
+                    [name] => C. FLOOR GUARD
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1429
+                                    [particulars] => FLOOR GUARD COVERING
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 1200
+                                    [used_quantity] => 0
+                                    [rate] => 9
+                                    [amount] => 10800
+                                )
+
+                        )
+
+                )
+
+            [3] => Array
+                (
+                    [id] => 115
+                    [name] => D. ANTI PEST
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1430
+                                    [particulars] => ANTI PEST TREATMENT
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 1200
+                                    [used_quantity] => 0
+                                    [rate] => 6
+                                    [amount] => 7200
+                                )
+
+                        )
+
+                )
+
+            [4] => Array
+                (
+                    [id] => 116
+                    [name] => E. WOOD WORK
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1431
+                                    [particulars] => 1. DRAWING ROOM
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [1] => Array
+                                (
+                                    [id] => 1432
+                                    [particulars] => Sofa backpanelling
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 100
+                                    [used_quantity] => 0
+                                    [rate] => 1500
+                                    [amount] => 150000
+                                )
+
+                            [2] => Array
+                                (
+                                    [id] => 1433
+                                    [particulars] => Duco paint
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 36
+                                    [used_quantity] => 0
+                                    [rate] => 800
+                                    [amount] => 28800
+                                )
+
+                            [3] => Array
+                                (
+                                    [id] => 1434
+                                    [particulars] => Mirror
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 18
+                                    [used_quantity] => 0
+                                    [rate] => 500
+                                    [amount] => 9000
+                                )
+
+                            [4] => Array
+                                (
+                                    [id] => 1435
+                                    [particulars] => Rafters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 18
+                                    [used_quantity] => 0
+                                    [rate] => 500
+                                    [amount] => 9000
+                                )
+
+                            [5] => Array
+                                (
+                                    [id] => 1436
+                                    [particulars] => Panelling (towards Handwash)
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 55
+                                    [used_quantity] => 0
+                                    [rate] => 1500
+                                    [amount] => 82500
+                                )
+
+                            [6] => Array
+                                (
+                                    [id] => 1437
+                                    [particulars] => mirrors
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 15
+                                    [used_quantity] => 0
+                                    [rate] => 500
+                                    [amount] => 7500
+                                )
+
+                            [7] => Array
+                                (
+                                    [id] => 1438
+                                    [particulars] => Wash area Storage
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 27
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 54000
+                                )
+
+                            [8] => Array
+                                (
+                                    [id] => 1439
+                                    [particulars] => Profile shutters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 20
+                                    [used_quantity] => 0
+                                    [rate] => 1250
+                                    [amount] => 25000
+                                )
+
+                            [9] => Array
+                                (
+                                    [id] => 1440
+                                    [particulars] => Puja Storage
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 12.5
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 25000
+                                )
+
+                            [10] => Array
+                                (
+                                    [id] => 1441
+                                    [particulars] => Corian work
+                                    [brand] => 
+                                    [unit] => lumpsum
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 120000
+                                    [amount] => 120000
+                                )
+
+                            [11] => Array
+                                (
+                                    [id] => 1442
+                                    [particulars] => Console beside puja
+                                    [brand] => 
+                                    [unit] => lumpsum
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 50000
+                                    [amount] => 50000
+                                )
+
+                            [12] => Array
+                                (
+                                    [id] => 1443
+                                    [particulars] => 2. LIVING ROOM
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [13] => Array
+                                (
+                                    [id] => 1444
+                                    [particulars] => TV UNIT Panelling
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 65
+                                    [used_quantity] => 0
+                                    [rate] => 1500
+                                    [amount] => 97500
+                                )
+
+                            [14] => Array
+                                (
+                                    [id] => 1445
+                                    [particulars] => TV UNIT Mirrors
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 8
+                                    [used_quantity] => 0
+                                    [rate] => 500
+                                    [amount] => 4000
+                                )
+
+                            [15] => Array
+                                (
+                                    [id] => 1446
+                                    [particulars] => TV UNIT Rafters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 10
+                                    [used_quantity] => 0
+                                    [rate] => 500
+                                    [amount] => 5000
+                                )
+
+                            [16] => Array
+                                (
+                                    [id] => 1447
+                                    [particulars] => TV UNIT Storage
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 15
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 30000
+                                )
+
+                            [17] => Array
+                                (
+                                    [id] => 1448
+                                    [particulars] => Texture paint
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 100
+                                    [used_quantity] => 0
+                                    [rate] => 500
+                                    [amount] => 50000
+                                )
+
+                            [18] => Array
+                                (
+                                    [id] => 1449
+                                    [particulars] => Panelling above flush doors
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 8
+                                    [used_quantity] => 0
+                                    [rate] => 1500
+                                    [amount] => 12000
+                                )
+
+                            [19] => Array
+                                (
+                                    [id] => 1450
+                                    [particulars] => 3. KITCHEN
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [20] => Array
+                                (
+                                    [id] => 1451
+                                    [particulars] => Box work
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 234
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 468000
+                                )
+
+                            [21] => Array
+                                (
+                                    [id] => 1452
+                                    [particulars] => Tandem drawers
+                                    [brand] => 
+                                    [unit] => no.s
+                                    [quantity] => 5
+                                    [used_quantity] => 0
+                                    [rate] => 5750
+                                    [amount] => 28750
+                                )
+
+                            [22] => Array
+                                (
+                                    [id] => 1453
+                                    [particulars] => Corner unit
+                                    [brand] => 
+                                    [unit] => no.s
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 22000
+                                    [amount] => 22000
+                                )
+
+                            [23] => Array
+                                (
+                                    [id] => 1454
+                                    [particulars] => Bottle pull out
+                                    [brand] => 
+                                    [unit] => no.s
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 9200
+                                    [amount] => 9200
+                                )
+
+                            [24] => Array
+                                (
+                                    [id] => 1455
+                                    [particulars] => Drawer accessories
+                                    [brand] => 
+                                    [unit] => no.s
+                                    [quantity] => 2
+                                    [used_quantity] => 0
+                                    [rate] => 3500
+                                    [amount] => 7000
+                                )
+
+                            [25] => Array
+                                (
+                                    [id] => 1456
+                                    [particulars] => Vegetable baskets
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 2
+                                    [used_quantity] => 0
+                                    [rate] => 5750
+                                    [amount] => 11500
+                                )
+
+                            [26] => Array
+                                (
+                                    [id] => 1457
+                                    [particulars] => Profile shutters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 18
+                                    [used_quantity] => 0
+                                    [rate] => 1250
+                                    [amount] => 22500
+                                )
+
+                            [27] => Array
+                                (
+                                    [id] => 1458
+                                    [particulars] => 4. UTILITY
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [28] => Array
+                                (
+                                    [id] => 1459
+                                    [particulars] => Storage above counter
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 30
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 60000
+                                )
+
+                            [29] => Array
+                                (
+                                    [id] => 1460
+                                    [particulars] => Storage below counter
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 15
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 30000
+                                )
+
+                            [30] => Array
+                                (
+                                    [id] => 1461
+                                    [particulars] => 5. MASTER BEDROOM
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [31] => Array
+                                (
+                                    [id] => 1462
+                                    [particulars] => Wardrobe
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 76
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 152000
+                                )
+
+                            [32] => Array
+                                (
+                                    [id] => 1463
+                                    [particulars] => King size bed with side tables
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 60000
+                                    [amount] => 60000
+                                )
+
+                            [33] => Array
+                                (
+                                    [id] => 1464
+                                    [particulars] => TV Backpanel
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 110
+                                    [used_quantity] => 0
+                                    [rate] => 110
+                                    [amount] => 12100
+                                )
+
+                            [34] => Array
+                                (
+                                    [id] => 1465
+                                    [particulars] => TV Rafters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 56
+                                    [used_quantity] => 0
+                                    [rate] => 500
+                                    [amount] => 28000
+                                )
+
+                            [35] => Array
+                                (
+                                    [id] => 1466
+                                    [particulars] => TV Drawers
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 4
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 8000
+                                )
+
+                            [36] => Array
+                                (
+                                    [id] => 1467
+                                    [particulars] => Dresser
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 10
+                                    [used_quantity] => 0
+                                    [rate] => 1500
+                                    [amount] => 15000
+                                )
+
+                            [37] => Array
+                                (
+                                    [id] => 1468
+                                    [particulars] => Mirror
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 10
+                                    [used_quantity] => 0
+                                    [rate] => 800
+                                    [amount] => 8000
+                                )
+
+                            [38] => Array
+                                (
+                                    [id] => 1469
+                                    [particulars] => 6. SON'S BEDROOM
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [39] => Array
+                                (
+                                    [id] => 1470
+                                    [particulars] => Wardrobe-1
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 48
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 96000
+                                )
+
+                            [40] => Array
+                                (
+                                    [id] => 1471
+                                    [particulars] => Profile shutters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 31
+                                    [used_quantity] => 0
+                                    [rate] => 1250
+                                    [amount] => 38750
+                                )
+
+                            [41] => Array
+                                (
+                                    [id] => 1472
+                                    [particulars] => Bed back texture paint
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 108
+                                    [used_quantity] => 0
+                                    [rate] => 500
+                                    [amount] => 54000
+                                )
+
+                            [42] => Array
+                                (
+                                    [id] => 1473
+                                    [particulars] => King size bed with side tables
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 60000
+                                    [amount] => 60000
+                                )
+
+                            [43] => Array
+                                (
+                                    [id] => 1474
+                                    [particulars] => Study table storage
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 2
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 4000
+                                )
+
+                            [44] => Array
+                                (
+                                    [id] => 1475
+                                    [particulars] => Study table shelves
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 4
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 8000
+                                )
+
+                            [45] => Array
+                                (
+                                    [id] => 1476
+                                    [particulars] => Metal supports
+                                    [brand] => 
+                                    [unit] => lumpsum
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 10000
+                                    [amount] => 10000
+                                )
+
+                            [46] => Array
+                                (
+                                    [id] => 1477
+                                    [particulars] => Mirror beside bed
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 10000
+                                    [amount] => 10000
+                                )
+
+                            [47] => Array
+                                (
+                                    [id] => 1478
+                                    [particulars] => Dresser wardrobe-2
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 34
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 68000
+                                )
+
+                            [48] => Array
+                                (
+                                    [id] => 1479
+                                    [particulars] => Dresser Profile shutters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 12
+                                    [used_quantity] => 0
+                                    [rate] => 1250
+                                    [amount] => 15000
+                                )
+
+                            [49] => Array
+                                (
+                                    [id] => 1480
+                                    [particulars] => Mirror (sensor)
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 21
+                                    [used_quantity] => 0
+                                    [rate] => 800
+                                    [amount] => 16800
+                                )
+
+                            [50] => Array
+                                (
+                                    [id] => 1481
+                                    [particulars] => 7. DAUGHTER'S BEDROOM
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [51] => Array
+                                (
+                                    [id] => 1482
+                                    [particulars] => Wardrobe
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 76
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 152000
+                                )
+
+                            [52] => Array
+                                (
+                                    [id] => 1483
+                                    [particulars] => Profile shutter
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 12
+                                    [used_quantity] => 0
+                                    [rate] => 1250
+                                    [amount] => 15000
+                                )
+
+                            [53] => Array
+                                (
+                                    [id] => 1484
+                                    [particulars] => Storage beside study
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 21
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 42000
+                                )
+
+                            [54] => Array
+                                (
+                                    [id] => 1485
+                                    [particulars] => Bed backpanel Wallpaper
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 6500
+                                    [amount] => 6500
+                                )
+
+                            [55] => Array
+                                (
+                                    [id] => 1486
+                                    [particulars] => King size bed with side tables
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 60000
+                                    [amount] => 60000
+                                )
+
+                            [56] => Array
+                                (
+                                    [id] => 1487
+                                    [particulars] => Dresser
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 14
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 28000
+                                )
+
+                            [57] => Array
+                                (
+                                    [id] => 1488
+                                    [particulars] => 9. BALCONY
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [58] => Array
+                                (
+                                    [id] => 1489
+                                    [particulars] => Mirror (sensor)
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 10000
+                                    [amount] => 10000
+                                )
+
+                            [59] => Array
+                                (
+                                    [id] => 1490
+                                    [particulars] => Study cum sewing table
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 22
+                                    [used_quantity] => 0
+                                    [rate] => 850
+                                    [amount] => 18700
+                                )
+
+                            [60] => Array
+                                (
+                                    [id] => 1491
+                                    [particulars] => Shelves
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 8
+                                    [used_quantity] => 0
+                                    [rate] => 850
+                                    [amount] => 6800
+                                )
+
+                            [61] => Array
+                                (
+                                    [id] => 1492
+                                    [particulars] => Shelves with metal edge
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 8
+                                    [used_quantity] => 0
+                                    [rate] => 1000
+                                    [amount] => 8000
+                                )
+
+                            [62] => Array
+                                (
+                                    [id] => 1493
+                                    [particulars] => Rafters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 54
+                                    [used_quantity] => 0
+                                    [rate] => 800
+                                    [amount] => 43200
+                                )
+
+                            [63] => Array
+                                (
+                                    [id] => 1494
+                                    [particulars] => BAR UNIT
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 26
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 52000
+                                )
+
+                            [64] => Array
+                                (
+                                    [id] => 1495
+                                    [particulars] => Profile shutters
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 20
+                                    [used_quantity] => 0
+                                    [rate] => 1250
+                                    [amount] => 25000
+                                )
+
+                            [65] => Array
+                                (
+                                    [id] => 1496
+                                    [particulars] => Backsplash Panelling
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 6
+                                    [used_quantity] => 0
+                                    [rate] => 850
+                                    [amount] => 5100
+                                )
+
+                        )
+
+                )
+
+            [5] => Array
+                (
+                    [id] => 117
+                    [name] => F. GRANITE AND TILES WORK
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1497
+                                    [particulars] => Kitchen quartz counter top
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 40
+                                    [used_quantity] => 0
+                                    [rate] => 2400
+                                    [amount] => 96000
+                                )
+
+                            [1] => Array
+                                (
+                                    [id] => 1498
+                                    [particulars] => Kitchen Backsplash tiles
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 120
+                                    [used_quantity] => 0
+                                    [rate] => 250
+                                    [amount] => 30000
+                                )
+
+                            [2] => Array
+                                (
+                                    [id] => 1499
+                                    [particulars] => Wash area quartz counter top
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 5
+                                    [used_quantity] => 0
+                                    [rate] => 2400
+                                    [amount] => 12000
+                                )
+
+                            [3] => Array
+                                (
+                                    [id] => 1500
+                                    [particulars] => Backsplash (base)
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 12
+                                    [used_quantity] => 0
+                                    [rate] => 250
+                                    [amount] => 3000
+                                )
+
+                            [4] => Array
+                                (
+                                    [id] => 1501
+                                    [particulars] => Puja counter top
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 12
+                                    [used_quantity] => 0
+                                    [rate] => 2400
+                                    [amount] => 28800
+                                )
+
+                            [5] => Array
+                                (
+                                    [id] => 1502
+                                    [particulars] => Corian work
+                                    [brand] => 
+                                    [unit] => lumpsum
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 150000
+                                    [amount] => 150000
+                                )
+
+                            [6] => Array
+                                (
+                                    [id] => 1503
+                                    [particulars] => Backsplash & tiles
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 35
+                                    [used_quantity] => 0
+                                    [rate] => 400
+                                    [amount] => 14000
+                                )
+
+                            [7] => Array
+                                (
+                                    [id] => 1504
+                                    [particulars] => Toilet Vanities Counter top
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 12
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 24000
+                                )
+
+                            [8] => Array
+                                (
+                                    [id] => 1505
+                                    [particulars] => Utility Granite top & supports
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 56
+                                    [used_quantity] => 0
+                                    [rate] => 1200
+                                    [amount] => 67200
+                                )
+
+                        )
+
+                )
+
+            [6] => Array
+                (
+                    [id] => 118
+                    [name] => G. MISC.
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1506
+                                    [particulars] => Cushion work in MBR
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 18
+                                    [used_quantity] => 0
+                                    [rate] => 650
+                                    [amount] => 11700
+                                )
+
+                            [1] => Array
+                                (
+                                    [id] => 1507
+                                    [particulars] => Cushion work in KBR
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 18
+                                    [used_quantity] => 0
+                                    [rate] => 650
+                                    [amount] => 11700
+                                )
+
+                            [2] => Array
+                                (
+                                    [id] => 1508
+                                    [particulars] => Cushion work in GBR
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 18
+                                    [used_quantity] => 0
+                                    [rate] => 650
+                                    [amount] => 11700
+                                )
+
+                            [3] => Array
+                                (
+                                    [id] => 1509
+                                    [particulars] => Vanities in bathrooms (woodwork)
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 12
+                                    [used_quantity] => 0
+                                    [rate] => 2000
+                                    [amount] => 24000
+                                )
+
+                        )
+
+                )
+
+            [7] => Array
+                (
+                    [id] => 119
+                    [name] => H. PAINTING
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1510
+                                    [particulars] => Royale shyne (putty+primer+2 coats)
+                                    [brand] => 
+                                    [unit] => sft
+                                    [quantity] => 4000
+                                    [used_quantity] => 0
+                                    [rate] => 30
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [id] => 1511
+                                    [particulars] => Flush Door polishing
+                                    [brand] => 
+                                    [unit] => lumpsum
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 120000
+                                    [amount] => 120000
+                                )
+
+                        )
+
+                )
+
+            [8] => Array
+                (
+                    [id] => 120
+                    [name] => I. APPLIANCES
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1512
+                                    [particulars] => Home appliances
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 20000
+                                    [amount] => 20000
+                                )
+
+                            [1] => Array
+                                (
+                                    [id] => 1513
+                                    [particulars] => HOB
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 25000
+                                    [amount] => 25000
+                                )
+
+                            [2] => Array
+                                (
+                                    [id] => 1514
+                                    [particulars] => Chimney
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 45000
+                                    [amount] => 45000
+                                )
+
+                            [3] => Array
+                                (
+                                    [id] => 1515
+                                    [particulars] => In-built microwave oven
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 80000
+                                    [amount] => 80000
+                                )
+
+                            [4] => Array
+                                (
+                                    [id] => 1516
+                                    [particulars] => Washing machine
+                                    [brand] => 
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 80000
+                                    [amount] => 80000
+                                )
+
+                            [5] => Array
+                                (
+                                    [id] => 1517
+                                    [particulars] => Acs
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 6
+                                    [used_quantity] => 0
+                                    [rate] => 65000
+                                    [amount] => 390000
+                                )
+
+                            [6] => Array
+                                (
+                                    [id] => 1518
+                                    [particulars] => Fridge
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 70000
+                                    [amount] => 70000
+                                )
+
+                        )
+
+                )
+
+            [9] => Array
+                (
+                    [id] => 121
+                    [name] => J. MISCELLANEOUS (LOOSE FURNITURE & DECOR)
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [id] => 1519
+                                    [particulars] => 1. LOOSE FURNITURE
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [1] => Array
+                                (
+                                    [id] => 1520
+                                    [particulars] => L shape sofa
+                                    [brand] => Customised
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 150000
+                                    [amount] => 150000
+                                )
+
+                            [2] => Array
+                                (
+                                    [id] => 1521
+                                    [particulars] => 3 seater sofa
+                                    [brand] => Customised
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 80000
+                                    [amount] => 80000
+                                )
+
+                            [3] => Array
+                                (
+                                    [id] => 1522
+                                    [particulars] => Accent chair
+                                    [brand] => Customised
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 25000
+                                    [amount] => 25000
+                                )
+
+                            [4] => Array
+                                (
+                                    [id] => 1523
+                                    [particulars] => Centre table
+                                    [brand] => Customised
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 25000
+                                    [amount] => 25000
+                                )
+
+                            [5] => Array
+                                (
+                                    [id] => 1524
+                                    [particulars] => Dining table
+                                    [brand] => Customised
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 50000
+                                    [amount] => 50000
+                                )
+
+                            [6] => Array
+                                (
+                                    [id] => 1525
+                                    [particulars] => Son's room Study Chair
+                                    [brand] => Customised
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 10000
+                                    [amount] => 10000
+                                )
+
+                            [7] => Array
+                                (
+                                    [id] => 1526
+                                    [particulars] => Study Chair in MBR
+                                    [brand] => NA
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 60000
+                                    [amount] => 60000
+                                )
+
+                            [8] => Array
+                                (
+                                    [id] => 1527
+                                    [particulars] => Pouffes (Family Hall)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 6000
+                                    [amount] => 6000
+                                )
+
+                            [9] => Array
+                                (
+                                    [id] => 1528
+                                    [particulars] => Window bench (Son Room)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 2
+                                    [used_quantity] => 0
+                                    [rate] => 4500
+                                    [amount] => 9000
+                                )
+
+                            [10] => Array
+                                (
+                                    [id] => 1529
+                                    [particulars] => Pouffes (Daughter Room)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 6000
+                                    [amount] => 6000
+                                )
+
+                            [11] => Array
+                                (
+                                    [id] => 1530
+                                    [particulars] => Study Chair (Daughter Room)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 4500
+                                    [amount] => 4500
+                                )
+
+                            [12] => Array
+                                (
+                                    [id] => 1531
+                                    [particulars] => 2. BED ACCESSORIES
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [13] => Array
+                                (
+                                    [id] => 1532
+                                    [particulars] => Mattresses & pillows
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 8000
+                                    [amount] => 8000
+                                )
+
+                            [14] => Array
+                                (
+                                    [id] => 1533
+                                    [particulars] => Bedcovers & duvets
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 3
+                                    [used_quantity] => 0
+                                    [rate] => 15000
+                                    [amount] => 45000
+                                )
+
+                            [15] => Array
+                                (
+                                    [id] => 1534
+                                    [particulars] => 3. SINKS & TAPS
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [16] => Array
+                                (
+                                    [id] => 1535
+                                    [particulars] => Sinks (Kitchen/Utility/Wash)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 3
+                                    [used_quantity] => 0
+                                    [rate] => 5500
+                                    [amount] => 16500
+                                )
+
+                            [17] => Array
+                                (
+                                    [id] => 1536
+                                    [particulars] => Kitchen Tap
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 15000
+                                    [amount] => 15000
+                                )
+
+                            [18] => Array
+                                (
+                                    [id] => 1537
+                                    [particulars] => Utility Tap
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 10000
+                                    [amount] => 10000
+                                )
+
+                            [19] => Array
+                                (
+                                    [id] => 1538
+                                    [particulars] => Wash area Tap
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 10000
+                                    [amount] => 10000
+                                )
+
+                            [20] => Array
+                                (
+                                    [id] => 1539
+                                    [particulars] => 4. LIGHTS & DECOR
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [21] => Array
+                                (
+                                    [id] => 1540
+                                    [particulars] => Chandelier in hall
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 30000
+                                    [amount] => 30000
+                                )
+
+                            [22] => Array
+                                (
+                                    [id] => 1541
+                                    [particulars] => Hanging lights (Daughter Room)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 15000
+                                    [amount] => 15000
+                                )
+
+                            [23] => Array
+                                (
+                                    [id] => 1542
+                                    [particulars] => Curtains (Complete Home)
+                                    [brand] => lumpsum
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 200000
+                                    [amount] => 200000
+                                )
+
+                            [24] => Array
+                                (
+                                    [id] => 1543
+                                    [particulars] => Carpet (Living Room)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 35000
+                                    [amount] => 35000
+                                )
+
+                            [25] => Array
+                                (
+                                    [id] => 1544
+                                    [particulars] => Carpet (Son Room)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 35000
+                                    [amount] => 35000
+                                )
+
+                            [26] => Array
+                                (
+                                    [id] => 1545
+                                    [particulars] => Carpet (Daughter Room)
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 35000
+                                    [amount] => 35000
+                                )
+
+                            [27] => Array
+                                (
+                                    [id] => 1546
+                                    [particulars] => Artwork
+                                    [brand] => no
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 40000
+                                    [amount] => 40000
+                                )
+
+                            [28] => Array
+                                (
+                                    [id] => 1547
+                                    [particulars] => Side tables
+                                    [brand] => nos
+                                    [unit] => no
+                                    [quantity] => 4
+                                    [used_quantity] => 0
+                                    [rate] => 18000
+                                    [amount] => 72000
+                                )
+
+                            [29] => Array
+                                (
+                                    [id] => 1548
+                                    [particulars] => Wallpapers
+                                    [brand] => no.s
+                                    [unit] => no
+                                    [quantity] => 6
+                                    [used_quantity] => 0
+                                    [rate] => 6000
+                                    [amount] => 36000
+                                )
+
+                            [30] => Array
+                                (
+                                    [id] => 1549
+                                    [particulars] => 5. BATHROOMS & MISC
+                                    [brand] => HEADER
+                                    [unit] => 
+                                    [quantity] => 0
+                                    [used_quantity] => 0
+                                    [rate] => 0
+                                    [amount] => 0
+                                )
+
+                            [31] => Array
+                                (
+                                    [id] => 1550
+                                    [particulars] => Glass partitions
+                                    [brand] => no.s
+                                    [unit] => no
+                                    [quantity] => 1
+                                    [used_quantity] => 0
+                                    [rate] => 25000
+                                    [amount] => 25000
+                                )
+
+                            [32] => Array
+                                (
+                                    [id] => 1551
+                                    [particulars] => Bathroom accessories
+                                    [brand] => no.s
+                                    [unit] => no
+                                    [quantity] => 3
+                                    [used_quantity] => 0
+                                    [rate] => 3000
+                                    [amount] => 9000
+                                )
+
+                            [33] => Array
+                                (
+                                    [id] => 1552
+                                    [particulars] => Balcony clothes hangers
+                                    [brand] => no.s
+                                    [unit] => no
+                                    [quantity] => 2
+                                    [used_quantity] => 0
+                                    [rate] => 6000
+                                    [amount] => 12000
+                                )
+
+                            [34] => Array
+                                (
+                                    [id] => 1553
+                                    [particulars] => Step dustbins
+                                    [brand] => no.s
+                                    [unit] => no
+                                    [quantity] => 5
+                                    [used_quantity] => 0
+                                    [rate] => 4000
+                                    [amount] => 20000
+                                )
+
+                            [35] => Array
+                                (
+                                    [id] => 1554
+                                    [particulars] => Doormats
+                                    [brand] => no.s
+                                    [unit] => no
+                                    [quantity] => 8
+                                    [used_quantity] => 0
+                                    [rate] => 600
+                                    [amount] => 4800
+                                )
+
+                        )
+
+                )
+
+        )
+
+    [created_by] => 1
+)

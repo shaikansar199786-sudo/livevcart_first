@@ -3,11 +3,12 @@ import {
     LayoutDashboard,
     Users,
     Briefcase,
-    LogOut,
     CreditCard,
     FileText,
     Truck,
-    HardHat
+    HardHat,
+    ShoppingCart,
+    LogOut
 } from 'lucide-react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -28,6 +29,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         { icon: Users, label: 'Clients', path: '/clients', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: Briefcase, label: 'Projects', path: '/projects', roles: ['principal_architect', 'admin', 'accountant', 'project_head', 'site_engineer'] },
         { icon: HardHat, label: 'Contractors', path: '/vendors', roles: ['principal_architect', 'admin', 'accountant', 'project_head'] },
+        { icon: ShoppingCart, label: 'Vendors', path: '/global-vendors', roles: ['principal_architect', 'admin', 'accountant', 'project_head'] },
         { icon: CreditCard, label: 'Finance', path: '/finance', roles: ['principal_architect', 'accountant'] },
         { icon: FileText, label: 'Agreements', path: '/agreements', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: FileText, label: 'Estimation Quota', path: '/quotes', roles: ['principal_architect', 'admin', 'accountant'] },

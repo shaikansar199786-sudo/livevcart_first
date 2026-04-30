@@ -44,6 +44,7 @@ export const Finance: React.FC = () => {
         category: 'advance',
         description: '',
         date: new Date().toISOString().split('T')[0],
+        payment_mode: 'UPI',
         recorded_by: user?.user_id || ''
     });
 
@@ -220,21 +221,8 @@ export const Finance: React.FC = () => {
                     <div className="premium-card" style={{ width: '100%', maxWidth: '550px' }}>
                         <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>Record Transaction</h3>
                         <form onSubmit={handleSubmit}>
-                            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', padding: '4px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, type: 'credit', category: 'advance' })}
-                                    style={{ flex: 1, padding: '10px', borderRadius: '6px', border: 'none', backgroundColor: formData.type === 'credit' ? 'white' : 'transparent', fontWeight: 600, boxShadow: formData.type === 'credit' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none' }}
-                                >
-                                    Payment Received
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, type: 'debit', category: 'material' })}
-                                    style={{ flex: 1, padding: '10px', borderRadius: '6px', border: 'none', backgroundColor: formData.type === 'debit' ? 'white' : 'transparent', fontWeight: 600, boxShadow: formData.type === 'debit' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none' }}
-                                >
-                                    Expense / Payment Paid
-                                </button>
+                            <div style={{ marginBottom: '24px', padding: '12px', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7', textAlign: 'center', fontWeight: 600, color: '#166534' }}>
+                                Recording Client Payment / Advance
                             </div>
 
                             <div style={{ marginBottom: '16px' }}>
@@ -253,22 +241,10 @@ export const Finance: React.FC = () => {
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Category</label>
                                     <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        {formData.type === 'credit' ? (
-                                            <>
-                                                <option value="advance">Advance Payment</option>
-                                                <option value="milestone_payment">Milestone Payment</option>
-                                                <option value="final_payment">Final Settlement</option>
-                                                <option value="retention">Retention</option>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <option value="material">Material Purchase</option>
-                                                <option value="vendor_payment">Vendor Payment</option>
-                                                <option value="labor_wages">Labor Wages</option>
-                                                <option value="site_petty_cash">Site Petty Cash</option>
-                                                <option value="consultancy">Consultancy Fees</option>
-                                            </>
-                                        )}
+                                        <option value="advance">Advance Payment</option>
+                                        <option value="mid_payment">Mid Payment</option>
+                                        <option value="final_payment">Final Payment</option>
+                                        <option value="additional_works">Additional Works</option>
                                     </select>
                                 </div>
                             </div>
@@ -278,9 +254,18 @@ export const Finance: React.FC = () => {
                                 <input type="date" required value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                             </div>
 
-                            <div style={{ marginBottom: '24px' }}>
+                            <div style={{ marginBottom: '16px' }}>
                                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Description / Notes</label>
                                 <textarea rows={2} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                            </div>
+
+                            <div style={{ marginBottom: '24px' }}>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Payment Mode</label>
+                                <select value={formData.payment_mode} onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+                                    <option value="UPI">UPI</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                </select>
                             </div>
 
                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>

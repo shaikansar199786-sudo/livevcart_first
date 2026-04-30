@@ -203,6 +203,8 @@ switch ($resource) {
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             if (isset($path_parts[1]) && $path_parts[1] === 'labor') {
                 echo json_encode($vendorCtrl->getLaborVendors());
+            } elseif (isset($path_parts[1]) && $path_parts[1] === 'global') {
+                echo json_encode($vendorCtrl->getGlobalData());
             } else {
                 echo json_encode($vendorCtrl->getAll());
             }

@@ -54,9 +54,7 @@ const STATE_COLORS: any = {
   done: "#70AD47",    // GREEN
   extended: "#FF0000", // RED (OVERDUE)
 };
-
 const BORDER = "1px solid #000";
-
 export default function Timeline() {
   const [cells, setCells] = useState(() => {
     const initial: any = {};
@@ -70,7 +68,6 @@ export default function Timeline() {
     });
     return initial;
   });
-
   function clickCell(taskId: number, col: number) {
     setCells((prev: any) => {
       const row = [...prev[taskId]];

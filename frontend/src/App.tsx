@@ -16,6 +16,7 @@ import Timeline from './pages/Timeline';
 import { ProjectDetails } from './pages/ProjectDetails';
 import { QuotesPage } from './pages/QuotesPage';
 import { Vendors } from './pages/Vendors';
+import { GlobalVendors } from './pages/GlobalVendors';
 
 const AppContent = () => {
   const { isAuthenticated, user } = useAuth();
@@ -39,6 +40,7 @@ const AppContent = () => {
         <Route path="/projects/:id" element={<ProjectDetails />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/vendors" element={<Vendors />} />
+        <Route path="/global-vendors" element={<GlobalVendors />} />
         <Route path="/finance" element={<Finance />} />
         <Route path='/timeline' element={<Timeline/>} />
         <Route path="/agreements" element={<Agreements />} />

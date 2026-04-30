@@ -92,7 +92,12 @@ export const ProjectDetails: React.FC = () => {
     const [showBudgetModal, setShowBudgetModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [budget, setBudget] = useState('');
-    const [payment, setPayment] = useState({ amount: '', description: 'Advance Payment' });
+    const [payment, setPayment] = useState({ 
+        amount: '', 
+        description: 'Advance Payment', 
+        payment_mode: 'UPI',
+        date: new Date().toISOString().split('T')[0]
+    });
     const [submitting, setSubmitting] = useState(false);
     const [quoteTotal, setQuoteTotal] = useState(0);
     const [inventoryTotal, setInventoryTotal] = useState(0);
@@ -212,12 +217,18 @@ export const ProjectDetails: React.FC = () => {
                 amount: payment.amount,
                 category: 'Payment',
                 description: payment.description,
-                date: new Date().toISOString().split('T')[0],
+                payment_mode: payment.payment_mode,
+                date: payment.date,
                 recorded_by: user?.user_id
             });
             if (response.data.success) {
                 setShowPaymentModal(false);
-                setPayment({ amount: '', description: 'Advance Payment' });
+                setPayment({ 
+                    amount: '', 
+                    description: 'Advance Payment', 
+                    payment_mode: 'UPI',
+                    date: new Date().toISOString().split('T')[0]
+                });
                 fetchProjectDetails();
                 fetchTransactions();
             } else {
@@ -266,9 +277,7 @@ export const ProjectDetails: React.FC = () => {
     if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}><Loader2 className="animate-spin" size={48} color="#253b50" /></div>;
     if (!project) return <div style={{ padding: '40px', textAlign: 'center' }}>Project not found</div>;
 
-    const totalBudgetNum = parseFloat(project.total_budget) || 1;
-    const completionPercentage = Math.round((project.total_paid / totalBudgetNum) * 100);
-    const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
+    const isAccountant = user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'principal_architect';
 
     const renderTabs = () => {
         const tabs = ['overview', 'timeline', 'quote', 'used_quote', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'balance_sheet'].filter(tab => {
@@ -329,8 +338,8 @@ export const ProjectDetails: React.FC = () => {
                 <div style={{ display: 'flex', gap: '12px' }}>
                     {isAccountant && activeTab === 'overview' && (
                         <>
-                            <button onClick={() => setShowBudgetModal(true)} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.9rem', backgroundColor: '#253b50' }}>
-                                Update Budget
+                            <button onClick={openEditModal} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.9rem', backgroundColor: '#253b50', color: 'white' }}>
+                                Edit Project
                             </button>
                             <button onClick={() => setShowPaymentModal(true)} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.9rem' }}>
                                 Add Payment
@@ -364,7 +373,7 @@ export const ProjectDetails: React.FC = () => {
                 {renderTabs()}
             </div>
 
-            {activeTab === 'overview' && <OverviewTab project={project} completionPercentage={completionPercentage} isAccountant={isAccountant} setShowBudgetModal={setShowBudgetModal} />}
+            {activeTab === 'overview' && <OverviewTab project={project} quoteTotal={quoteTotal} isAccountant={isAccountant} />}
             {activeTab === 'timeline' && <TimelineTab project={project} user={user} />}
             {activeTab === 'quote' && <QuoteTab project={project} setQuoteTotal={setQuoteTotal} isReadOnly={user?.role === 'project_head' || user?.role === 'site_engineer'} user={user} isUsedQuote={false} />}
             {activeTab === 'used_quote' && <QuoteTab project={project} setQuoteTotal={setQuoteTotal} isReadOnly={user?.role === 'project_head' || user?.role === 'site_engineer'} user={user} isUsedQuote={true} />}
@@ -527,7 +536,9 @@ export const ProjectDetails: React.FC = () => {
     );
 };
 
-const OverviewTab = ({ project, completionPercentage, isAccountant, setShowBudgetModal }: any) => (
+const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
+    const progress = Math.round((project.total_paid / (quoteTotal || 1)) * 100);
+    return (
     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div className="premium-card">
@@ -559,50 +570,35 @@ const OverviewTab = ({ project, completionPercentage, isAccountant, setShowBudge
 
             <div className="premium-card">
                 <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 700 }}>Financial Overview</h3>
-                {parseFloat(project.total_budget) === 0 ? (
-                    <div style={{ padding: '30px', textAlign: 'center', backgroundColor: '#fff7ed', borderRadius: '12px', border: '1px dashed #fdba74' }}>
-                        <p style={{ color: '#9a3412', fontWeight: 600, marginBottom: '12px' }}>Project Value Not Set</p>
-                        {isAccountant ? (
-                            <button onClick={() => setShowBudgetModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 auto' }}>
-                                <Plus size={18} /> Set Project Budget
-                            </button>
-                        ) : (
-                            <p style={{ fontSize: '0.9rem', color: '#6b7280' }}>Waiting for accountant to finalize project value.</p>
-                        )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                    <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', marginBottom: '8px' }}>
+                            <Briefcase size={16} /> <span style={{ fontSize: '0.85rem' }}>Project Quote (Budget)</span>
+                        </div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#253b50' }}>₹{quoteTotal.toLocaleString()}</div>
                     </div>
-                ) : (
-                    <>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-                            <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', marginBottom: '8px' }}>
-                                    <Briefcase size={16} /> <span style={{ fontSize: '0.85rem' }}>Total Value</span>
-                                </div>
-                                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#253b50' }}>₹{parseFloat(project.total_budget).toLocaleString()}</div>
-                            </div>
-                            <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', marginBottom: '8px' }}>
-                                    <CheckCircle2 size={16} /> <span style={{ fontSize: '0.85rem' }}>Paid Amount</span>
-                                </div>
-                                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#15803d' }}>₹{project.total_paid.toLocaleString()}</div>
-                            </div>
-                            <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #ffedd5' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9a3412', marginBottom: '8px' }}>
-                                    <CreditCard size={16} /> <span style={{ fontSize: '0.85rem' }}>Remaining</span>
-                                </div>
-                                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c' }}>₹{project.remaining_balance.toLocaleString()}</div>
-                            </div>
+                    <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', marginBottom: '8px' }}>
+                            <CheckCircle2 size={16} /> <span style={{ fontSize: '0.85rem' }}>Paid Amount</span>
                         </div>
-                        <div style={{ marginTop: '24px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>Payment Progress</span>
-                                <span style={{ fontWeight: 700, color: '#253b50' }}>{completionPercentage}% Received</span>
-                            </div>
-                            <div style={{ width: '100%', height: '8px', backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
-                                <div style={{ width: `${completionPercentage}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.5s ease' }}></div>
-                            </div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#15803d' }}>₹{project.total_paid.toLocaleString()}</div>
+                    </div>
+                    <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #ffedd5' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9a3412', marginBottom: '8px' }}>
+                            <CreditCard size={16} /> <span style={{ fontSize: '0.85rem' }}>Remaining</span>
                         </div>
-                    </>
-                )}
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c' }}>₹{(quoteTotal - project.total_paid).toLocaleString()}</div>
+                    </div>
+                </div>
+                <div style={{ marginTop: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>Payment Progress</span>
+                        <span style={{ fontWeight: 700, color: '#253b50' }}>{progress}% Received</span>
+                    </div>
+                    <div style={{ width: '100%', height: '8px', backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.5s ease' }}></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -625,7 +621,8 @@ const OverviewTab = ({ project, completionPercentage, isAccountant, setShowBudge
             </div>
         </div>
     </div>
-);
+    );
+};
 
 
 const QuoteTab = ({ project, setQuoteTotal, isReadOnly, user, isUsedQuote }: any) => {
@@ -1911,7 +1908,7 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
 
     const totalSpent = inventoryTotal + transportTotal + laborTotal + miscTotal;
     const profitOrLoss = quoteTotal - totalSpent;
-    const remainingBalance = parseFloat(project.total_budget) - project.total_paid;
+    const remainingBalance = quoteTotal - project.total_paid;
 
     return (
         <div className="balance-sheet">
@@ -1942,7 +1939,7 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
                 <div className="premium-card" style={{ borderLeft: '5px solid #253b50', padding: '24px', backgroundColor: '#f8fafc' }}>
                     <p style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase' }}>Total Project Budget</p>
                     <h3 style={{ fontWeight: 800, color: '#253b50', fontSize: '1.8rem' }}>
-                        ₹{parseFloat(project.total_budget).toLocaleString()}
+                        ₹{quoteTotal.toLocaleString()}
                     </h3>
                 </div>
 
@@ -2099,9 +2096,21 @@ const PaymentModal = ({ payment, setPayment, submitting, handleRecordPayment, se
                     <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Amount Received (₹)</label>
                     <input type="number" required value={payment.amount} onChange={(e) => setPayment({ ...payment, amount: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
                 </div>
-                <div style={{ marginBottom: '20px' }}>
+                <div style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Description</label>
                     <input type="text" required value={payment.description} onChange={(e) => setPayment({ ...payment, description: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Transaction Date</label>
+                    <input type="date" required value={payment.date} onChange={(e) => setPayment({ ...payment, date: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Payment Mode</label>
+                    <select value={payment.payment_mode} onChange={(e) => setPayment({ ...payment, payment_mode: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }}>
+                        <option value="UPI">UPI</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
                 </div>
                 <button type="submit" disabled={submitting} className="btn-primary" style={{ width: '100%' }}>
                     {submitting ? 'Recording...' : 'Save Payment'}

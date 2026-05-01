@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import {
     Search,
     Plus,
@@ -65,7 +66,7 @@ export const Clients: React.FC = () => {
 
     const fetchClients = async () => {
         try {
-            const response = await axios.get('http://localhost/ARK/api/clients');
+            const response = await axios.get(`${API_BASE_URL}/clients`);
             if (response.data.success) {
                 setClients(response.data.data);
             }
@@ -78,7 +79,7 @@ export const Clients: React.FC = () => {
 
     const fetchTeam = async () => {
         try {
-            const response = await axios.get('http://localhost/ARK/api/users');
+            const response = await axios.get(`${API_BASE_URL}/users`);
             if (response.data.success) {
                 setTeam(response.data.data);
             }
@@ -91,7 +92,7 @@ export const Clients: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/clients', {
+            const response = await axios.post(`${API_BASE_URL}/clients`, {
                 ...clientForm,
                 created_by: user?.user_id
             });
@@ -120,7 +121,8 @@ export const Clients: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/projects', {
+            const response = await axios.post(`${API_BASE_URL}/projects`, {
+
                 ...projectForm,
                 client_id: selectedClient?.client_id,
                 total_budget: projectForm.total_budget || 0,
@@ -182,8 +184,8 @@ export const Clients: React.FC = () => {
                                 <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
                             ) : clients.length === 0 ? (
                                 <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>No entries found. Click "Add Registry" to create one.</td></tr>
-                            ) : clients.map((client) => (
-                                <tr key={client.client_id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            ) : clients.map((client, idx) => (
+                                <tr key={`${client.client_id}-${idx}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                     <td style={{ padding: '16px' }}>
                                         <span style={{ fontWeight: 700, color: '#253b50' }}>{client.client_code}</span>
                                     </td>

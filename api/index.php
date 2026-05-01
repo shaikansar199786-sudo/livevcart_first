@@ -30,6 +30,8 @@ require_once 'controllers/QuoteController.php';
 require_once 'controllers/DashboardController.php';
 require_once 'controllers/TimelineController.php';
 require_once 'controllers/VendorController.php';
+require_once 'controllers/StockCategoryController.php';
+
 
 // Simple Router
 $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -196,6 +198,18 @@ switch ($resource) {
             } elseif (isset($path_parts[1])) {
                 echo json_encode($timeline->getTimeline($path_parts[1]));
             }
+        }
+        break;
+    case 'stock-categories':
+        $stockCtrl = new StockCategoryController($conn);
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            $p_id = $_GET['project_id'] ?? null;
+            echo json_encode(["success" => true, "data" => $stockCtrl->getProjectCategories($p_id)]);
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            echo json_encode($stockCtrl->addCategory($input));
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $id = $path_parts[1] ?? null;
+            echo json_encode($stockCtrl->deleteCategory($id));
         }
         break;
     case 'vendors':

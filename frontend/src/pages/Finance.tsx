@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { useAuth } from '../hooks/useAuth';
 import {
     TrendingUp,
@@ -32,19 +33,19 @@ interface Project {
 export const Finance: React.FC = () => {
     const { user } = useAuth();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [projects, setProjects] = useState<Project[]>([]);
+    const [projects, setProjects] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
         project_id: '',
-        type: 'credit',
+        type: 'debit',
+        category: 'Transport',
         amount: '',
-        category: 'advance',
         description: '',
+        payment_mode: 'Cash',
         date: new Date().toISOString().split('T')[0],
-        payment_mode: 'UPI',
         recorded_by: user?.user_id || ''
     });
 
@@ -53,15 +54,16 @@ export const Finance: React.FC = () => {
     }, []);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             const [transRes, projRes] = await Promise.all([
-                axios.get('http://localhost/ARK/api/finance'),
-                axios.get('http://localhost/ARK/api/projects')
+                axios.get(`${API_BASE_URL}/finance`),
+                axios.get(`${API_BASE_URL}/projects`)
             ]);
-            setTransactions(transRes.data.data);
-            setProjects(projRes.data.data);
+            setTransactions(transRes.data.data || []);
+            setProjects(projRes.data.data || []);
         } catch (err) {
-            console.error('Failed to fetch finance data');
+            console.error('Failed to fetch data');
         } finally {
             setLoading(false);
         }
@@ -71,7 +73,7 @@ export const Finance: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/finance', formData);
+            const response = await axios.post(`${API_BASE_URL}/finance`, formData);
             if (response.data.success) {
                 setShowModal(false);
                 setFormData({ ...formData, amount: '', description: '' });
@@ -185,8 +187,8 @@ export const Finance: React.FC = () => {
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
-                            ) : transactions.map((t) => (
-                                <tr key={t.transaction_id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            ) : transactions.map((t, idx) => (
+                                <tr key={`${t.transaction_id}-${idx}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                     <td style={{ padding: '16px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                             <div style={{

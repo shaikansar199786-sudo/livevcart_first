@@ -485,6 +485,15 @@ export const QuotesPage: React.FC = () => {
                 .print-only { display: none; }
                 input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
                 input, textarea { border: none; outline: none; width: 100%; }
+                @media (max-width: 768px) {
+                    .quote-container {
+                        overflow-x: auto !important;
+                        -webkit-overflow-scrolling: touch;
+                    }
+                    .quote-container table {
+                        min-width: 800px;
+                    }
+                }
             `}</style>
         </div>
     );

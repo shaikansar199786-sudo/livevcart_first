@@ -8,8 +8,11 @@ import {
     Truck,
     HardHat,
     ShoppingCart,
-    LogOut
+    LogOut,
+    Menu,
+    X
 } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import logo from '../assets/logo_new.png';
@@ -18,6 +21,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -39,9 +43,24 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     const menuItems = allMenuItems.filter(item => user && item.roles.includes(user.role as any));
 
     return (
-        <div className="layout-container">
-            <aside className="sidebar" style={{ width: '280px', height: '100vh', position: 'fixed', left: 0, top: 0, backgroundColor: '#1a222c', color: 'white', display: 'flex', flexDirection: 'column', borderRight: '1px solid #2d3748' }}>
-                <div className="sidebar-header" style={{ padding: '32px 24px', textAlign: 'center', borderBottom: '1px solid #2d3748' }}>
+        <div className="layout-container" style={{ overflowX: 'hidden' }}>
+            {/* Mobile Overlay */}
+            {isSidebarOpen && (
+                <div 
+                    onClick={() => setIsSidebarOpen(false)}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 90 }}
+                />
+            )}
+
+            <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`} style={{ width: '280px', height: '100vh', position: 'fixed', left: 0, top: 0, backgroundColor: '#1a222c', color: 'white', display: 'flex', flexDirection: 'column', borderRight: '1px solid #2d3748', zIndex: 100 }}>
+                <div className="sidebar-header" style={{ padding: '32px 24px', textAlign: 'center', borderBottom: '1px solid #2d3748', position: 'relative' }}>
+                    <button 
+                        className="no-print"
+                        onClick={() => setIsSidebarOpen(false)}
+                        style={{ position: 'absolute', right: '10px', top: '10px', background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: window.innerWidth <= 1024 ? 'block' : 'none' }}
+                    >
+                        <X size={24} />
+                    </button>
                     <div style={{
                         width: '220px',
                         margin: '0 auto',
@@ -61,6 +80,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                 <li key={index} style={{ marginBottom: '6px' }}>
                                     <Link
                                         to={item.path}
+                                        onClick={() => setIsSidebarOpen(false)}
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -102,7 +122,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </div>
             </aside>
             <main className="main-content">
-                <header style={{
+                <header className="layout-header no-print" style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -110,9 +130,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     borderBottom: '1px solid #e5e7eb',
                     paddingBottom: '20px'
                 }}>
-                    <div>
-                        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>ARK Management System</h1>
-                        <p style={{ color: '#6b7280' }}>Dashboard / {menuItems.find(i => i.path === location.pathname)?.label || 'Overview'}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <button 
+                            onClick={() => setIsSidebarOpen(true)}
+                            style={{ display: 'none', background: 'none', border: 'none', color: '#253b50', cursor: 'pointer' }}
+                            className="mobile-menu-btn"
+                        >
+                            <Menu size={28} />
+                        </button>
+                        <div>
+                            <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>ARK Management</h1>
+                            <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{menuItems.find(i => i.path === location.pathname)?.label || 'Overview'}</p>
+                        </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                         <div style={{ textAlign: 'right' }}>

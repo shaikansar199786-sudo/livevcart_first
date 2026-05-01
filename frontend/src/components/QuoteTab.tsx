@@ -28,6 +28,8 @@ interface QuoteTabProps {
     hideSave?: boolean;
 }
 
+import { API_BASE_URL } from '../config';
+
 const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly, user, isUsedQuote, hideSave }) => {
     const [sections, setSections] = useState<QuoteSection[]>([
         {
@@ -74,7 +76,7 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
     const fetchQuote = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`http://localhost/ARK/api/quotes/latest?project_id=${project.project_id}&is_used=${isUsedQuote}`);
+            const response = await axios.get(`${API_BASE_URL}/quotes/latest?project_id=${project.project_id}&is_used=${isUsedQuote}`);
             if (response.data.success && response.data.data) {
                 const mappedSections = response.data.data.sections.map((s: any) => ({
                     id: s.section_id,
@@ -103,7 +105,8 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
         setSaving(true);
         try {
             const total = getGrandTotal();
-            const response = await axios.post('http://localhost/ARK/api/quotes/save', {
+            const response = await axios.post(`${API_BASE_URL}/quotes/save`, {
+
                 project_id: project.project_id,
                 is_used_quote: isUsedQuote,
                 total_amount: total,

@@ -36,6 +36,8 @@ interface TeamMember {
     role: string;
 }
 
+import { API_BASE_URL } from '../config';
+
 export const Projects: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -69,9 +71,9 @@ export const Projects: React.FC = () => {
         setLoading(true);
         try {
             const [projectsRes, clientsRes, teamRes] = await Promise.all([
-                axios.get(`http://localhost/ARK/api/projects?user_id=${user.user_id}&role=${user.role}`),
-                axios.get('http://localhost/ARK/api/clients'),
-                axios.get('http://localhost/ARK/api/users')
+                axios.get(`${API_BASE_URL}/projects?user_id=${user.user_id}&role=${user.role}`),
+                axios.get(`${API_BASE_URL}/clients`),
+                axios.get(`${API_BASE_URL}/users`)
             ]);
             setProjects(projectsRes.data.data || []);
             setClients(clientsRes.data.data || []);
@@ -87,7 +89,8 @@ export const Projects: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/projects', {
+            const response = await axios.post(`${API_BASE_URL}/projects`, {
+
                 ...formData,
                 total_budget: 0
             });
@@ -141,7 +144,11 @@ export const Projects: React.FC = () => {
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '24px' }}>
+                <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))', 
+                    gap: '24px' 
+                }}>
                     {loading ? (
                         <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></div>
                     ) : projects.length === 0 ? (

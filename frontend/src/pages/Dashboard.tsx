@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { API_BASE_URL } from '../config';
 
 const COLORS = ['#253b50', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
@@ -39,7 +40,7 @@ export const Dashboard: React.FC = () => {
 
     const fetchDashboardData = async () => {
         try {
-            const response = await axios.get('http://localhost/ARK/api/dashboard');
+            const response = await axios.get(`${API_BASE_URL}/dashboard`);
             setStats(response.data.data);
         } catch (err) {
             console.error('Error fetching dashboard stats');
@@ -73,53 +74,7 @@ export const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '20px' }}>
-                <div className="premium-card">
-                    <h3 style={{ marginBottom: '20px', fontSize: '1.1rem', fontWeight: 600 }}>Project Budgets</h3>
-                    <div style={{ width: '100%', minWidth: 0 }}>
-                        <ResponsiveContainer width="100%" height={300} aspect={2}>
-                            <BarChart data={stats.recent_projects_data}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="project_name" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value / 1000}k`} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                                    formatter={(value: any) => [`₹${parseFloat(value).toLocaleString()}`, 'Budget']}
-                                />
-                                <Bar dataKey="total_budget" fill="#253b50" radius={[4, 4, 0, 0]} barSize={40} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                <div className="premium-card">
-                    <h3 style={{ marginBottom: '20px', fontSize: '1.1rem', fontWeight: 600 }}>Expense Categorization</h3>
-                    <div style={{ width: '100%', minWidth: 0 }}>
-                        <ResponsiveContainer width="100%" height={300} aspect={2}>
-                            <PieChart>
-                                <Pie
-                                    data={stats.expense_category_data}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={100}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {stats.expense_category_data.map((_: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                                    formatter={(value: any) => `₹${parseFloat(value).toLocaleString()}`}
-                                />
-                                <Legend verticalAlign="bottom" height={36} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
+            {/* Charts section removed */}
 
             <div style={{ marginTop: '20px' }} className="premium-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

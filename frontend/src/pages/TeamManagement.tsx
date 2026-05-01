@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { UserPlus, User, Phone, Search, Loader2, Eye, EyeOff, Trash2 } from 'lucide-react';
 
 interface UserMember {
@@ -23,7 +24,7 @@ export const TeamManagement: React.FC = () => {
         if (!window.confirm('Are you sure you want to deactivate this staff member? They will no longer be able to log in, but their data will be preserved.')) return;
 
         try {
-            const response = await axios.delete(`http://localhost/ARK/api/users/${userId}`);
+            const response = await axios.delete(`${API_BASE_URL}/users/${userId}`);
             if (response.data.success) {
                 fetchMembers();
             }
@@ -49,7 +50,7 @@ export const TeamManagement: React.FC = () => {
 
     const fetchMembers = async () => {
         try {
-            const response = await axios.get('http://localhost/ARK/api/users');
+            const response = await axios.get(`${API_BASE_URL}/users`);
             if (response.data.success) {
                 setMembers(response.data.data);
             }
@@ -64,7 +65,7 @@ export const TeamManagement: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/users', formData);
+            const response = await axios.post(`${API_BASE_URL}/users`, formData);
             if (response.data.success) {
                 setShowAddModal(false);
                 setFormData({

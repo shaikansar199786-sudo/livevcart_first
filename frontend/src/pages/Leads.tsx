@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { useAuth } from '../hooks/useAuth';
 import {
   UserPlus,
@@ -62,7 +63,7 @@ export const Leads: React.FC = () => {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost/ARK/api/leads');
+      const response = await axios.get(`${API_BASE_URL}/leads`);
       if (response.data.success) {
         setLeads(response.data.data);
       }
@@ -75,7 +76,7 @@ export const Leads: React.FC = () => {
 
   const fetchTeam = async () => {
     try {
-      const response = await axios.get('http://localhost/ARK/api/users');
+      const response = await axios.get(`${API_BASE_URL}/users`);
       if (response.data.success) {
         setTeam(response.data.data);
       }
@@ -86,7 +87,7 @@ export const Leads: React.FC = () => {
 
   const handleStatusUpdate = async (lead_id: string, newStatus: string) => {
     try {
-      const response = await axios.post('http://localhost/ARK/api/leads/update-status', {
+      const response = await axios.post(`${API_BASE_URL}/leads/update-status`, {
         lead_id,
         status: newStatus
       });
@@ -111,7 +112,7 @@ export const Leads: React.FC = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const response = await axios.post('http://localhost/ARK/api/leads/update-status', {
+      const response = await axios.post(`${API_BASE_URL}/leads/update-status`, {
         lead_id: selectedLead?.lead_id,
         status: 'won',
         data: {
@@ -154,7 +155,7 @@ export const Leads: React.FC = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const response = await axios.put('http://localhost/ARK/api/leads', {
+      const response = await axios.put(`${API_BASE_URL}/leads`, {
         ...formData,
         lead_id: editingLead?.lead_id
       });
@@ -174,7 +175,7 @@ export const Leads: React.FC = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const response = await axios.post('http://localhost/ARK/api/leads', {
+      const response = await axios.post(`${API_BASE_URL}/leads`, {
         ...formData,
         created_by: user?.user_id
       });

@@ -69,7 +69,10 @@ interface QuoteSection {
     items: QuoteItem[];
 }
 
+import { API_BASE_URL } from '../config';
+
 export const ProjectDetails: React.FC = () => {
+
     const printRef = useRef<HTMLDivElement>(null);
     const { id } = useParams();
     const { user } = useAuth();
@@ -92,9 +95,9 @@ export const ProjectDetails: React.FC = () => {
     const [showBudgetModal, setShowBudgetModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [budget, setBudget] = useState('');
-    const [payment, setPayment] = useState({ 
-        amount: '', 
-        description: 'Advance Payment', 
+    const [payment, setPayment] = useState({
+        amount: '',
+        description: 'Advance Payment',
         payment_mode: 'UPI',
         date: new Date().toISOString().split('T')[0]
     });
@@ -128,7 +131,7 @@ export const ProjectDetails: React.FC = () => {
 
     const fetchQuoteTotal = async () => {
         try {
-            const response = await axios.get(`http://localhost/ARK/api/quotes/latest?project_id=${id}&is_used=false`);
+            const response = await axios.get(`${API_BASE_URL}/quotes/latest?project_id=${id}&is_used=false`);
             if (response.data.success && response.data.data) {
                 setQuoteTotal(parseFloat(response.data.data.total_amount));
             }
@@ -139,7 +142,7 @@ export const ProjectDetails: React.FC = () => {
 
     const fetchInventoryTotal = async () => {
         try {
-            const res = await fetch(`http://localhost/ARK/api/controllers/Inventoryproject.php?project_id=${id}`);
+            const res = await fetch(`${API_BASE_URL}/controllers/Inventoryproject.php?project_id=${id}`);
             const data = await res.json();
             if (data.status === "success" && data.data.length > 0) {
                 const total = data.data.reduce((sum: number, item: any) => sum + Number(item.total), 0);
@@ -152,7 +155,7 @@ export const ProjectDetails: React.FC = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await axios.get('http://localhost/ARK/api/users');
+            const response = await axios.get(`${API_BASE_URL}/users`);
             if (response.data.success) {
                 setAllUsers(response.data.data);
             }
@@ -161,7 +164,7 @@ export const ProjectDetails: React.FC = () => {
 
     const fetchProjectDetails = async () => {
         try {
-            const response = await axios.get(`http://localhost/ARK/api/projects/${id}`);
+            const response = await axios.get(`${API_BASE_URL}/projects/${id}`);
             if (response.data.success) {
                 setProject(response.data.data);
                 setBudget(response.data.data.total_budget);
@@ -175,7 +178,7 @@ export const ProjectDetails: React.FC = () => {
 
     const fetchTransactions = async () => {
         try {
-            const response = await axios.get(`http://localhost/ARK/api/finance/${id}`);
+            const response = await axios.get(`${API_BASE_URL}/finance/${id}`);
             if (response.data.success) {
                 setTransactions(response.data.data);
             }
@@ -188,7 +191,7 @@ export const ProjectDetails: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/projects/update-budget', {
+            const response = await axios.post(`${API_BASE_URL}/projects/update-budget`, {
                 project_id: id,
                 budget: budget
             });
@@ -211,7 +214,7 @@ export const ProjectDetails: React.FC = () => {
         }
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/finance', {
+            const response = await axios.post(`${API_BASE_URL}/finance`, {
                 project_id: id,
                 type: 'credit',
                 amount: payment.amount,
@@ -223,9 +226,9 @@ export const ProjectDetails: React.FC = () => {
             });
             if (response.data.success) {
                 setShowPaymentModal(false);
-                setPayment({ 
-                    amount: '', 
-                    description: 'Advance Payment', 
+                setPayment({
+                    amount: '',
+                    description: 'Advance Payment',
                     payment_mode: 'UPI',
                     date: new Date().toISOString().split('T')[0]
                 });
@@ -257,7 +260,7 @@ export const ProjectDetails: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.put('http://localhost/ARK/api/projects', {
+            const response = await axios.put(`${API_BASE_URL}/projects`, {
                 project_id: id,
                 ...editForm
             });
@@ -280,7 +283,8 @@ export const ProjectDetails: React.FC = () => {
     const isAccountant = user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'principal_architect';
 
     const renderTabs = () => {
-        const tabs = ['overview', 'timeline', 'quote', 'used_quote', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'balance_sheet'].filter(tab => {
+        const tabs = ['overview', 'timeline', 'quote', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'balance_sheet'].filter(tab => {
+
             // Admin, Principal Architect, and Accountant see all tabs
             if (user?.role === 'admin' || user?.role === 'principal_architect' || user?.role === 'accountant') {
                 return true;
@@ -288,20 +292,22 @@ export const ProjectDetails: React.FC = () => {
 
             // Project Head sees these tabs
             if (user?.role === 'project_head') {
-                return ['timeline', 'quote', 'used_quote', 'vendor_quta', 'transport', 'labor', 'miscellaneous'].includes(tab);
+                return ['timeline', 'quote', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous'].includes(tab);
             }
+
 
             // Site Engineer ONLY sees timeline and used_quote
             if (user?.role === 'site_engineer') {
-                return ['timeline', 'used_quote'].includes(tab);
+                return ['timeline', 'stock_category'].includes(tab);
             }
+
 
             // Default visibility
             return tab === 'overview';
         });
 
         return (
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '1px' }}>
+            <div className="tabs-container" style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '1px' }}>
                 {tabs.map((tab) => (
                     <button
                         key={tab}
@@ -328,7 +334,7 @@ export const ProjectDetails: React.FC = () => {
 
     return (
         <div className={`project-details-page ${activeTab === 'timeline' ? 'timeline-print-mode' : ''}`}>
-            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div className="no-print top-action-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <button
                     onClick={() => navigate('/projects')}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer' }}
@@ -376,7 +382,8 @@ export const ProjectDetails: React.FC = () => {
             {activeTab === 'overview' && <OverviewTab project={project} quoteTotal={quoteTotal} isAccountant={isAccountant} />}
             {activeTab === 'timeline' && <TimelineTab project={project} user={user} />}
             {activeTab === 'quote' && <QuoteTab project={project} setQuoteTotal={setQuoteTotal} isReadOnly={user?.role === 'project_head' || user?.role === 'site_engineer'} user={user} isUsedQuote={false} />}
-            {activeTab === 'used_quote' && <QuoteTab project={project} setQuoteTotal={setQuoteTotal} isReadOnly={user?.role === 'project_head' || user?.role === 'site_engineer'} user={user} isUsedQuote={true} />}
+            {activeTab === 'stock_category' && <StockCategoryTab project={project} user={user} />}
+
             {activeTab === 'vendor_quta' && <InventoryTab key={project?.project_id} project={project} setInventoryTotal={setInventoryTotal} user={user} />}
             {activeTab === 'transport' && <ExpenseCategoryTab project={project} category="Transport" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
             {activeTab === 'labor' && <ExpenseCategoryTab project={project} category="Labor" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
@@ -531,6 +538,31 @@ export const ProjectDetails: React.FC = () => {
                         margin: 0 auto !important;
                     }
                 }
+                
+                @media (max-width: 768px) {
+                    .tabs-container, .top-action-bar {
+                        overflow-x: auto !important;
+                        white-space: nowrap !important;
+                        -webkit-overflow-scrolling: touch;
+                        scrollbar-width: none; /* Firefox */
+                        -ms-overflow-style: none; /* IE/Edge */
+                    }
+                    .tabs-container::-webkit-scrollbar, .top-action-bar::-webkit-scrollbar {
+                        display: none; /* Chrome/Safari */
+                    }
+                    .tabs-container button, .top-action-bar button, .top-action-bar div {
+                        flex-shrink: 0 !important;
+                    }
+                    .premium-card {
+                        overflow-x: auto !important;
+                        -webkit-overflow-scrolling: touch;
+                    }
+                    @media (max-width: 768px) {
+                        .grid-3-col, .grid-6-col {
+                            grid-template-columns: repeat(1, 1fr) !important;
+                        }
+                    }
+                }
             `}</style>
         </div>
     );
@@ -539,88 +571,88 @@ export const ProjectDetails: React.FC = () => {
 const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
     const progress = Math.round((project.total_paid / (quoteTotal || 1)) * 100);
     return (
-    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div className="premium-card">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                    <div>
-                        <h4 style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '8px' }}>Client Information</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 600 }}>
-                                <User size={16} color="#253b50" /> {project.client_name}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="premium-card">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        <div>
+                            <h4 style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '8px' }}>Client Information</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 600 }}>
+                                    <User size={16} color="#253b50" /> {project.client_name}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#253b50' }}>
+                                    <Phone size={16} /> <a href={`tel:${project.client_phone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{project.client_phone}</a>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#6b7280', fontSize: '0.85rem' }}>
+                                    <MapPin size={14} style={{ marginTop: '2px' }} />
+                                    <span>{project.site_address}</span>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#253b50' }}>
-                                <Phone size={16} /> <a href={`tel:${project.client_phone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{project.client_phone}</a>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#6b7280', fontSize: '0.85rem' }}>
-                                <MapPin size={14} style={{ marginTop: '2px' }} />
-                                <span>{project.site_address}</span>
+                        </div>
+                        <div>
+                            <h4 style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '8px' }}>Project Site Location</h4>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#253b50', fontWeight: 500 }}>
+                                <MapPin size={16} style={{ marginTop: '4px' }} />
+                                <span style={{ fontSize: '0.95rem' }}>{project.client_address}</span>
                             </div>
                         </div>
                     </div>
-                    <div>
-                        <h4 style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '8px' }}>Project Site Location</h4>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#253b50', fontWeight: 500 }}>
-                            <MapPin size={16} style={{ marginTop: '4px' }} />
-                            <span style={{ fontSize: '0.95rem' }}>{project.client_address}</span>
+                </div>
+
+                <div className="premium-card">
+                    <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 700 }}>Financial Overview</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                        <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', marginBottom: '8px' }}>
+                                <Briefcase size={16} /> <span style={{ fontSize: '0.85rem' }}>Project Quote (Budget)</span>
+                            </div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#253b50' }}>₹{quoteTotal.toLocaleString()}</div>
+                        </div>
+                        <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', marginBottom: '8px' }}>
+                                <CheckCircle2 size={16} /> <span style={{ fontSize: '0.85rem' }}>Paid Amount</span>
+                            </div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#15803d' }}>₹{project.total_paid.toLocaleString()}</div>
+                        </div>
+                        <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #ffedd5' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9a3412', marginBottom: '8px' }}>
+                                <CreditCard size={16} /> <span style={{ fontSize: '0.85rem' }}>Remaining</span>
+                            </div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c' }}>₹{(quoteTotal - project.total_paid).toLocaleString()}</div>
+                        </div>
+                    </div>
+                    <div style={{ marginTop: '24px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>Payment Progress</span>
+                            <span style={{ fontWeight: 700, color: '#253b50' }}>{progress}% Received</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.5s ease' }}></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="premium-card">
-                <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 700 }}>Financial Overview</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-                    <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', marginBottom: '8px' }}>
-                            <Briefcase size={16} /> <span style={{ fontSize: '0.85rem' }}>Project Quote (Budget)</span>
-                        </div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#253b50' }}>₹{quoteTotal.toLocaleString()}</div>
-                    </div>
-                    <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', marginBottom: '8px' }}>
-                            <CheckCircle2 size={16} /> <span style={{ fontSize: '0.85rem' }}>Paid Amount</span>
-                        </div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#15803d' }}>₹{project.total_paid.toLocaleString()}</div>
-                    </div>
-                    <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #ffedd5' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9a3412', marginBottom: '8px' }}>
-                            <CreditCard size={16} /> <span style={{ fontSize: '0.85rem' }}>Remaining</span>
-                        </div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c' }}>₹{(quoteTotal - project.total_paid).toLocaleString()}</div>
-                    </div>
-                </div>
-                <div style={{ marginTop: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>Payment Progress</span>
-                        <span style={{ fontWeight: 700, color: '#253b50' }}>{progress}% Received</span>
-                    </div>
-                    <div style={{ width: '100%', height: '8px', backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.5s ease' }}></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="premium-card">
+                    <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 700 }}>Assigned Team</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {project.team.map((member: any, idx: number) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '8px', backgroundColor: '#f8fafc' }}>
+                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#253b50', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                                    {member.name.charAt(0)}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{member.name}</p>
+                                    <p style={{ fontSize: '0.8rem', color: '#6b7280', textTransform: 'capitalize' }}>{member.assignment_role.replace('_', ' ')}</p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div className="premium-card">
-                <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 700 }}>Assigned Team</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {project.team.map((member: any, idx: number) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '8px', backgroundColor: '#f8fafc' }}>
-                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#253b50', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-                                {member.name.charAt(0)}
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{member.name}</p>
-                                <p style={{ fontSize: '0.8rem', color: '#6b7280', textTransform: 'capitalize' }}>{member.assignment_role.replace('_', ' ')}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    </div>
     );
 };
 
@@ -839,7 +871,7 @@ const QuoteTab = ({ project, setQuoteTotal, isReadOnly, user, isUsedQuote }: any
     const fetchQuote = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`http://localhost/ARK/api/quotes/latest?project_id=${project.project_id}&is_used=${isUsedQuote}`);
+            const response = await axios.get(`${API_BASE_URL}/quotes/latest?project_id=${project.project_id}&is_used=${isUsedQuote}`);
             if (response.data.success && response.data.data) {
                 // Map DB structure to frontend structure
                 const mappedSections = response.data.data.sections.map((s: any) => ({
@@ -869,7 +901,7 @@ const QuoteTab = ({ project, setQuoteTotal, isReadOnly, user, isUsedQuote }: any
         setSaving(true);
         try {
             const total = getGrandTotal();
-            const response = await axios.post('http://localhost/ARK/api/quotes/save', {
+            const response = await axios.post(`${API_BASE_URL}/quotes/save`, {
                 project_id: project.project_id,
                 is_used_quote: isUsedQuote,
                 total_amount: total,
@@ -1172,7 +1204,7 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
     useEffect(() => {
         if (!project?.project_id) return;
 
-        fetch(`http://localhost/ARK/api/controllers/Inventoryproject.php?project_id=${project.project_id}`)
+        fetch(`${API_BASE_URL}/controllers/Inventoryproject.php?project_id=${project.project_id}`)
             .then(res => res.json())
             .then(data => {
                 if (data.status === "success" && data.data.length > 0) {
@@ -1199,8 +1231,8 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
 
     useEffect(() => {
         if (!project?.project_id) return;
-        
-        fetch('http://localhost/ARK/api/vendors')
+
+        fetch(`${API_BASE_URL}/vendors`)
             .then(res => res.json())
             .then(data => {
                 if (data.status === "success") {
@@ -1353,6 +1385,7 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
         `;
 
         const win = window.open('', '', 'width=900,height=700');
+        if (!win) return;
         win.document.write(html);
         win.document.close();
         win.print();
@@ -1386,7 +1419,7 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
     // 💾 SAVE TO DB
     const saveInventory = async () => {
         try {
-            const res = await fetch(`http://localhost/ARK/api/controllers/Inventoryproject.php`, {
+            const res = await fetch(`${API_BASE_URL}/controllers/Inventoryproject.php`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1469,11 +1502,11 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                             const value = e.target.value;
                                             updateItem(i, 'vendor', value);
                                             const searchTerm = value.trim().toLowerCase();
-                                            
+
                                             // Combine global list with what's currently typed in the table
                                             const tableVendors = items.map(it => it.vendor).filter(v => v && v.trim() !== '');
                                             const combinedList = Array.from(new Set([...vendorList, ...tableVendors]));
-                                            
+
                                             const filtered = combinedList.filter(v =>
                                                 v.toLowerCase().includes(searchTerm)
                                             );
@@ -1533,23 +1566,24 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         const newVendor = item.vendor.trim();
-                                                        fetch("http://localhost/ARK/api/vendors", {
+                                                        fetch(`${API_BASE_URL}/vendors`, {
+
                                                             method: "POST",
                                                             headers: { "Content-Type": "application/json" },
-                                                            body: JSON.stringify({ 
+                                                            body: JSON.stringify({
                                                                 vendor: newVendor,
-                                                                user_id: user?.user_id || 1 
+                                                                user_id: user?.user_id || 1
                                                             })
                                                         })
-                                                        .then(res => res.json())
-                                                        .then(data => {
-                                                            if (data.status === "success") {
-                                                                setVendorList(prev => [...prev, newVendor]);
-                                                                alert(`"${newVendor}" saved globally!`);
-                                                            }
-                                                        })
-                                                        .catch(err => console.error(err));
-                                                        
+                                                            .then(res => res.json())
+                                                            .then(data => {
+                                                                if (data.status === "success") {
+                                                                    setVendorList(prev => [...prev, newVendor]);
+                                                                    alert(`"${newVendor}" saved globally!`);
+                                                                }
+                                                            })
+                                                            .catch(err => console.error(err));
+
                                                         setFilteredVendors([]);
                                                         setActiveIndex(null);
                                                     }}
@@ -1753,7 +1787,7 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
     // Standard fields
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
-    
+
     // Labor specific fields
     const [name, setName] = useState('');
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
@@ -1785,7 +1819,7 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
                 payload.description = description;
             }
 
-            const response = await axios.post('http://localhost/ARK/api/finance', payload);
+            const response = await axios.post(`${API_BASE_URL}/finance`, payload);
             if (response.data.success) {
                 setAmount('');
                 setDescription('');
@@ -1930,7 +1964,7 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
             </div>
 
             {/* ROW 1: BUDGET, PAID, REMAINING (3 COLUMNS) */}
-            <div style={{
+            <div className="grid-3-col" style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: '20px',
@@ -1959,7 +1993,7 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
             </div>
 
             {/* ROW 2: EXPENSE BREAKUP (6 COLUMNS) */}
-            <div style={{
+            <div className="grid-6-col" style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(6, 1fr)',
                 gap: '12px',
@@ -2066,6 +2100,117 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
         </div>
     );
 };
+
+const StockCategoryTab = ({ project, user }: any) => {
+    const [categories, setCategories] = useState<any[]>([]);
+    const [newCategory, setNewCategory] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        fetchCategories();
+    }, [project.project_id]);
+
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/stock-categories?project_id=${project.project_id}`);
+            if (res.data.success) {
+                setCategories(res.data.data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch stock categories");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAdd = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newCategory.trim()) return;
+        setSubmitting(true);
+        try {
+            const res = await axios.post(`${API_BASE_URL}/stock-categories`, {
+                project_id: project.project_id,
+                category_name: newCategory
+            });
+            if (res.data.success) {
+                setNewCategory('');
+                fetchCategories();
+            }
+        } catch (err) {
+            alert('Failed to add category');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!window.confirm('Delete this category?')) return;
+        try {
+            const res = await axios.delete(`${API_BASE_URL}/stock-categories/${id}`);
+            if (res.data.success) {
+                fetchCategories();
+            }
+        } catch (err) {
+            alert('Failed to delete category');
+        }
+    };
+
+    return (
+        <div className="premium-card" style={{ padding: '30px' }}>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '20px' }}>Add Stock Category</h3>
+
+            <form onSubmit={handleAdd} style={{ display: 'flex', gap: '15px', marginBottom: '30px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Category Name</label>
+                    <input 
+                        type="text" 
+                        required 
+                        value={newCategory} 
+                        onChange={(e) => setNewCategory(e.target.value)} 
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
+                        placeholder="e.g. Tiles, Plywood, Hardware..." 
+                    />
+                </div>
+                <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 25px' }}>
+                    {submitting ? 'Adding...' : 'Add Category'}
+                </button>
+            </form>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                    <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DATE ADDED</th>
+                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>CATEGORY NAME</th>
+                        <th style={{ padding: '12px', textAlign: 'right', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>ACTION</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {loading ? (
+                        <tr><td colSpan={3} style={{ textAlign: 'center', padding: '20px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
+                    ) : categories.length === 0 ? (
+                        <tr>
+                            <td colSpan={3} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                No stock categories added yet.
+                            </td>
+                        </tr>
+                    ) : categories.map((cat: any) => (
+                        <tr key={cat.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '12px', color: '#64748b' }}>{new Date(cat.created_at).toLocaleDateString()}</td>
+                            <td style={{ padding: '12px', fontWeight: 500 }}>{cat.category_name}</td>
+                            <td style={{ padding: '12px', textAlign: 'right' }}>
+                                <button onClick={() => handleDelete(cat.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                    <Trash2 size={18} />
+                                </button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
 
 // Modals
 const BudgetModal = ({ budget, setBudget, submitting, handleUpdateBudget, setShowBudgetModal }: any) => (
@@ -2207,7 +2352,7 @@ const TimelineTab = ({ project, user }: any) => {
             console.log("✅ FETCH PROJECT ID 👉", pid);
 
             const res = await axios.get(
-                `http://localhost/ARK/api/controllers/timeline/state.php?project_id=${pid}`
+                `${API_BASE_URL}/controllers/timeline/state.php?project_id=${pid}`
             );
 
             console.log("📦 API RESPONSE 👉", res.data);
@@ -2240,7 +2385,7 @@ const TimelineTab = ({ project, user }: any) => {
         saveTimeline(updatedTasks, completions);
     };
 
-    const saveTimeline = async (updatedTasks, updatedCompletions) => {
+    const saveTimeline = async (updatedTasks: any[], updatedCompletions: any) => {
 
         const payload = {
             project_id: project.project_id,
@@ -2251,7 +2396,7 @@ const TimelineTab = ({ project, user }: any) => {
         console.log("SENDING DATA 👉", payload);
 
         try {
-            const res = await fetch('http://localhost/ARK/api/controllers/timeline/save-state.php', {
+            const res = await fetch(`${API_BASE_URL}/controllers/timeline/save-state.php`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2313,9 +2458,9 @@ const TimelineTab = ({ project, user }: any) => {
 
             {/* TASK ASSIGNMENT FORM (ADMIN ONLY) */}
             {isAdmin && (
-                <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }} className="no-print">
+                <div style={{ marginBottom: '30px', marginTop: '20px', padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }} className="no-print">
                     <h3 style={{ marginBottom: '15px', fontSize: '1rem', fontWeight: 700 }}>Assign Work Schedule</h3>
-                    <form onSubmit={handleAddTask} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', alignItems: 'end' }}>
+                    <form onSubmit={handleAddTask} className="work-schedule-form">
                         <div>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Category</label>
                             <select value={newTask.category} onChange={(e) => setNewTask({ ...newTask, category: e.target.value, name: '' })} style={{ width: '100%', padding: '8px', borderRadius: '6px' }}>
@@ -2452,6 +2597,17 @@ const TimelineTab = ({ project, user }: any) => {
                 @media print {
                     .print-only { display: flex !important; }
                     .timeline-container { border: none !important; box-shadow: none !important; }
+                }
+                .work-schedule-form {
+                    display: grid;
+                    grid-template-columns: repeat(5, 1fr);
+                    gap: 10px;
+                    align-items: end;
+                }
+                @media (max-width: 768px) {
+                    .work-schedule-form {
+                        grid-template-columns: repeat(1, 1fr) !important;
+                    }
                 }
             `}</style>
         </div>

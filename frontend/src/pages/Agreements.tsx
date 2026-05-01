@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Printer } from "lucide-react";
+import { Printer } from "lucide-react";
 
 import Arch from "./Arch";
 import Interior from "./Interior";
@@ -40,10 +40,32 @@ const PRINT_CSS = `
 `;
 
 function PrintStyles() {
-  return <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />;
+  return (
+    <style dangerouslySetInnerHTML={{ __html: `
+      ${PRINT_CSS}
+      @media (max-width: 1024px) {
+        #agreement-container {
+          flex-direction: column !important;
+          padding: 10px !important;
+        }
+        #agreement-sidebar {
+          width: 100% !important;
+          max-height: 500px !important;
+          position: relative !important;
+          top: 0 !important;
+          margin-bottom: 20px !important;
+          overflow-y: auto !important;
+        }
+        .print-area {
+          width: 100% !important;
+          padding: 0 !important;
+        }
+      }
+    ` }} />
+  );
 }
 
-function convertNumberToWords(price) {
+function convertNumberToWords(price: string | number): string {
   if (!price) return "";
   const num = parseInt(price.toString().replace(/,/g, '').replace(/[^\d]/g, ''), 10);
   if (isNaN(num)) return "";
@@ -59,11 +81,11 @@ function convertNumberToWords(price) {
   if (!n) return "";
 
   let str = '';
-  str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
-  str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
-  str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
-  str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
-  str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+  str += (Number(n[1]) != 0) ? (a[Number(n[1])] || b[Number(n[1][0])] + ' ' + a[Number(n[1][1])]) + 'Crore ' : '';
+  str += (Number(n[2]) != 0) ? (a[Number(n[2])] || b[Number(n[2][0])] + ' ' + a[Number(n[2][1])]) + 'Lakh ' : '';
+  str += (Number(n[3]) != 0) ? (a[Number(n[3])] || b[Number(n[3][0])] + ' ' + a[Number(n[3][1])]) + 'Thousand ' : '';
+  str += (Number(n[4]) != 0) ? (a[Number(n[4])] || b[Number(n[4][0])] + ' ' + a[Number(n[4][1])]) + 'Hundred ' : '';
+  str += (Number(n[5]) != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[Number(n[5][0])] + ' ' + a[Number(n[5][1])]) : '';
 
   return str.trim() + " Only";
 }
@@ -88,7 +110,7 @@ export default function Agreements() {
     { stage: "Stage 7", description: "On Completion of the project", percentage: "10%" },
   ]);
 
-  const handleStageChange = (index, field, value) => {
+  const handleStageChange = (index: number, field: string, value: string) => {
     const updatedStages = [...paymentStages];
     updatedStages[index][field] = value;
     setPaymentStages(updatedStages);
@@ -98,7 +120,7 @@ export default function Agreements() {
     setPaymentStages([...paymentStages, { stage: "", description: "", percentage: "" }]);
   };
 
-  const removeStage = (index) => {
+  const removeStage = (index: number) => {
     setPaymentStages(paymentStages.filter((_, i) => i !== index));
   };
 
@@ -154,7 +176,7 @@ export default function Agreements() {
       </div>
 
       {/* MAIN LAYOUT */}
-      <div style={styles.container}>
+      <div style={styles.container} id="agreement-container">
 
         {/* LEFT SIDEBAR FORM */}
         <div className="no-print" style={styles.sidebar} id="agreement-sidebar">
@@ -343,13 +365,13 @@ const styles = {
 
   form: {
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column" as const,
     gap: "14px"
   },
 
   group: {
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column" as const,
     gap: "6px",
     fontSize: "13px"
   },

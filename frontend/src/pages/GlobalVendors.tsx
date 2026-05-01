@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export const GlobalVendors: React.FC = () => {
     const [activeTab, setActiveTab] = useState('vendor_quta');
@@ -20,7 +21,7 @@ export const GlobalVendors: React.FC = () => {
     const fetchGlobalData = async () => {
         setLoading(true);
         try {
-            const response = await axios.get('http://localhost/ARK/api/vendors/global');
+            const response = await axios.get(`${API_BASE_URL}/vendors/global`);
             if (response.data.success) {
                 setGlobalData(response.data.data);
             }
@@ -43,7 +44,7 @@ export const GlobalVendors: React.FC = () => {
         <div className="vendors-container" style={{ padding: '20px', width: '100%' }}>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#253b50', marginBottom: '20px' }}>Global Vendors</h1>
             
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', borderBottom: '2px solid #e2e8f0' }}>
+            <div className="tabs-container" style={{ display: 'flex', gap: '10px', marginBottom: '30px', borderBottom: '2px solid #e2e8f0' }}>
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
@@ -74,7 +75,7 @@ export const GlobalVendors: React.FC = () => {
                     {activeTab === 'vendor_quta' && (
                         globalData.vendor_quta.length > 0 ? (
                             globalData.vendor_quta.map((vendor: any, index: number) => (
-                                <div key={index} className="premium-card" style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', padding: 0 }}>
+                                <div key={index} className="premium-card vendor-card" style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', padding: 0 }}>
                                     <div style={{ backgroundColor: '#f8fafc', padding: '16px', textAlign: 'center', fontWeight: 800, fontSize: '1.2rem', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>
                                         {vendor.vendor_name}
                                     </div>
@@ -125,9 +126,9 @@ export const GlobalVendors: React.FC = () => {
 
                     {['transport', 'labor', 'miscellaneous'].includes(activeTab) && (
                         globalData[activeTab].length > 0 ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '30px' }}>
+                            <div className="vendors-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '30px' }}>
                                 {globalData[activeTab].map((person: any, index: number) => (
-                                    <div key={index} className="premium-card" style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', padding: 0 }}>
+                                    <div key={index} className="premium-card vendor-card" style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', padding: 0 }}>
                                         <div style={{ backgroundColor: '#f8fafc', padding: '16px', textAlign: 'center', fontWeight: 800, fontSize: '1.1rem', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>
                                             {person.person_name}
                                         </div>
@@ -177,6 +178,34 @@ export const GlobalVendors: React.FC = () => {
                     )}
                 </div>
             )}
+            <style>{`
+                @media (max-width: 768px) {
+                    .tabs-container {
+                        overflow-x: auto !important;
+                        white-space: nowrap !important;
+                        -webkit-overflow-scrolling: touch;
+                        scrollbar-width: none;
+                        -ms-overflow-style: none;
+                    }
+                    .tabs-container::-webkit-scrollbar {
+                        display: none;
+                    }
+                    .tabs-container button {
+                        flex-shrink: 0 !important;
+                    }
+                    .vendors-grid {
+                        grid-template-columns: repeat(1, 1fr) !important;
+                        gap: 20px !important;
+                    }
+                    .vendor-card {
+                        overflow-x: auto !important;
+                        -webkit-overflow-scrolling: touch;
+                    }
+                    .vendor-card table {
+                        min-width: 700px;
+                    }
+                }
+            `}</style>
         </div>
     );
 };

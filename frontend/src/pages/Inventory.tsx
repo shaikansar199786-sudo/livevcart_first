@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { useAuth } from '../hooks/useAuth';
 import {
     Package,
@@ -30,7 +31,7 @@ interface Project {
 export const Inventory: React.FC = () => {
     const { user } = useAuth();
     const [requests, setRequests] = useState<MaterialRequest[]>([]);
-    const [projects, setProjects] = useState<Project[]>([]);
+    const [projects, setProjects] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showRequestModal, setShowRequestModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -39,7 +40,7 @@ export const Inventory: React.FC = () => {
         project_id: '',
         item_name: '',
         quantity: '',
-        unit: 'pcs',
+        unit: 'nos',
         urgency: 'normal',
         requested_by: user?.user_id || ''
     });
@@ -49,25 +50,26 @@ export const Inventory: React.FC = () => {
     }, []);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
-            const [reqRes, projRes] = await Promise.all([
-                axios.get('http://localhost/ARK/api/inventory/requests'),
-                axios.get('http://localhost/ARK/api/projects')
+            const [requestsRes, projectsRes] = await Promise.all([
+                axios.get(`${API_BASE_URL}/inventory/requests`),
+                axios.get(`${API_BASE_URL}/projects`)
             ]);
-            setRequests(reqRes.data.data);
-            setProjects(projRes.data.data);
+            setRequests(requestsRes.data.data || []);
+            setProjects(projectsRes.data.data || []);
         } catch (err) {
-            console.error('Failed to fetch inventory data');
+            console.error('Failed to fetch data');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleStatusUpdate = async (request_id: string, status: string) => {
+    const handleStatusUpdate = async (requestId: string, status: string) => {
         try {
-            const response = await axios.post('http://localhost/ARK/api/inventory/update-request', {
-                request_id,
-                status,
+            const response = await axios.post(`${API_BASE_URL}/inventory/update-request`, {
+                request_id: requestId,
+                status: status,
                 user_id: user?.user_id
             });
             if (response.data.success) {
@@ -82,7 +84,7 @@ export const Inventory: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post('http://localhost/ARK/api/inventory/request', formData);
+            const response = await axios.post(`${API_BASE_URL}/inventory/request`, formData);
             if (response.data.success) {
                 setShowRequestModal(false);
                 setFormData({ ...formData, item_name: '', quantity: '' });
@@ -95,7 +97,7 @@ export const Inventory: React.FC = () => {
         }
     };
 
-    const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'project_head';
+    const isAdmin = user?.role === 'principal_architect' || user?.role === 'admin' || user?.role === 'project_head';
 
     return (
         <div className="inventory-page">

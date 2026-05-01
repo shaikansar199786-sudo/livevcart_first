@@ -5,6 +5,8 @@ import axios from 'axios';
 import { Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import logo from '../assets/Logo.png';
 
+import { API_BASE_URL } from '../config';
+
 export const Login: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -19,7 +21,8 @@ export const Login: React.FC = () => {
         setError('');
 
         try {
-            const response = await axios.post('http://localhost/ARK/api/auth/login', {
+            const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+
                 username,
                 password,
             });

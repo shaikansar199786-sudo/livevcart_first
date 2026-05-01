@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export const Vendors: React.FC = () => {
     const [activeTab, setActiveTab] = useState('labor');
@@ -16,7 +17,7 @@ export const Vendors: React.FC = () => {
     const fetchLaborers = async () => {
         setLoading(true);
         try {
-            const response = await axios.get('http://localhost/ARK/api/vendors/labor');
+            const response = await axios.get(`${API_BASE_URL}/vendors/labor`);
             if (response.data.success) {
                 setLaborers(response.data.data);
             }
@@ -55,10 +56,10 @@ export const Vendors: React.FC = () => {
                     <Loader2 className="animate-spin" size={48} color="#253b50" />
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '30px', alignItems: 'start' }}>
+                <div className="vendors-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '30px', alignItems: 'start' }}>
                     {laborers.length > 0 ? (
                         laborers.map((laborer, index) => (
-                            <div key={index} className="premium-card" style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', padding: 0 }}>
+                            <div key={index} className="premium-card vendor-card" style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', padding: 0 }}>
                                 <div style={{ backgroundColor: '#f8fafc', padding: '16px', textAlign: 'center', fontWeight: 800, fontSize: '1.1rem', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>
                                     {laborer.person_name}
                                 </div>
@@ -102,6 +103,20 @@ export const Vendors: React.FC = () => {
                     )}
                 </div>
             )}
+            <style>{`
+                @media (max-width: 768px) {
+                    .vendors-grid {
+                        grid-template-columns: repeat(1, 1fr) !important;
+                        gap: 20px !important;
+                    }
+                    .vendor-card {
+                        overflow-x: auto !important;
+                    }
+                    .vendor-card table {
+                        min-width: 600px;
+                    }
+                }
+            `}</style>
         </div>
     );
 };

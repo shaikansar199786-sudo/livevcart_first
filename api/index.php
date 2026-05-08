@@ -1,18 +1,32 @@
 <?php
 // api/index.php
 
-// CORS Headers
-if (isset($_SERVER['HTTP_ORIGIN'])) {
-    header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
+// CORS Headers — allow both local dev and production frontend
+$allowed_origins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'https://silver-walrus-702172.hostingersite.com',
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: $origin");
     header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
     header('Access-Control-Max-Age: 86400');
 }
 
+// Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD']))
-        header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
-    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']))
-        header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
+    if (in_array($origin, $allowed_origins)) {
+        // Headers already sent above, just exit
+        exit(0);
+    }
+    // If origin not allowed but it's an OPTIONS request, still exit to avoid errors
     exit(0);
 }
 
@@ -31,13 +45,15 @@ require_once 'controllers/DashboardController.php';
 require_once 'controllers/TimelineController.php';
 require_once 'controllers/VendorController.php';
 require_once 'controllers/StockCategoryController.php';
+require_once 'controllers/TeamTargetController.php';
+require_once 'controllers/ProjectTrackerController.php';
 
 
 // Simple Router
 $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-// Ensure base path matches the xampp folder structure
-$base_path = '/ARK/api/';
-$path = str_replace($base_path, '', $request_uri);
+// Dynamically detect base path — works on both localhost/ARK/api and Hostinger root
+$script_dir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+$path = $script_dir ? str_replace($script_dir . '/', '', $request_uri) : ltrim($request_uri, '/');
 $path_parts = explode('/', trim($path, '/'));
 
 $resource = $path_parts[0] ?? null;
@@ -93,9 +109,9 @@ switch ($resource) {
                 echo json_encode(["success" => true, "data" => $client->getAll()]);
             }
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $clientId = $client->create($input);
-            if ($clientId) {
-                echo json_encode(["success" => true, "message" => "Client created", "client_id" => $clientId]);
+            $result = $client->create($input);
+            if ($result) {
+                echo json_encode($result);
             } else {
                 echo json_encode(["success" => false, "message" => "Failed to create client"]);
             }
@@ -212,6 +228,28 @@ switch ($resource) {
             echo json_encode($stockCtrl->deleteCategory($id));
         }
         break;
+    case 'stock-items':
+        $stockCtrl = new StockCategoryController($conn);
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            $p_id = $_GET['project_id'] ?? null;
+            echo json_encode(["success" => true, "data" => $stockCtrl->getItems($p_id)]);
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (isset($path_parts[1]) && $path_parts[1] === 'transfer') {
+                echo json_encode($stockCtrl->transferItem($input));
+            } else {
+                echo json_encode($stockCtrl->addItem($input));
+            }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            if (isset($path_parts[1]) && $path_parts[1] === 'usage') {
+                echo json_encode($stockCtrl->updateUsage($input));
+            } else {
+                echo json_encode($stockCtrl->updateItem($input));
+            }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $id = $path_parts[1] ?? null;
+            echo json_encode($stockCtrl->deleteItem($id));
+        }
+        break;
     case 'vendors':
         $vendorCtrl = new VendorController($conn);
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -224,6 +262,28 @@ switch ($resource) {
             }
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode($vendorCtrl->create($input));
+        }
+        break;
+    case 'team-targets':
+        $targetCtrl = new TeamTargetController($conn);
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            $month = $_GET['month'] ?? null;
+            if ($month) {
+                echo json_encode(['success' => true, 'data' => $targetCtrl->getByMonth($month)]);
+            } else {
+                echo json_encode(['success' => true, 'data' => $targetCtrl->getMonths()]);
+            }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            echo json_encode($targetCtrl->save($input['month'], $input['rows']));
+        }
+        break;
+    case 'project-trackers':
+        $trackerCtrl = new ProjectTrackerController($conn);
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            $category = $_GET['category'] ?? 'interior';
+            echo json_encode(['success' => true, 'data' => $trackerCtrl->getByCategory($category)]);
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            echo json_encode($trackerCtrl->save($input['category'], $input['rows']));
         }
         break;
     default:

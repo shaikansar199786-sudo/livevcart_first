@@ -17,6 +17,8 @@ import { ProjectDetails } from './pages/ProjectDetails';
 import { QuotesPage } from './pages/QuotesPage';
 import { Vendors } from './pages/Vendors';
 import { GlobalVendors } from './pages/GlobalVendors';
+import { TeamTarget } from './pages/TeamTarget';
+import { ProjectTrackers } from './pages/ProjectTrackers';
 
 const AppContent = () => {
   const { isAuthenticated, user } = useAuth();
@@ -47,6 +49,12 @@ const AppContent = () => {
         <Route path="/quotes" element={<QuotesPage />} />
         {(user?.role === 'principal_architect' || user?.role === 'admin') && (
           <Route path="/team" element={<TeamManagement />} />
+        )}
+        {(user?.role === 'principal_architect' || user?.role === 'admin') && (
+          <Route path="/team-targets" element={<TeamTarget />} />
+        )}
+        {(user?.role === 'principal_architect' || user?.role === 'admin') && (
+          <Route path="/project-trackers" element={<ProjectTrackers />} />
         )}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

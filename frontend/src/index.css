@@ -12,7 +12,7 @@
   --bg-main: #f9fafb;
   --bg-card: #ffffff;
   --border: #e5e7eb;
-  
+
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -83,7 +83,7 @@ button {
   .sidebar {
     transform: translateX(-100%);
   }
-  
+
   .sidebar.open {
     transform: translateX(0);
   }
@@ -108,33 +108,41 @@ button {
   }
 }
 
-/* PRINT */
+/* PRINT UTILS */
+.print-only {
+  display: none !important;
+}
+
 @media print {
   @page {
     size: A4;
-    margin: 0;
+    margin: 5mm;
+    margin-top: 2mm;
   }
 
   .no-print {
     display: none !important;
   }
 
-  .print-area {
-    position: absolute;
-    top: -4%;
-    left: 0;
-    width: 800px;
+  .print-only {
+    display: block !important;
+    visibility: visible !important;
   }
+
   body * {
     visibility: hidden;
   }
 
-  .print-area, .print-area * {
-    visibility: visible;
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
   }
 
   .print-area {
-    transform: scale(0.9);
-    transform-origin: -10% left;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white;
   }
 }

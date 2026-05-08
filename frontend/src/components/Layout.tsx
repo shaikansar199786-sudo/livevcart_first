@@ -10,7 +10,8 @@ import {
     ShoppingCart,
     LogOut,
     Menu,
-    X
+    X,
+    Target
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -29,15 +30,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     };
 
     const allMenuItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['principal_architect', 'admin', 'accountant', 'project_head'] },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: Users, label: 'Clients', path: '/clients', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: Briefcase, label: 'Projects', path: '/projects', roles: ['principal_architect', 'admin', 'accountant', 'project_head', 'site_engineer'] },
-        { icon: HardHat, label: 'Contractors', path: '/vendors', roles: ['principal_architect', 'admin', 'accountant', 'project_head'] },
-        { icon: ShoppingCart, label: 'Vendors', path: '/global-vendors', roles: ['principal_architect', 'admin', 'accountant', 'project_head'] },
+        { icon: HardHat, label: 'Contractors', path: '/vendors', roles: ['principal_architect', 'admin', 'accountant'] },
+        { icon: ShoppingCart, label: 'Vendors', path: '/global-vendors', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: CreditCard, label: 'Finance', path: '/finance', roles: ['principal_architect', 'accountant'] },
         { icon: FileText, label: 'Agreements', path: '/agreements', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: FileText, label: 'Estimation Quota', path: '/quotes', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: Users, label: 'Team', path: '/team', roles: ['principal_architect'] },
+        { icon: Target, label: 'Team Target', path: '/team-targets', roles: ['principal_architect', 'admin'] },
+        { icon: LayoutDashboard, label: 'Project Tracker', path: '/project-trackers', roles: ['principal_architect', 'admin'] },
     ];
 
     const menuItems = allMenuItems.filter(item => user && item.roles.includes(user.role as any));

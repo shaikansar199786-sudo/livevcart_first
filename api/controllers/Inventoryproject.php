@@ -7,7 +7,7 @@ header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json");
 
 require_once __DIR__ . "/../config/database.php";
-
+$GLOBALS['conn'] = getMysqliConnection();
 class Inventoryproject
 {
 
@@ -36,17 +36,26 @@ class Inventoryproject
         // delete old
         $conn->query("DELETE FROM project_inventory WHERE project_id = '$project_id'");
 
-        // Check and add discount column if not exists
+        // Check and add columns if not exists
         try {
             $conn->query("ALTER TABLE project_inventory ADD COLUMN discount DECIMAL(10,2) DEFAULT 0 AFTER quantity");
         } catch (Exception $e) {
-            // Ignore if column already exists
+        }
+        try {
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN invoice_no VARCHAR(100) DEFAULT NULL AFTER project_id");
+        } catch (Exception $e) {
+        }
+        try {
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN invoice_date DATE DEFAULT NULL AFTER invoice_no");
+        } catch (Exception $e) {
         }
 
         foreach ($items as $item) {
 
-            $vendor = $item->vendor ?? '';
-            $item_name = $item->name ?? '';
+            $invoice_no = $conn->real_escape_string($item->invoice_no ?? '');
+            $invoice_date = $conn->real_escape_string($item->invoice_date ?? '');
+            $vendor = $conn->real_escape_string($item->vendor ?? '');
+            $item_name = $conn->real_escape_string($item->name ?? '');
 
             $rate = floatval($item->rate ?? 0);
             $qty = intval($item->qty ?? 0);
@@ -59,9 +68,9 @@ class Inventoryproject
             $total = $amount + $gst;
 
             $sql = "INSERT INTO project_inventory 
-            (project_id, vendor, item_name, rate, quantity, discount, amount, gst, total)
+            (project_id, invoice_no, invoice_date, vendor, item_name, rate, quantity, discount, amount, gst, total)
             VALUES 
-            ('$project_id', '$vendor', '$item_name', '$rate', '$qty', '$discount', '$amount', '$gst', '$total')";
+            ('$project_id', '$invoice_no', NULLIF('$invoice_date', ''), '$vendor', '$item_name', '$rate', '$qty', '$discount', '$amount', '$gst', '$total')";
 
             if (!$conn->query($sql)) {
                 return [

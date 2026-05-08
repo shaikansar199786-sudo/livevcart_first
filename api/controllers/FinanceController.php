@@ -12,29 +12,45 @@ class FinanceController
 
     public function recordTransaction($data)
     {
-        // type: 'credit' (client payment) or 'debit' (expense)
+        // project_id can be null if it's a general transaction
+        $project_id = !empty($data['project_id']) ? $data['project_id'] : null;
+
         $query = "INSERT INTO finance_transactions 
                 (project_id, type, amount, payment_mode, category, person_name, description, transaction_date, recorded_by) 
                 VALUES (:project_id, :type, :amount, :payment_mode, :category, :person_name, :description, :date, :recorded_by)";
 
         $stmt = $this->conn->prepare($query);
 
-        $stmt->bindParam(':project_id', $data['project_id']);
+        $stmt->bindParam(':project_id', $project_id);
         $stmt->bindParam(':type', $data['type']);
         $stmt->bindParam(':amount', $data['amount']);
+        
         $payment_mode = $data['payment_mode'] ?? null;
         $stmt->bindParam(':payment_mode', $payment_mode);
-        $stmt->bindParam(':category', $data['category']);
+        
+        $category = $data['category'] ?? 'Other';
+        $stmt->bindParam(':category', $category);
+        
         $person_name = $data['person_name'] ?? null;
         $stmt->bindParam(':person_name', $person_name);
-        $stmt->bindParam(':description', $data['description']);
+        
+        $description = $data['description'] ?? null;
+        $stmt->bindParam(':description', $description);
+        
         $date = $data['date'] ?? date('Y-m-d');
         $stmt->bindParam(':date', $date);
-        $stmt->bindParam(':recorded_by', $data['recorded_by']);
+        
+        $recorded_by = $data['recorded_by'] ?? 1;
+        $stmt->bindParam(':recorded_by', $recorded_by);
 
-        if ($stmt->execute()) {
-            return ["success" => true, "message" => "Transaction recorded."];
+        try {
+            if ($stmt->execute()) {
+                return ["success" => true, "message" => "Transaction recorded."];
+            }
+        } catch (PDOException $e) {
+            return ["success" => false, "message" => "Database error: " . $e->getMessage()];
         }
+        
         return ["success" => false, "message" => "Failed to record transaction."];
     }
 
@@ -61,7 +77,7 @@ class FinanceController
         if ($project_id) {
             $query .= " WHERE ft.project_id = :p_id";
         }
-        $query .= " ORDER BY ft.transaction_date DESC";
+        $query .= " ORDER BY ft.transaction_date DESC, ft.transaction_id DESC";
 
         $stmt = $this->conn->prepare($query);
         if ($project_id) {

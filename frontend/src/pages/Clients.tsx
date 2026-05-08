@@ -22,6 +22,7 @@ interface Client {
     status: string;
     project_id?: string;
     projectname?: string;
+    consultation_type?: string;
 }
 
 export const Clients: React.FC = () => {
@@ -38,6 +39,7 @@ export const Clients: React.FC = () => {
     const [clientForm, setClientForm] = useState({
         name: '',
         projectname: '',
+        consultation_type: 'Interior Design Consultation',
         email: '',
         phone: '',
         address: ''
@@ -45,6 +47,7 @@ export const Clients: React.FC = () => {
 
     const [projectForm, setProjectForm] = useState<{
         project_name: string;
+        consultation_type: string;
         project_heads: string[];
         site_engineers: string[];
         total_budget: string;
@@ -52,6 +55,7 @@ export const Clients: React.FC = () => {
         expected_end_date: string;
     }>({
         project_name: '',
+        consultation_type: 'Interior Design Consultation',
         project_heads: [],
         site_engineers: [],
         total_budget: '',
@@ -98,7 +102,7 @@ export const Clients: React.FC = () => {
             });
             if (response.data.success) {
                 setShowAddModal(false);
-                setClientForm({ name: '', projectname: '', email: '', phone: '', address: '' });
+                setClientForm({ name: '', projectname: '', consultation_type: 'Interior Design Consultation', email: '', phone: '', address: '' });
                 fetchClients();
             }
         } catch (err) {
@@ -112,7 +116,8 @@ export const Clients: React.FC = () => {
         setSelectedClient(client);
         setProjectForm({
             ...projectForm,
-            project_name: client.projectname || (client.name + ' Project')
+            project_name: client.projectname || (client.name + ' Project'),
+            consultation_type: client.consultation_type || 'Interior Design Consultation'
         });
         setShowProjectModal(true);
     };
@@ -122,8 +127,8 @@ export const Clients: React.FC = () => {
         setSubmitting(true);
         try {
             const response = await axios.post(`${API_BASE_URL}/projects`, {
-
                 ...projectForm,
+                project_type: projectForm.consultation_type,
                 client_id: selectedClient?.client_id,
                 total_budget: projectForm.total_budget || 0,
                 expected_end_date: projectForm.expected_end_date,
@@ -153,7 +158,7 @@ export const Clients: React.FC = () => {
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <Plus size={18} />
-                    Add Registry
+                    Add New Project
                 </button>
             </div>
 
@@ -243,9 +248,19 @@ export const Clients: React.FC = () => {
                                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Full Name</label>
                                 <input type="text" required value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                             </div>
-                            <div style={{ marginBottom: '16px' }}>
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Name of Project</label>
-                                <input type="text" required value={clientForm.projectname} onChange={(e) => setClientForm({ ...clientForm, projectname: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} placeholder="Enter the name of the project" />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Name of Project</label>
+                                    <input type="text" required value={clientForm.projectname} onChange={(e) => setClientForm({ ...clientForm, projectname: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} placeholder="Enter the name of the project" />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Consultation Type</label>
+                                    <select value={clientForm.consultation_type} onChange={(e) => setClientForm({ ...clientForm, consultation_type: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+                                        <option value="Architectural Design Consultation">Architectural Design Consultation</option>
+                                        <option value="Interior Design Consultation">Interior Design Consultation</option>
+                                        <option value="Arch + Interior">Arch + Interior</option>
+                                    </select>
+                                </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                 <div>
@@ -279,9 +294,19 @@ export const Clients: React.FC = () => {
                         <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>Assign & Launch: {selectedClient?.name}</h3>
                         <p style={{ marginBottom: '20px', color: '#6b7280', fontSize: '0.9rem' }}>Select the project execution team. (Financial details to be entered by Accountant)</p>
                         <form onSubmit={handleProjectLaunch}>
-                            <div style={{ marginBottom: '16px' }}>
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Name</label>
-                                <input type="text" required value={projectForm.project_name} onChange={(e) => setProjectForm({ ...projectForm, project_name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Name</label>
+                                    <input type="text" required value={projectForm.project_name} onChange={(e) => setProjectForm({ ...projectForm, project_name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Consultation Type</label>
+                                    <select value={projectForm.consultation_type} onChange={(e) => setProjectForm({ ...projectForm, consultation_type: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+                                        <option value="Architectural Design Consultation">Architectural Design Consultation</option>
+                                        <option value="Interior Design Consultation">Interior Design Consultation</option>
+                                        <option value="Arch + Interior">Arch + Interior</option>
+                                    </select>
+                                </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                 <div style={{ border: '1px solid #d1d5db', borderRadius: '6px', padding: '12px', minHeight: '100px' }}>
@@ -290,10 +315,10 @@ export const Clients: React.FC = () => {
                                         {team.filter(t => ['principal_architect', 'project_head', 'admin'].includes(t.role)).map(t => {
                                             const isSelected = projectForm.project_heads.includes(t.user_id);
                                             return (
-                                                <div 
+                                                <div
                                                     key={t.user_id}
                                                     onClick={() => {
-                                                        const newHeads = isSelected 
+                                                        const newHeads = isSelected
                                                             ? projectForm.project_heads.filter(id => id !== t.user_id)
                                                             : [...projectForm.project_heads, t.user_id];
                                                         setProjectForm({ ...projectForm, project_heads: newHeads });
@@ -330,10 +355,10 @@ export const Clients: React.FC = () => {
                                         {team.filter(t => t.role === 'site_engineer').map(t => {
                                             const isSelected = projectForm.site_engineers.includes(t.user_id);
                                             return (
-                                                <div 
+                                                <div
                                                     key={t.user_id}
                                                     onClick={() => {
-                                                        const newEngineers = isSelected 
+                                                        const newEngineers = isSelected
                                                             ? projectForm.site_engineers.filter(id => id !== t.user_id)
                                                             : [...projectForm.site_engineers, t.user_id];
                                                         setProjectForm({ ...projectForm, site_engineers: newEngineers });

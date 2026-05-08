@@ -17,9 +17,10 @@ class ProjectController
 
         $query = "INSERT INTO " . $this->table_name . " 
                 (project_code, project_name, client_id, project_type, site_address, start_date, expected_end_date, total_budget, project_head_id, created_by, status) 
-                VALUES (:project_code, :project_name, :client_id, :project_type, :site_address, :start_date, :expected_end_date, :total_budget, :project_head_id, :created_by, 'active')";
+                VALUES (:project_code, :project_name, :client_id, :project_type, :site_address, :start_date, :expected_end_date, :total_budget, :project_head_id, :created_by, :status)";
 
         $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':status', $data['status']);
 
         // Primary head for main table
         $primary_head_id = (!empty($data['project_heads']) && is_array($data['project_heads'])) ? $data['project_heads'][0] : ($data['project_head_id'] ?? null);
@@ -27,7 +28,14 @@ class ProjectController
         $stmt->bindParam(':project_code', $project_code);
         $stmt->bindParam(':project_name', $data['project_name']);
         $stmt->bindParam(':client_id', $data['client_id']);
-        $stmt->bindParam(':project_type', $data['project_type']);
+        $type_map = [
+            'Architectural Design Consultation' => 'architecture',
+            'Interior Design Consultation' => 'interior',
+            'Arch + Interior' => 'both'
+        ];
+        $mapped_project_type = $type_map[$data['project_type']] ?? $data['project_type'];
+
+        $stmt->bindParam(':project_type', $mapped_project_type);
         $stmt->bindParam(':site_address', $data['site_address']);
         $stmt->bindParam(':start_date', $data['start_date']);
         $stmt->bindParam(':expected_end_date', $expected_end_date);
@@ -75,7 +83,7 @@ class ProjectController
 
             // 1. Update project details
             $query = "UPDATE " . $this->table_name . " 
-                      SET project_name = :name, site_address = :site, start_date = :start, expected_end_date = :end, project_head_id = :head 
+                      SET project_name = :name, site_address = :site, start_date = :start, expected_end_date = :end, project_head_id = :head, status = :status 
                       WHERE project_id = :id";
             $stmt = $this->conn->prepare($query);
             $stmt->execute([
@@ -84,6 +92,7 @@ class ProjectController
                 'start' => $data['start_date'],
                 'end' => $data['expected_end_date'],
                 'head' => $data['project_head_id'],
+                'status' => $data['status'] ?? 'Pending',
                 'id' => $project_id
             ]);
 

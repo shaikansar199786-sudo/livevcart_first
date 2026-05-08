@@ -220,16 +220,55 @@ export const Finance: React.FC = () => {
 
             {showModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                    <div className="premium-card" style={{ width: '100%', maxWidth: '550px' }}>
-                        <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>Record Transaction</h3>
-                        <form onSubmit={handleSubmit}>
-                            <div style={{ marginBottom: '24px', padding: '12px', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7', textAlign: 'center', fontWeight: 600, color: '#166534' }}>
-                                Recording Client Payment / Advance
+                    <div className="premium-card" style={{ width: '100%', maxWidth: '550px', padding: '0', overflow: 'hidden' }}>
+                        <div style={{ padding: '24px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Record Transaction</h3>
+                            <button onClick={() => setShowModal(false)} style={{ color: '#6b7280', cursor: 'pointer', border: 'none', background: 'none', fontSize: '1.5rem' }}>&times;</button>
+                        </div>
+                        
+                        <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+                            <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', padding: '4px', backgroundColor: '#f3f4f6', borderRadius: '10px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, type: 'credit', category: 'advance' })}
+                                    style={{
+                                        flex: 1,
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        backgroundColor: formData.type === 'credit' ? '#10b981' : 'transparent',
+                                        color: formData.type === 'credit' ? 'white' : '#4b5563',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    Client Payment (Income)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, type: 'debit', category: 'Labor' })}
+                                    style={{
+                                        flex: 1,
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        backgroundColor: formData.type === 'debit' ? '#ef4444' : 'transparent',
+                                        color: formData.type === 'debit' ? 'white' : '#4b5563',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    Site Expense (Outcome)
+                                </button>
                             </div>
 
                             <div style={{ marginBottom: '16px' }}>
                                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project</label>
-                                <select required value={formData.project_id} onChange={(e) => setFormData({ ...formData, project_id: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+                                <select required value={formData.project_id} onChange={(e) => setFormData({ ...formData, project_id: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }}>
                                     <option value="">Specific Project (Optional)</option>
                                     {projects.map(p => <option key={p.project_id} value={p.project_id}>{p.project_name}</option>)}
                                 </select>
@@ -238,43 +277,73 @@ export const Finance: React.FC = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Amount (₹)</label>
-                                    <input type="number" required value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                                    <input type="number" required value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} placeholder="0.00" />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Category</label>
-                                    <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        <option value="advance">Advance Payment</option>
-                                        <option value="mid_payment">Mid Payment</option>
-                                        <option value="final_payment">Final Payment</option>
-                                        <option value="additional_works">Additional Works</option>
+                                    <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }}>
+                                        {formData.type === 'credit' ? (
+                                            <>
+                                                <option value="advance">Advance Payment</option>
+                                                <option value="mid_payment">Mid Payment</option>
+                                                <option value="final_payment">Final Payment</option>
+                                                <option value="additional_works">Additional Works</option>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <option value="Labor">Labor Payment</option>
+                                                <option value="Material">Material Purchase</option>
+                                                <option value="Transport">Transportation</option>
+                                                <option value="Site Costs">Site Maintenance</option>
+                                                <option value="Equipment">Equipment Rental</option>
+                                                <option value="Other">Other Expense</option>
+                                            </>
+                                        )}
                                     </select>
                                 </div>
                             </div>
 
-                            <div style={{ marginBottom: '16px' }}>
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Transaction Date</label>
-                                <input type="date" required value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
-                            </div>
-
-                            <div style={{ marginBottom: '16px' }}>
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Description / Notes</label>
-                                <textarea rows={2} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Transaction Date</label>
+                                    <input type="date" required value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Payment Mode</label>
+                                    <select value={formData.payment_mode} onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }}>
+                                        <option value="UPI">UPI</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div style={{ marginBottom: '24px' }}>
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Payment Mode</label>
-                                <select value={formData.payment_mode} onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                    <option value="UPI">UPI</option>
-                                    <option value="Cash">Cash</option>
-                                    <option value="Bank Transfer">Bank Transfer</option>
-                                </select>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Description / Notes</label>
+                                <textarea rows={2} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} placeholder="Add any details here..." />
                             </div>
 
                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white' }}>Cancel</button>
-                                <button type="submit" disabled={submitting} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '12px 24px', borderRadius: '8px', border: '1px solid #d1d5db', backgroundColor: 'white', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
+                                <button 
+                                    type="submit" 
+                                    disabled={submitting} 
+                                    className="btn-primary" 
+                                    style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '8px',
+                                        backgroundColor: formData.type === 'credit' ? '#10b981' : '#ef4444',
+                                        border: 'none',
+                                        color: 'white',
+                                        padding: '12px 24px',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
                                     {submitting && <Loader2 className="animate-spin" size={16} />}
-                                    Record {formData.type === 'credit' ? 'Payment' : 'Expense'}
+                                    Record {formData.type === 'credit' ? 'Income' : 'Expense'}
                                 </button>
                             </div>
                         </form>

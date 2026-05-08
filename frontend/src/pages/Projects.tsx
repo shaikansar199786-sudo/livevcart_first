@@ -47,6 +47,8 @@ export const Projects: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [filterType, setFilterType] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const [formData, setFormData] = useState({
         project_code: '',
@@ -59,6 +61,7 @@ export const Projects: React.FC = () => {
         total_budget: '',
         project_head_id: '',
         site_engineers: [] as string[],
+        status: 'Pending',
         created_by: user?.user_id || ''
     });
 
@@ -139,9 +142,39 @@ export const Projects: React.FC = () => {
                         <input
                             type="text"
                             placeholder="Search project name, code or client..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none' }}
                         />
                     </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px' }}>
+                    {[
+                        { id: 'all', label: 'All Projects' },
+                        { id: 'interior', label: 'Interior Design Consultant' },
+                        { id: 'architecture', label: 'Architectural Design' },
+                        { id: 'both', label: 'Arc + Interior' }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setFilterType(tab.id)}
+                            style={{
+                                padding: '8px 16px',
+                                borderRadius: '20px',
+                                border: '1px solid #e5e7eb',
+                                backgroundColor: filterType === tab.id ? '#253b50' : 'white',
+                                color: filterType === tab.id ? 'white' : '#6b7280',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
 
                 <div style={{ 
@@ -151,19 +184,54 @@ export const Projects: React.FC = () => {
                 }}>
                     {loading ? (
                         <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></div>
-                    ) : projects.length === 0 ? (
-                        <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#6b7280' }}>No active projects found your profile.</div>
-                    ) : projects.map((project) => (
-                        <div key={project.project_id} className="premium-card"
-                            onClick={() => navigate(`/projects/${project.project_id}`)}
-                            style={{ border: '1px solid #f3f4f6', transition: 'transform 0.2s', cursor: 'pointer' }}>
+                    ) : (() => {
+                        const filtered = projects.filter(p => {
+                            const matchesSearch = 
+                                p.project_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                p.project_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                p.client_name.toLowerCase().includes(searchTerm.toLowerCase());
+                            
+                            const matchesFilter = filterType === 'all' || p.project_type === filterType;
+                            
+                            return matchesSearch && matchesFilter;
+                        });
+
+                        if (filtered.length === 0) {
+                            return <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#6b7280' }}>No projects found matching your criteria.</div>;
+                        }
+
+                        return filtered.map((project) => (
+                            <div key={project.project_id} className="premium-card"
+                                onClick={() => navigate(`/projects/${project.project_id}`)}
+                                style={{ border: '1px solid #f3f4f6', transition: 'transform 0.2s', cursor: 'pointer' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                                 <div>
                                     <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>{project.project_code}</span>
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#253b50', marginTop: '4px' }}>{project.project_name}</h3>
                                     <p style={{ fontSize: '0.9rem', color: '#253b50', fontWeight: 500 }}>Client: {project.client_name}</p>
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                        <span style={{ 
+                                            padding: '2px 8px', 
+                                            borderRadius: '4px', 
+                                            backgroundColor: '#f3f4f6', 
+                                            color: '#4b5563', 
+                                            fontSize: '0.7rem', 
+                                            fontWeight: 600, 
+                                            textTransform: 'uppercase' 
+                                        }}>
+                                            {project.project_type === 'both' ? 'Arc + Interior' : project.project_type === 'architecture' ? 'Architectural' : 'Interior'}
+                                        </span>
+                                    </div>
                                 </div>
-                                <span style={{ padding: '4px 10px', borderRadius: '4px', backgroundColor: '#d1fae5', color: '#065f46', fontSize: '0.75rem', fontWeight: 700, textTransform: 'capitalize' }}>
+                                <span style={{ 
+                                    padding: '4px 10px', 
+                                    borderRadius: '4px', 
+                                    backgroundColor: project.status === 'Completed' ? '#d1fae5' : project.status === 'On Going' ? '#dbeafe' : '#fef3c7', 
+                                    color: project.status === 'Completed' ? '#065f46' : project.status === 'On Going' ? '#1e40af' : '#92400e', 
+                                    fontSize: '0.75rem', 
+                                    fontWeight: 700, 
+                                    textTransform: 'capitalize' 
+                                }}>
                                     {project.status}
                                 </span>
                             </div>
@@ -184,7 +252,7 @@ export const Projects: React.FC = () => {
                                 <button style={{ color: '#253b50', fontWeight: 600, fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer' }}>View Details</button>
                             </div>
                         </div>
-                    ))}
+                    ))})()}
                 </div>
             </div>
 
@@ -215,9 +283,18 @@ export const Projects: React.FC = () => {
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Type</label>
                                     <select value={formData.project_type} onChange={(e) => setFormData({ ...formData, project_type: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        <option value="residential_interior">Residential Interior</option>
-                                        <option value="commercial_interior">Commercial Interior</option>
-                                        <option value="architecture">Architecture</option>
+                                        <option value="interior">Interior Design Consultant</option>
+                                        <option value="architecture">Architectural Design</option>
+                                        <option value="both">Arc + Interior</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Status</label>
+                                    <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+                                        <option value="Pending">Pending</option>
+                                        <option value="On Going">On Going</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Cancelled">Cancelled</option>
                                     </select>
                                 </div>
                             </div>

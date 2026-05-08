@@ -25,6 +25,7 @@ import {
     AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import QuoteTab from '../components/QuoteTab';
 
 interface ProjectDetailsData {
     project_id: string;
@@ -116,7 +117,9 @@ export const ProjectDetails: React.FC = () => {
         start_date: '',
         expected_end_date: '',
         project_head_id: '',
-        site_engineer_id: ''
+        site_engineer_id: '',
+        status: '',
+        project_type: ''
     });
 
     useEffect(() => {
@@ -251,7 +254,9 @@ export const ProjectDetails: React.FC = () => {
             start_date: project?.start_date || '',
             expected_end_date: project?.expected_end_date || '',
             project_head_id: project?.team?.find(t => t.assignment_role === 'project_head')?.user_id || '',
-            site_engineer_id: project?.team?.find(t => t.assignment_role === 'site_engineer')?.user_id || ''
+            site_engineer_id: project?.team?.find(t => t.assignment_role === 'site_engineer')?.user_id || '',
+            status: project?.status || 'Pending',
+            project_type: project?.project_type || 'interior'
         });
         setShowEditModal(true);
     };
@@ -274,6 +279,27 @@ export const ProjectDetails: React.FC = () => {
             alert('Failed to update project settings');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleQuickStatusUpdate = async (newStatus: string) => {
+        try {
+            const response = await axios.put(`${API_BASE_URL}/projects`, {
+                project_id: id,
+                project_name: project?.project_name,
+                site_address: project?.site_address,
+                start_date: project?.start_date,
+                expected_end_date: project?.expected_end_date,
+                project_head_id: project?.team?.find(t => t.assignment_role === 'project_head')?.user_id,
+                site_engineer_id: project?.team?.find(t => t.assignment_role === 'site_engineer')?.user_id,
+                status: newStatus,
+                project_type: project?.project_type
+            });
+            if (response.data.success) {
+                fetchProjectDetails();
+            }
+        } catch (err) {
+            alert('Failed to update status');
         }
     };
 
@@ -368,11 +394,36 @@ export const ProjectDetails: React.FC = () => {
                         <MapPin size={14} /> {project.site_address}
                     </div>
                 </div>
-                {(user?.role === 'admin' || user?.role === 'principal_architect') && (
-                    <button onClick={openEditModal} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Edit Project Settings
-                    </button>
-                )}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Project Status</label>
+                        <select 
+                            value={project.status} 
+                            onChange={(e) => handleQuickStatusUpdate(e.target.value)}
+                            style={{ 
+                                padding: '8px 12px', 
+                                borderRadius: '6px', 
+                                border: '1px solid #d1d5db', 
+                                backgroundColor: project.status === 'Completed' ? '#d1fae5' : project.status === 'On Going' ? '#dbeafe' : '#fef3c7',
+                                color: project.status === 'Completed' ? '#065f46' : project.status === 'On Going' ? '#1e40af' : '#92400e',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                outline: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="Pending">Pending</option>
+                            <option value="On Going">On Going</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    {(user?.role === 'admin' || user?.role === 'principal_architect') && (
+                        <button onClick={openEditModal} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            Edit Project Settings
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="no-print">
@@ -437,6 +488,25 @@ export const ProjectDetails: React.FC = () => {
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>End Date</label>
                                     <input type="date" required value={editForm.expected_end_date} onChange={(e) => setEditForm({ ...editForm, expected_end_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                                </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Status</label>
+                                    <select required value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+                                        <option value="Pending">Pending</option>
+                                        <option value="On Going">On Going</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Type</label>
+                                    <select required value={editForm.project_type} onChange={(e) => setEditForm({ ...editForm, project_type: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
+                                        <option value="interior">Interior Design Consultant</option>
+                                        <option value="architecture">Architectural Design</option>
+                                        <option value="both">Arc + Interior</option>
+                                    </select>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
@@ -588,6 +658,19 @@ const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
                                     <MapPin size={14} style={{ marginTop: '2px' }} />
                                     <span>{project.site_address}</span>
                                 </div>
+                                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                                    <span style={{ 
+                                        padding: '4px 12px', 
+                                        borderRadius: '20px', 
+                                        backgroundColor: '#253b50', 
+                                        color: 'white', 
+                                        fontSize: '0.7rem', 
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {project.project_type === 'both' ? 'Arc + Interior' : project.project_type === 'architecture' ? 'Architectural' : 'Interior'}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <div>
@@ -657,527 +740,13 @@ const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
 };
 
 
-const QuoteTab = ({ project, setQuoteTotal, isReadOnly, user, isUsedQuote }: any) => {
-    const [sections, setSections] = useState<QuoteSection[]>([
-        {
-            id: '1',
-            name: 'A. FALSE CEILING',
-            items: [
-                { id: '1-1', particulars: 'GYPSUM', brand: '', unit: 'sft', quantity: 1799, rate: 70, amount: 125930 },
-                { id: '1-2', particulars: 'PVC CEILING (IN BALCONY)', brand: '', unit: 'sft', quantity: 68, rate: 420, amount: 28560 },
-                { id: '1-3', particulars: 'WOODEN CEILING (IN HALL)', brand: '', unit: 'sft', quantity: 45, rate: 1500, amount: 67500 }
-            ]
-        },
-        {
-            id: '2',
-            name: 'B. ELECTRICAL',
-            items: [
-                { id: '2-1', particulars: '15W Lights', brand: '', unit: 'no', quantity: 30, rate: 700, amount: 21000 },
-                { id: '2-2', particulars: '6W Lights', brand: '', unit: 'no', quantity: 3, rate: 700, amount: 2100 },
-                { id: '2-3', particulars: '3W Lights', brand: '', unit: 'no', quantity: 6, rate: 700, amount: 4200 },
-                { id: '2-4', particulars: 'ROPE LIGHTS', brand: '', unit: 'rft', quantity: 75, rate: 220, amount: 16500 },
-                { id: '2-5', particulars: 'PROFILE LIGHTS', brand: '', unit: 'rft', quantity: 44, rate: 400, amount: 17600 },
-                { id: '2-6', particulars: 'FANS', brand: '', unit: 'no', quantity: 7, rate: 7500, amount: 52500 },
-                { id: '2-7', particulars: 'EXHAUST FANS IN WASH ROOMS', brand: '', unit: 'no', quantity: 3, rate: 2000, amount: 6000 },
-                { id: '2-8', particulars: 'ELECTRICIAN CHARGES', brand: '', unit: 'lumpsum', quantity: 1, rate: 50000, amount: 50000 },
-                { id: '2-9', particulars: 'WIRING AND OTHER MATERIAL', brand: '', unit: 'lumpsum', quantity: 1, rate: 50000, amount: 50000 }
-            ]
-        },
-        {
-            id: '3',
-            name: 'C. FLOOR GUARD',
-            items: [
-                { id: '3-1', particulars: 'FLOOR GUARD COVERING', brand: '', unit: 'sft', quantity: 1200, rate: 9, amount: 10800 }
-            ]
-        },
-        {
-            id: '17',
-            name: 'D. ANTI PEST',
-            items: [
-                { id: '17-1', particulars: 'ANTI PEST TREATMENT', brand: '', unit: 'sft', quantity: 1200, rate: 6, amount: 7200 }
-            ]
-        },
-        {
-            id: '4',
-            name: 'E. WOOD WORK',
-            items: [
-                { id: '4-h1', particulars: '1. DRAWING ROOM', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '4-1', particulars: 'Sofa backpanelling', brand: '', unit: 'sft', quantity: 100, rate: 1500, amount: 150000 },
-                { id: '4-2', particulars: 'Duco paint', brand: '', unit: 'sft', quantity: 36, rate: 800, amount: 28800 },
-                { id: '4-3', particulars: 'Mirror', brand: '', unit: 'sft', quantity: 18, rate: 500, amount: 9000 },
-                { id: '4-4', particulars: 'Rafters', brand: '', unit: 'sft', quantity: 18, rate: 500, amount: 9000 },
-                { id: '4-5', particulars: 'Panelling (towards Handwash)', brand: '', unit: 'sft', quantity: 55, rate: 1500, amount: 82500 },
-                { id: '4-6', particulars: 'mirrors', brand: '', unit: 'sft', quantity: 15, rate: 500, amount: 7500 },
-                { id: '4-7', particulars: 'Wash area Storage', brand: '', unit: 'sft', quantity: 27, rate: 2000, amount: 54000 },
-                { id: '4-8', particulars: 'Profile shutters', brand: '', unit: 'sft', quantity: 20, rate: 1250, amount: 25000 },
-                { id: '5-1', particulars: 'Puja Storage', brand: '', unit: 'sft', quantity: 12.5, rate: 2000, amount: 25000 },
-                { id: '5-2', particulars: 'Corian work', brand: '', unit: 'lumpsum', quantity: 1, rate: 120000, amount: 120000 },
-                { id: '5-3', particulars: 'Console beside puja', brand: '', unit: 'lumpsum', quantity: 1, rate: 50000, amount: 50000 },
-                { id: '4-h2', particulars: '2. LIVING ROOM', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '5-4', particulars: 'TV UNIT Panelling', brand: '', unit: 'sft', quantity: 65, rate: 1500, amount: 97500 },
-                { id: '5-5', particulars: 'TV UNIT Mirrors', brand: '', unit: 'sft', quantity: 8, rate: 500, amount: 4000 },
-                { id: '5-6', particulars: 'TV UNIT Rafters', brand: '', unit: 'sft', quantity: 10, rate: 500, amount: 5000 },
-                { id: '5-7', particulars: 'TV UNIT Storage', brand: '', unit: 'sft', quantity: 15, rate: 2000, amount: 30000 },
-                { id: '5-8', particulars: 'Texture paint', brand: '', unit: 'sft', quantity: 100, rate: 500, amount: 50000 },
-                { id: '5-9', particulars: 'Panelling above flush doors', brand: '', unit: 'sft', quantity: 8, rate: 1500, amount: 12000 },
-                { id: '4-h3', particulars: '3. KITCHEN', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '6-1', particulars: 'Box work', brand: '', unit: 'sft', quantity: 234, rate: 2000, amount: 468000 },
-                { id: '6-2', particulars: 'Tandem drawers', brand: '', unit: 'no.s', quantity: 5, rate: 5750, amount: 28750 },
-                { id: '6-3', particulars: 'Corner unit', brand: '', unit: 'no.s', quantity: 1, rate: 22000, amount: 22000 },
-                { id: '6-4', particulars: 'Bottle pull out', brand: '', unit: 'no.s', quantity: 1, rate: 9200, amount: 9200 },
-                { id: '6-5', particulars: 'Drawer accessories', brand: '', unit: 'no.s', quantity: 2, rate: 3500, amount: 7000 },
-                { id: '6-6', particulars: 'Vegetable baskets', brand: '', unit: 'sft', quantity: 2, rate: 5750, amount: 11500 },
-                { id: '6-7', particulars: 'Profile shutters', brand: '', unit: 'sft', quantity: 18, rate: 1250, amount: 22500 },
-                { id: '4-h4', particulars: '4. UTILITY', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '7-1', particulars: 'Storage above counter', brand: '', unit: 'sft', quantity: 30, rate: 2000, amount: 60000 },
-                { id: '7-2', particulars: 'Storage below counter', brand: '', unit: 'sft', quantity: 15, rate: 2000, amount: 30000 },
-                { id: '4-h5', particulars: '5. MASTER BEDROOM', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '8-1', particulars: 'Wardrobe', brand: '', unit: 'sft', quantity: 76, rate: 2000, amount: 152000 },
-                { id: '8-2', particulars: 'King size bed with side tables', brand: '', unit: 'no', quantity: 1, rate: 60000, amount: 60000 },
-                { id: '8-3', particulars: 'TV Backpanel', brand: '', unit: 'sft', quantity: 110, rate: 110, amount: 12100 },
-                { id: '8-4', particulars: 'TV Rafters', brand: '', unit: 'sft', quantity: 56, rate: 500, amount: 28000 },
-                { id: '8-5', particulars: 'TV Drawers', brand: '', unit: 'sft', quantity: 4, rate: 2000, amount: 8000 },
-                { id: '8-6', particulars: 'Dresser', brand: '', unit: 'sft', quantity: 10, rate: 1500, amount: 15000 },
-                { id: '8-7', particulars: 'Mirror', brand: '', unit: 'sft', quantity: 10, rate: 800, amount: 8000 },
-                { id: '4-h6', particulars: '6. SON\'S BEDROOM', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '9-1', particulars: 'Wardrobe-1', brand: '', unit: 'sft', quantity: 48, rate: 2000, amount: 96000 },
-                { id: '9-2', particulars: 'Profile shutters', brand: '', unit: 'sft', quantity: 31, rate: 1250, amount: 38750 },
-                { id: '9-3', particulars: 'Bed back texture paint', brand: '', unit: 'sft', quantity: 108, rate: 500, amount: 54000 },
-                { id: '9-4', particulars: 'King size bed with side tables', brand: '', unit: 'no', quantity: 1, rate: 60000, amount: 60000 },
-                { id: '9-5', particulars: 'Study table storage', brand: '', unit: 'sft', quantity: 2, rate: 2000, amount: 4000 },
-                { id: '9-6', particulars: 'Study table shelves', brand: '', unit: 'sft', quantity: 4, rate: 2000, amount: 8000 },
-                { id: '9-7', particulars: 'Metal supports', brand: '', unit: 'lumpsum', quantity: 1, rate: 10000, amount: 10000 },
-                { id: '9-8', particulars: 'Mirror beside bed', brand: '', unit: 'no', quantity: 1, rate: 10000, amount: 10000 },
-                { id: '9-9', particulars: 'Dresser wardrobe-2', brand: '', unit: 'sft', quantity: 34, rate: 2000, amount: 68000 },
-                { id: '9-10', particulars: 'Dresser Profile shutters', brand: '', unit: 'sft', quantity: 12, rate: 1250, amount: 15000 },
-                { id: '9-11', particulars: 'Mirror (sensor)', brand: '', unit: 'sft', quantity: 21, rate: 800, amount: 16800 },
-                { id: '4-h7', particulars: '7. DAUGHTER\'S BEDROOM', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '10-1', particulars: 'Wardrobe', brand: '', unit: 'sft', quantity: 76, rate: 2000, amount: 152000 },
-                { id: '10-2', particulars: 'Profile shutter', brand: '', unit: 'sft', quantity: 12, rate: 1250, amount: 15000 },
-                { id: '10-3', particulars: 'Storage beside study', brand: '', unit: 'sft', quantity: 21, rate: 2000, amount: 42000 },
-                { id: '10-4', particulars: 'Bed backpanel Wallpaper', brand: '', unit: 'no', quantity: 1, rate: 6500, amount: 6500 },
-                { id: '10-5', particulars: 'King size bed with side tables', brand: '', unit: 'no', quantity: 1, rate: 60000, amount: 60000 },
-                { id: '10-6', particulars: 'Dresser', brand: '', unit: 'sft', quantity: 14, rate: 2000, amount: 28000 },
-                { id: '4-h9', particulars: '9. BALCONY', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '11-1', particulars: 'Mirror (sensor)', brand: '', unit: 'sft', quantity: 1, rate: 10000, amount: 10000 },
-                { id: '11-2', particulars: 'Study cum sewing table', brand: '', unit: 'sft', quantity: 22, rate: 850, amount: 18700 },
-                { id: '11-3', particulars: 'Shelves', brand: '', unit: 'sft', quantity: 8, rate: 850, amount: 6800 },
-                { id: '11-4', particulars: 'Shelves with metal edge', brand: '', unit: 'sft', quantity: 8, rate: 1000, amount: 8000 },
-                { id: '11-5', particulars: 'Rafters', brand: '', unit: 'sft', quantity: 54, rate: 800, amount: 43200 },
-                { id: '11-6', particulars: 'BAR UNIT', brand: '', unit: 'sft', quantity: 26, rate: 2000, amount: 52000 },
-                { id: '11-7', particulars: 'Profile shutters', brand: '', unit: 'sft', quantity: 20, rate: 1250, amount: 25000 },
-                { id: '11-8', particulars: 'Backsplash Panelling', brand: '', unit: 'sft', quantity: 6, rate: 850, amount: 5100 }
-            ]
-        },
-        {
-            id: '12',
-            name: 'F. GRANITE AND TILES WORK',
-            items: [
-                { id: '12-1', particulars: 'Kitchen quartz counter top', brand: '', unit: 'sft', quantity: 40, rate: 2400, amount: 96000 },
-                { id: '12-2', particulars: 'Kitchen Backsplash tiles', brand: '', unit: 'sft', quantity: 120, rate: 250, amount: 30000 },
-                { id: '12-3', particulars: 'Wash area quartz counter top', brand: '', unit: 'sft', quantity: 5, rate: 2400, amount: 12000 },
-                { id: '12-4', particulars: 'Backsplash (base)', brand: '', unit: 'sft', quantity: 12, rate: 250, amount: 3000 },
-                { id: '12-5', particulars: 'Puja counter top', brand: '', unit: 'sft', quantity: 12, rate: 2400, amount: 28800 },
-                { id: '12-6', particulars: 'Corian work', brand: '', unit: 'lumpsum', quantity: 1, rate: 150000, amount: 150000 },
-                { id: '12-7', particulars: 'Backsplash & tiles', brand: '', unit: 'sft', quantity: 35, rate: 400, amount: 14000 },
-                { id: '12-8', particulars: 'Toilet Vanities Counter top', brand: '', unit: 'sft', quantity: 12, rate: 2000, amount: 24000 },
-                { id: '12-9', particulars: 'Utility Granite top & supports', brand: '', unit: 'sft', quantity: 56, rate: 1200, amount: 67200 }
-            ]
-        },
-        {
-            id: '13',
-            name: 'G. MISC.',
-            items: [
-                { id: '13-1', particulars: 'Cushion work in MBR', brand: '', unit: 'sft', quantity: 18, rate: 650, amount: 11700 },
-                { id: '13-2', particulars: 'Cushion work in KBR', brand: '', unit: 'sft', quantity: 18, rate: 650, amount: 11700 },
-                { id: '13-3', particulars: 'Cushion work in GBR', brand: '', unit: 'sft', quantity: 18, rate: 650, amount: 11700 },
-                { id: '13-4', particulars: 'Vanities in bathrooms (woodwork)', brand: '', unit: 'sft', quantity: 12, rate: 2000, amount: 24000 }
-            ]
-        },
-        {
-            id: '14',
-            name: 'H. PAINTING',
-            items: [
-                { id: '14-1', particulars: 'Royale shyne (putty+primer+2 coats)', brand: '', unit: 'sft', quantity: 4000, rate: 30, amount: 120000 },
-                { id: '14-2', particulars: 'Flush Door polishing', brand: '', unit: 'lumpsum', quantity: 1, rate: 120000, amount: 120000 }
-            ]
-        },
-        {
-            id: '15',
-            name: 'I. APPLIANCES',
-            items: [
-                { id: '15-1', particulars: 'Home appliances', brand: '', unit: 'no', quantity: 1, rate: 20000, amount: 20000 },
-                { id: '15-2', particulars: 'HOB', brand: '', unit: 'no', quantity: 1, rate: 25000, amount: 25000 },
-                { id: '15-3', particulars: 'Chimney', brand: '', unit: 'no', quantity: 1, rate: 45000, amount: 45000 },
-                { id: '15-4', particulars: 'In-built microwave oven', brand: '', unit: 'no', quantity: 1, rate: 80000, amount: 80000 },
-                { id: '15-5', particulars: 'Washing machine', brand: '', unit: 'no', quantity: 1, rate: 80000, amount: 80000 },
-                { id: '15-6', particulars: 'Acs', brand: 'no', unit: 'no', quantity: 6, rate: 65000, amount: 390000 },
-                { id: '15-7', particulars: 'Fridge', brand: 'no', unit: 'no', quantity: 1, rate: 70000, amount: 70000 }
-            ]
-        },
-        {
-            id: '16',
-            name: 'J. MISCELLANEOUS (LOOSE FURNITURE & DECOR)',
-            items: [
-                { id: '16-h1', particulars: '1. LOOSE FURNITURE', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '16-1', particulars: 'L shape sofa', brand: 'Customised', unit: 'no', quantity: 1, rate: 150000, amount: 150000 },
-                { id: '16-2', particulars: '3 seater sofa', brand: 'Customised', unit: 'no', quantity: 1, rate: 80000, amount: 80000 },
-                { id: '16-3', particulars: 'Accent chair', brand: 'Customised', unit: 'no', quantity: 1, rate: 25000, amount: 25000 },
-                { id: '16-4', particulars: 'Centre table', brand: 'Customised', unit: 'no', quantity: 1, rate: 25000, amount: 25000 },
-                { id: '16-5', particulars: 'Dining table', brand: 'Customised', unit: 'no', quantity: 1, rate: 50000, amount: 50000 },
-                { id: '16-6', particulars: 'Son\'s room Study Chair', brand: 'Customised', unit: 'no', quantity: 1, rate: 10000, amount: 10000 },
-                { id: '16-7', particulars: 'Study Chair in MBR', brand: 'NA', unit: 'no', quantity: 1, rate: 60000, amount: 60000 },
-                { id: '16-8', particulars: 'Pouffes (Family Hall)', brand: 'no', unit: 'no', quantity: 1, rate: 6000, amount: 6000 },
-                { id: '16-9', particulars: 'Window bench (Son Room)', brand: 'no', unit: 'no', quantity: 2, rate: 4500, amount: 9000 },
-                { id: '16-10', particulars: 'Pouffes (Daughter Room)', brand: 'no', unit: 'no', quantity: 1, rate: 6000, amount: 6000 },
-                { id: '16-11', particulars: 'Study Chair (Daughter Room)', brand: 'no', unit: 'no', quantity: 1, rate: 4500, amount: 4500 },
 
-                { id: '16-h2', particulars: '2. BED ACCESSORIES', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '16-12', particulars: 'Mattresses & pillows', brand: 'no', unit: 'no', quantity: 1, rate: 8000, amount: 8000 },
-                { id: '16-13', particulars: 'Bedcovers & duvets', brand: 'no', unit: 'no', quantity: 3, rate: 15000, amount: 45000 },
-
-                { id: '16-h3', particulars: '3. SINKS & TAPS', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '16-14', particulars: 'Sinks (Kitchen/Utility/Wash)', brand: 'no', unit: 'no', quantity: 3, rate: 5500, amount: 16500 },
-                { id: '16-15', particulars: 'Kitchen Tap', brand: 'no', unit: 'no', quantity: 1, rate: 15000, amount: 15000 },
-                { id: '16-16', particulars: 'Utility Tap', brand: 'no', unit: 'no', quantity: 1, rate: 10000, amount: 10000 },
-                { id: '16-17', particulars: 'Wash area Tap', brand: 'no', unit: 'no', quantity: 1, rate: 10000, amount: 10000 },
-                { id: '16-h4', particulars: '4. LIGHTS & DECOR', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '16-18', particulars: 'Chandelier in hall', brand: 'no', unit: 'no', quantity: 1, rate: 30000, amount: 30000 },
-                { id: '16-19', particulars: 'Hanging lights (Daughter Room)', brand: 'no', unit: 'no', quantity: 1, rate: 15000, amount: 15000 },
-                { id: '16-20', particulars: 'Curtains (Complete Home)', brand: 'lumpsum', unit: 'no', quantity: 1, rate: 200000, amount: 200000 },
-                { id: '16-21', particulars: 'Carpet (Living Room)', brand: 'no', unit: 'no', quantity: 1, rate: 35000, amount: 35000 },
-                { id: '16-22', particulars: 'Carpet (Son Room)', brand: 'no', unit: 'no', quantity: 1, rate: 35000, amount: 35000 },
-                { id: '16-23', particulars: 'Carpet (Daughter Room)', brand: 'no', unit: 'no', quantity: 1, rate: 35000, amount: 35000 },
-                { id: '16-24', particulars: 'Artwork', brand: 'no', unit: 'no', quantity: 1, rate: 40000, amount: 40000 },
-                { id: '16-25', particulars: 'Side tables', brand: 'nos', unit: 'no', quantity: 4, rate: 18000, amount: 72000 },
-                { id: '16-26', particulars: 'Wallpapers', brand: 'no.s', unit: 'no', quantity: 6, rate: 6000, amount: 36000 },
-
-                { id: '16-h5', particulars: '5. BATHROOMS & MISC', brand: 'HEADER', unit: '', quantity: 0, rate: 0, amount: 0 },
-                { id: '16-27', particulars: 'Glass partitions', brand: 'no.s', unit: 'no', quantity: 1, rate: 25000, amount: 25000 },
-                { id: '16-28', particulars: 'Bathroom accessories', brand: 'no.s', unit: 'no', quantity: 3, rate: 3000, amount: 9000 },
-                { id: '16-29', particulars: 'Balcony clothes hangers', brand: 'no.s', unit: 'no', quantity: 2, rate: 6000, amount: 12000 },
-                { id: '16-30', particulars: 'Step dustbins', brand: 'no.s', unit: 'no', quantity: 5, rate: 4000, amount: 20000 },
-                { id: '16-31', particulars: 'Doormats', brand: 'no.s', unit: 'no', quantity: 8, rate: 600, amount: 4800 }
-            ]
-        }
-    ]);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => {
-        fetchQuote();
-    }, [project.project_id, isUsedQuote]);
-
-    const fetchQuote = async () => {
-        setLoading(true);
-        try {
-            const response = await axios.get(`${API_BASE_URL}/quotes/latest?project_id=${project.project_id}&is_used=${isUsedQuote}`);
-            if (response.data.success && response.data.data) {
-                // Map DB structure to frontend structure
-                const mappedSections = response.data.data.sections.map((s: any) => ({
-                    id: s.section_id,
-                    name: s.section_name,
-                    items: s.items.map((i: any) => ({
-                        id: i.item_id,
-                        particulars: i.particulars,
-                        brand: i.brand,
-                        unit: i.unit,
-                        quantity: parseFloat(i.quantity),
-                        used_quantity: parseFloat(i.used_quantity),
-                        rate: parseFloat(i.rate),
-                        amount: parseFloat(i.amount)
-                    }))
-                }));
-                setSections(mappedSections);
-            }
-        } catch (err) {
-            console.error('Failed to fetch quote');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSaveQuote = async () => {
-        setSaving(true);
-        try {
-            const total = getGrandTotal();
-            const response = await axios.post(`${API_BASE_URL}/quotes/save`, {
-                project_id: project.project_id,
-                is_used_quote: isUsedQuote,
-                total_amount: total,
-                sections: sections,
-                created_by: user.user_id
-            });
-            if (response.data.success) {
-                alert('Quote saved successfully');
-                setQuoteTotal(total);
-            } else {
-                alert('Failed to save: ' + (response.data.message || 'Unknown error'));
-            }
-        } catch (err: any) {
-            alert('Failed to save quote: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    useEffect(() => {
-        const total = getGrandTotal();
-        setQuoteTotal(total);
-    }, [sections]);
-
-    const calculateItemAmount = (qty: number, rate: number) => qty * rate;
-
-    const updateItem = (sectionId: string, itemId: string, field: string, value: any) => {
-        setSections(sections.map(s => {
-            if (s.id === sectionId) {
-                return {
-                    ...s,
-                    items: s.items.map(i => {
-                        if (i.id === itemId) {
-                            const updated = { ...i, [field]: value };
-                            if (field === 'quantity' || field === 'rate') {
-                                updated.amount = calculateItemAmount(updated.quantity, updated.rate);
-                            }
-                            return updated;
-                        }
-                        return i;
-                    })
-                };
-            }
-            return s;
-        }));
-    };
-
-    const addSection = () => {
-        const newId = (sections.length + 1).toString();
-        setSections([...sections, { id: newId, name: 'NEW SECTION', items: [] }]);
-    };
-
-    const addItem = (sectionId: string) => {
-        setSections(sections.map(s => {
-            if (s.id === sectionId) {
-                const newId = `${s.id}-${s.items.length + 1}`;
-                return {
-                    ...s,
-                    items: [...s.items, { id: newId, particulars: '', brand: '', unit: '', quantity: 0, rate: 0, amount: 0 }]
-                };
-            }
-            return s;
-        }));
-    };
-
-    const getGroupATotal = () => sections
-        .filter(s => {
-            const name = s.name.toUpperCase();
-            return name.startsWith('A.') || name.startsWith('B.') || name.startsWith('C.') ||
-                name.startsWith('D.') || name.startsWith('E.') || name.startsWith('F.') ||
-                name.startsWith('G.') || name.startsWith('H.');
-        })
-        .reduce((total, s) => total + s.items.reduce((st, i) => st + (i.amount || 0), 0), 0);
-
-    const getGroupBTotal = () => sections
-        .filter(s => s.name.toUpperCase().includes('APPLIANCES'))
-        .reduce((total, s) => total + s.items.reduce((st, i) => st + (i.amount || 0), 0), 0);
-
-    const getGroupCTotal = () => sections
-        .filter(s => s.name.toUpperCase().includes('LOOSE FURNITURE') || s.name.toUpperCase().includes('DECOR'))
-        .reduce((total, s) => total + s.items.reduce((st, i) => st + (i.amount || 0), 0), 0);
-
-    const getGrandTotal = () => getGroupATotal() + getGroupBTotal() + getGroupCTotal();
-
-    const romanize = (num: number) => {
-        if (num <= 0) return '';
-        const lookup: any = { m: 1000, cm: 900, d: 500, cd: 400, c: 100, xc: 90, l: 50, xl: 40, x: 10, ix: 9, v: 5, iv: 4, i: 1 };
-        let roman = '';
-        let n = num;
-        for (let i in lookup) {
-            while (n >= lookup[i]) {
-                roman += i;
-                n -= lookup[i];
-            }
-        }
-        return roman.toUpperCase();
-    };
-
-    if (loading) {
-        return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}><Loader2 className="animate-spin" size={48} color="#253b50" /></div>;
-    }
-
-    return (
-        <div className="quote-container" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            <div className="premium-card" style={{ padding: '40px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}>
-                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                    <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#253b50', marginBottom: '4px' }}>{project.project_name}</h1>
-                    <p style={{ fontWeight: 700, fontSize: '1rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1px' }}>{isUsedQuote ? 'ESTIMATE FOR INTERIORS (USAGE)' : 'ESTIMATE FOR INTERIORS'}</p>
-                </div>
-
-                <table className="quote-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                        <tr style={{ backgroundColor: '#253b50', color: 'white' }}>
-                            <th style={{ padding: '12px', border: '1px solid #334155', textAlign: 'left', width: '50%' }}>PARTICULARS</th>
-                            <th style={{ padding: '12px', border: '1px solid #334155', textAlign: 'left', width: '45px' }}>UNIT</th>
-                            {!isUsedQuote ? (
-                                <th style={{ padding: '12px', border: '1px solid #334155', textAlign: 'left', width: '45px' }}>QTY</th>
-                            ) : (
-                                <>
-                                    <th style={{ padding: '12px', border: '1px solid #334155', textAlign: 'left', width: '45px', fontSize: '0.8rem' }}>ASSIGNED<br />QTY</th>
-                                    <th style={{ padding: '12px', border: '1px solid #334155', textAlign: 'left', width: '45px', fontSize: '0.8rem', color: '#fef08a' }}>USED<br />QTY</th>
-                                    <th style={{ padding: '12px', border: '1px solid #334155', textAlign: 'left', width: '45px', fontSize: '0.8rem', color: '#63b3ed' }}>BALANCE<br />QTY</th>
-                                </>
-                            )}
-                            <th style={{ padding: '12px', border: '1px solid #334155', textAlign: 'left', width: '65px' }}>RATE</th>
-                            <th style={{ padding: '12px', border: '1px solid #334155', textAlign: 'left', width: '85px' }}>AMOUNT</th>
-                            <th className="no-print" style={{ padding: '12px', border: '1px solid #334155', width: '50px' }}></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sections.map(section => {
-                            let subItemCounter = 0;
-                            return (
-                                <React.Fragment key={section.id}>
-                                    <tr className="quote-section-header" style={{ backgroundColor: '#cbd5e1', fontWeight: 800 }}>
-                                        <td colSpan={!isUsedQuote ? 6 : 8} style={{ padding: '10px 12px', border: '1px solid #94a3b8' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                {isReadOnly ? (
-                                                    <span style={{ fontWeight: 800, color: '#1e293b' }}>{section.name}</span>
-                                                ) : (
-                                                    <input
-                                                        value={section.name}
-                                                        onChange={(e) => setSections(sections.map(s => s.id === section.id ? { ...s, name: e.target.value } : s))}
-                                                        style={{ fontWeight: 800, border: 'none', background: 'none', width: '80%', color: '#1e293b' }}
-                                                    />
-                                                )}
-                                                {!isReadOnly && <Plus size={16} style={{ cursor: 'pointer' }} onClick={() => addItem(section.id)} className="no-print" />}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {section.items.map((item) => {
-                                        const isSubHeader = item.brand === 'HEADER';
-                                        if (isSubHeader) subItemCounter = 0;
-                                        else subItemCounter++;
-
-                                        const assignedQty = item.quantity || 0;
-                                        const usedQty = (item as any).used_quantity || 0;
-                                        let rowStyle: any = isSubHeader ? { backgroundColor: '#f8fafc' } : {};
-
-                                        if (isUsedQuote && !isSubHeader && assignedQty > 0) {
-                                            const usageRatio = usedQty / assignedQty;
-                                            if (usageRatio >= 0.9 && usageRatio < 1) {
-                                                rowStyle = { backgroundColor: '#fef08a' }; // Yellow warning
-                                            } else if (usageRatio >= 1) {
-                                                rowStyle = { backgroundColor: '#fca5a5' }; // Red danger
-                                            }
-                                        }
-
-                                        return (
-                                            <tr key={item.id} style={rowStyle}>
-                                                <td style={{ border: '1px solid #e2e8f0', padding: '0' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                                        {!isSubHeader && <span style={{ paddingLeft: '8px', color: '#6b7280', fontSize: '0.75rem', width: '22px', flexShrink: 0 }}>{romanize(subItemCounter)}.</span>}
-                                                        {isReadOnly ? (
-                                                            <span style={{ flex: 1, padding: '8px 10px', fontWeight: isSubHeader ? 700 : 400 }}>{item.particulars}</span>
-                                                        ) : (
-                                                            <input
-                                                                value={item.particulars}
-                                                                onChange={(e) => updateItem(section.id, item.id, 'particulars', e.target.value)}
-                                                                style={{
-                                                                    flex: 1,
-                                                                    padding: '8px 10px',
-                                                                    border: 'none',
-                                                                    fontWeight: isSubHeader ? 700 : 400,
-                                                                    backgroundColor: 'transparent',
-                                                                    width: '100%'
-                                                                }}
-                                                                placeholder="Description"
-                                                            />
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td style={{ border: '1px solid #e2e8f0', padding: '0' }}>
-                                                    {!isSubHeader && (isReadOnly ? <span style={{ padding: '10px', display: 'block' }}>{item.unit}</span> : <input value={item.unit} onChange={(e) => updateItem(section.id, item.id, 'unit', e.target.value)} style={{ width: '100%', padding: '10px', border: 'none', backgroundColor: 'transparent' }} placeholder="sft/no" />)}
-                                                </td>
-                                                {!isUsedQuote ? (
-                                                    <td style={{ border: '1px solid #e2e8f0', padding: '0' }}>
-                                                        {!isSubHeader && (isReadOnly ? <span style={{ padding: '10px', display: 'block' }}>{item.quantity}</span> : <input type="number" value={item.quantity} onChange={(e) => updateItem(section.id, item.id, 'quantity', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '10px', border: 'none', backgroundColor: 'transparent' }} />)}
-                                                    </td>
-                                                ) : (
-                                                    <>
-                                                        <td style={{ border: '1px solid #e2e8f0', padding: '0' }}>
-                                                            {!isSubHeader && (isReadOnly ? <span style={{ padding: '10px', display: 'block' }}>{item.quantity}</span> : <input type="number" value={item.quantity} onChange={(e) => updateItem(section.id, item.id, 'quantity', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '10px', border: 'none', backgroundColor: 'transparent' }} />)}
-                                                        </td>
-                                                        <td style={{ border: '1px solid #e2e8f0', padding: '0' }}>
-                                                            {!isSubHeader && ((isReadOnly && user?.role !== 'accountant') ?
-                                                                <span style={{ padding: '10px', display: 'block' }}>{usedQty}</span> :
-                                                                <input type="number" value={usedQty} onChange={(e) => updateItem(section.id, item.id, 'used_quantity', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '10px', border: 'none', backgroundColor: 'transparent', fontWeight: 600, color: '#000' }} />
-                                                            )}
-                                                        </td>
-                                                        <td style={{ border: '1px solid #e2e8f0', padding: '10px', fontWeight: 700, textAlign: 'center', color: (assignedQty - usedQty) < 0 ? '#ef4444' : '#1e293b' }}>
-                                                            {!isSubHeader && (assignedQty - usedQty)}
-                                                        </td>
-                                                    </>
-                                                )}
-                                                <td style={{ border: '1px solid #e2e8f0', padding: '0' }}>
-                                                    {!isSubHeader && (isReadOnly ? <span style={{ padding: '10px', display: 'block' }}>{item.rate}</span> : <input type="number" value={item.rate} onChange={(e) => updateItem(section.id, item.id, 'rate', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '10px', border: 'none', backgroundColor: 'transparent' }} />)}
-                                                </td>
-                                                <td style={{ border: '1px solid #e2e8f0', padding: '10px', fontWeight: 600 }}>
-                                                    {!isSubHeader && item.amount.toLocaleString()}
-                                                </td>
-                                                <td className="no-print" style={{ border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                                                    {!isReadOnly && <Trash2 size={16} color="#ef4444" style={{ cursor: 'pointer' }} onClick={() => {
-                                                        setSections(sections.map(s => s.id === section.id ? { ...s, items: s.items.filter(i => i.id !== item.id) } : s));
-                                                    }} />}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </React.Fragment>
-                            );
-                        })}
-                        <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 700 }}>
-                            <td colSpan={!isUsedQuote ? 4 : 6} style={{ padding: '12px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL (A) INTERIOR WORKS</td>
-                            <td colSpan={2} style={{ padding: '12px', border: '1px solid #cbd5e1' }}>₹{getGroupATotal().toLocaleString()}</td>
-                        </tr>
-                        <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 700 }}>
-                            <td colSpan={!isUsedQuote ? 4 : 6} style={{ padding: '12px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL (B) APPLIANCES & HOB</td>
-                            <td colSpan={2} style={{ padding: '12px', border: '1px solid #cbd5e1' }}>₹{getGroupBTotal().toLocaleString()}</td>
-                        </tr>
-                        <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 700 }}>
-                            <td colSpan={!isUsedQuote ? 4 : 6} style={{ padding: '12px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL (C) LOOSE FURNITURE & DECOR</td>
-                            <td colSpan={2} style={{ padding: '12px', border: '1px solid #cbd5e1' }}>₹{getGroupCTotal().toLocaleString()}</td>
-                        </tr>
-                        <tr style={{ backgroundColor: '#253b50', color: 'white', fontWeight: 800, fontSize: '1.1rem' }}>
-                            <td colSpan={!isUsedQuote ? 4 : 6} style={{ padding: '16px', border: '1px solid #334155', textAlign: 'right' }}>GRAND TOTAL (A + B + C)</td>
-                            <td colSpan={2} style={{ padding: '16px', border: '1px solid #334155' }}>₹{getGrandTotal().toLocaleString()}</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div className="no-print" style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
-                    {!isReadOnly && <button onClick={addSection} className="btn-primary" style={{ backgroundColor: '#64748b' }}>Add Section</button>}
-                    {!isReadOnly && (
-                        <button onClick={handleSaveQuote} disabled={saving} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                            {saving ? 'Saving...' : 'Save Estimate'}
-                        </button>
-                    )}
-                </div>
-
-                <div style={{ marginTop: '100px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ width: '200px', borderBottom: '1px solid #000', marginBottom: '8px' }}></div>
-                        <p style={{ fontWeight: 700, fontSize: '0.8rem' }}>ARK ARCHITECTS AND INTERIOR DESIGNERS</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
 const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
 
     const [vendorList, setVendorList] = useState<string[]>([]);
     const [filteredVendors, setFilteredVendors] = useState<string[]>([]);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
+    const [categories, setCategories] = useState<any[]>([]);
     const navigate = useNavigate();
 
 
@@ -1186,6 +755,8 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
 
     const [items, setItems] = useState<any[]>([
         {
+            invoice_no: '',
+            invoice_date: new Date().toISOString().split('T')[0],
             vendor: '',
             name: '',
             rate: 0,
@@ -1210,6 +781,8 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                 if (data.status === "success" && data.data.length > 0) {
 
                     const formatted = data.data.map((item: any) => ({
+                        invoice_no: item.invoice_no || '',
+                        invoice_date: item.invoice_date || new Date().toISOString().split('T')[0],
                         vendor: item.vendor,
                         name: item.item_name,
                         rate: Number(item.rate),
@@ -1241,6 +814,15 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                 }
             })
             .catch(err => console.error("Error fetching vendors:", err));
+
+        fetch(`${API_BASE_URL}/stock-categories?project_id=${project.project_id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    setCategories(data.data);
+                }
+            })
+            .catch(err => console.error("Error fetching categories:", err));
     }, [project?.project_id]);
     useEffect(() => {
         const handleClick = () => {
@@ -1254,10 +836,36 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
 
     // 🔥 UPDATE ROW
     const updateItem = (index: number, field: string, value: any) => {
+        if (field === 'name' && value === 'ADD_NEW_CATEGORY') {
+            const newCat = window.prompt('Enter new category name:');
+            if (newCat && newCat.trim()) {
+                fetch(`${API_BASE_URL}/stock-categories`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ project_id: project.project_id, category_name: newCat.trim() })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            setCategories(prev => [...prev, { id: Date.now(), category_name: newCat.trim() }]);
+                            const updated = [...items];
+                            updated[index][field] = newCat.trim();
+                            updateRowTotals(updated, index);
+                        } else {
+                            alert('Failed to add category');
+                        }
+                    })
+                    .catch(err => alert('Failed to add category'));
+            }
+            return;
+        }
+
         const updated = [...items];
-
         updated[index][field] = value;
+        updateRowTotals(updated, index);
+    };
 
+    const updateRowTotals = (updated: any[], index: number) => {
         const qty = Number(updated[index].qty || 0);
         const rate = Number(updated[index].rate || 0);
         const discount = Number(updated[index].discount || 0);
@@ -1279,6 +887,8 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
     const handlePrint = () => {
         const rows = items.map((item, index) => `
             <tr>
+                <td>${item.invoice_no || ''}</td>
+                <td>${item.invoice_date || ''}</td>
                 <td>${item.vendor}</td>
                 <td>${item.name}</td>
                 <td>${item.rate}</td>
@@ -1355,13 +965,15 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
             </head>
             <body>
     
-                <h2>Vendor Quta Report</h2>
+                <h2>Vendor Bill Report</h2>
     
                 <table>
                     <thead>
                         <tr>
+                            <th>Invoice No</th>
+                            <th>Date</th>
                             <th>Vendor</th>
-                            <th>Item</th>
+                            <th>Category</th>
                             <th>Rate</th>
                             <th>Qty</th>
                             <th>Disc (%)</th>
@@ -1452,7 +1064,7 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
         <div className="premium-card" ref={printRef}>
 
             <h3 style={{ fontSize: '1.4rem', fontWeight: 700 }}>
-                Vendor Quta
+                Vendor Bill
             </h3>
 
             {/* TABLE */}
@@ -1464,8 +1076,10 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                 }}>
                     <thead style={{ background: '#f8fafc', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>
                         <tr>
+                            <th style={th}>Invoice No</th>
+                            <th style={th}>Date</th>
                             <th style={th}>Vendor</th>
-                            <th style={th}>Item</th>
+                            <th style={th}>Category</th>
                             <th style={th}>Rate</th>
                             <th style={th}>Qty</th>
                             <th style={th}>Disc (%)</th>
@@ -1482,6 +1096,23 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                 background: i % 2 === 0 ? '#f9fafb' : '#fff'
                             }}>
 
+                                <td style={td}>
+                                    <input
+                                        style={inputStyle}
+                                        type="text"
+                                        value={item.invoice_no || ''}
+                                        onChange={(e) => updateItem(i, 'invoice_no', e.target.value)}
+                                        placeholder="Inv #"
+                                    />
+                                </td>
+                                <td style={td}>
+                                    <input
+                                        style={inputStyle}
+                                        type="date"
+                                        value={item.invoice_date || ''}
+                                        onChange={(e) => updateItem(i, 'invoice_date', e.target.value)}
+                                    />
+                                </td>
                                 <td style={{ ...td, position: 'relative' }}>
                                     <input
                                         style={inputStyle}
@@ -1609,11 +1240,17 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                     )}
                                 </td>
                                 <td style={td}>
-                                    <input
-                                        style={inputStyle}
+                                    <select
+                                        style={{ ...inputStyle, padding: '8px', cursor: 'pointer' }}
                                         value={item.name}
                                         onChange={(e) => updateItem(i, 'name', e.target.value)}
-                                    />
+                                    >
+                                        <option value="">Select Category...</option>
+                                        {categories.map((cat: any) => (
+                                            <option key={cat.id} value={cat.category_name}>{cat.category_name}</option>
+                                        ))}
+                                        <option value="ADD_NEW_CATEGORY" style={{ fontWeight: 'bold', color: '#2563eb' }}>+ Add New Category</option>
+                                    </select>
                                 </td>
 
                                 <td style={td}>
@@ -2009,7 +1646,7 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
 
                 {/* 2. VENDOR QUTA */}
                 <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                    <p style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Vendor Quta</p>
+                    <p style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Vendor Bill</p>
                     <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.1rem', margin: 0 }}>
                         ₹{inventoryTotal.toLocaleString()}
                     </h4>
@@ -2101,112 +1738,455 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
     );
 };
 
+const UNIT_OPTIONS = [
+    'Pieces (pcs)', 'Nos', 'Sets', 'Pairs',
+    'Square Feet (sqft)', 'Running Feet (rft)', 'Square Meters (sqm)',
+    'Meters (m)', 'Centimeters (cm)',
+    'Kilograms (kg)', 'Grams (g)', 'Tons',
+    'Liters (ltr)', 'Milliliters (ml)',
+    'Bags', 'Boxes', 'Rolls', 'Sheets', 'Bundles',
+];
+
 const StockCategoryTab = ({ project, user }: any) => {
     const [categories, setCategories] = useState<any[]>([]);
-    const [newCategory, setNewCategory] = useState('');
     const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
+    const [showFormModal, setShowFormModal] = useState(false);
+
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/stock-categories?project_id=${project.project_id}`);
+            if (res.data.success) setCategories(res.data.data);
+        } catch { console.error('Failed to fetch categories'); }
+        finally { setLoading(false); }
+    };
 
     useEffect(() => {
         fetchCategories();
     }, [project.project_id]);
 
-    const fetchCategories = async () => {
-        try {
-            const res = await axios.get(`${API_BASE_URL}/stock-categories?project_id=${project.project_id}`);
-            if (res.data.success) {
-                setCategories(res.data.data);
-            }
-        } catch (err) {
-            console.error("Failed to fetch stock categories");
-        } finally {
-            setLoading(false);
-        }
-    };
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header with Add Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
+                {['admin', 'principal_architect', 'accountant', 'project_head'].includes(user?.role) && (
+                    <button onClick={() => setShowFormModal(true)} className="btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}>
+                        <Plus size={18} /> Add Stock Item
+                    </button>
+                )}
+            </div>
 
-    const handleAdd = async (e: React.FormEvent) => {
+            {/* Modal for Add Stock Item */}
+            {showFormModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
+                    <div className="premium-card" style={{ width: '100%', maxWidth: '500px', padding: '0', overflow: 'hidden', position: 'relative' }}>
+                        <button onClick={() => setShowFormModal(false)} style={{ position: 'absolute', right: '16px', top: '16px', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                            <X size={24} />
+                        </button>
+                        <StockItemForm
+                            project={project}
+                            categories={categories}
+                            onSuccess={() => { fetchCategories(); setShowFormModal(false); }}
+                            onClose={() => setShowFormModal(false)}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* ── STOCK ITEMS TABLE ── */}
+            <StockItemsTable project={project} categories={categories} user={user} />
+        </div>
+    );
+};
+
+/* ─── Add Stock Item Form (Modal Content) ─────────────────────── */
+const StockItemForm = ({ project, categories, onSuccess, onClose }: any) => {
+    const emptyForm = { name: '', category_name: '', unit: '', quantity: '', worth_in_rupees: '' };
+    const [form, setForm] = useState<any>(emptyForm);
+    const [newCatName, setNewCatName] = useState('');
+    const [showNewCatInput, setShowNewCatInput] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [successMsg, setSuccessMsg] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newCategory.trim()) return;
+
+        let finalCategory = form.category_name;
+        if (showNewCatInput) {
+            if (!newCatName.trim()) { alert('Please enter new category name'); return; }
+            finalCategory = newCatName.trim();
+        }
+
+        if (!form.name.trim() || !finalCategory || !form.unit || !form.quantity || !form.worth_in_rupees) {
+            alert('Please fill in all required fields.');
+            return;
+        }
         setSubmitting(true);
         try {
-            const res = await axios.post(`${API_BASE_URL}/stock-categories`, {
+            // 1. If new category, create it first
+            if (showNewCatInput) {
+                await axios.post(`${API_BASE_URL}/stock-categories`, { project_id: project.project_id, category_name: finalCategory });
+            }
+
+            // 2. Add Item
+            const res = await axios.post(`${API_BASE_URL}/stock-items`, {
                 project_id: project.project_id,
-                category_name: newCategory
+                ...form,
+                category_name: finalCategory,
+                quantity: parseInt(form.quantity),
+                worth_in_rupees: parseInt(form.worth_in_rupees),
             });
             if (res.data.success) {
-                setNewCategory('');
-                fetchCategories();
+                setForm(emptyForm);
+                setSuccessMsg('Stock item added successfully!');
+                setTimeout(() => {
+                    setSuccessMsg('');
+                    onSuccess();
+                }, 1500);
+                window.dispatchEvent(new CustomEvent('stockItemAdded', { detail: { project_id: project.project_id } }));
+            } else {
+                alert(res.data.message || 'Failed to add item');
             }
-        } catch (err) {
-            alert('Failed to add category');
-        } finally {
-            setSubmitting(false);
-        }
+        } catch { alert('Error adding stock item'); }
+        finally { setSubmitting(false); }
     };
 
-    const handleDelete = async (id: number) => {
-        if (!window.confirm('Delete this category?')) return;
-        try {
-            const res = await axios.delete(`${API_BASE_URL}/stock-categories/${id}`);
-            if (res.data.success) {
-                fetchCategories();
-            }
-        } catch (err) {
-            alert('Failed to delete category');
-        }
-    };
+    const labelStyle: React.CSSProperties = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600, color: '#374151' };
+    const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' };
 
     return (
-        <div className="premium-card" style={{ padding: '30px' }}>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '20px' }}>Add Stock Category</h3>
+        <div style={{ padding: '30px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '20px', color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>Add Stock Item</h3>
 
-            <form onSubmit={handleAdd} style={{ display: 'flex', gap: '15px', marginBottom: '30px', alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Category Name</label>
-                    <input 
-                        type="text" 
-                        required 
-                        value={newCategory} 
-                        onChange={(e) => setNewCategory(e.target.value)} 
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
-                        placeholder="e.g. Tiles, Plywood, Hardware..." 
-                    />
+            {successMsg && (
+                <div style={{ padding: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#15803d', fontWeight: 600, fontSize: '0.85rem', marginBottom: '20px' }}>
+                    ✅ {successMsg}
                 </div>
-                <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 25px' }}>
-                    {submitting ? 'Adding...' : 'Add Category'}
-                </button>
-            </form>
+            )}
 
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                    <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DATE ADDED</th>
-                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>CATEGORY NAME</th>
-                        <th style={{ padding: '12px', textAlign: 'right', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>ACTION</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {loading ? (
-                        <tr><td colSpan={3} style={{ textAlign: 'center', padding: '20px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
-                    ) : categories.length === 0 ? (
-                        <tr>
-                            <td colSpan={3} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                                No stock categories added yet.
-                            </td>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    {/* Name */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                        <label style={labelStyle}>Item Name <span style={{ color: '#ef4444' }}>*</span></label>
+                        <input type="text" required value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            style={inputStyle} placeholder="e.g. Cement, Tiles" />
+                    </div>
+
+                    {/* Stock Category */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                        <label style={labelStyle}>Category <span style={{ color: '#ef4444' }}>*</span></label>
+                        {!showNewCatInput ? (
+                            <select required value={form.category_name}
+                                onChange={(e) => {
+                                    if (e.target.value === '__NEW__') {
+                                        setShowNewCatInput(true);
+                                    } else {
+                                        setForm({ ...form, category_name: e.target.value });
+                                    }
+                                }}
+                                style={inputStyle}>
+                                <option value="">Select Category</option>
+                                {categories.map((c: any) => (
+                                    <option key={c.id} value={c.category_name}>{c.category_name}</option>
+                                ))}
+                                <option value="__NEW__" style={{ color: '#2563eb', fontWeight: 700 }}>+ Add New Category</option>
+                            </select>
+                        ) : (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input type="text" value={newCatName} onChange={(e) => setNewCatName(e.target.value)}
+                                    style={inputStyle} placeholder="Enter new category name" autoFocus />
+                                <button type="button" onClick={() => setShowNewCatInput(false)}
+                                    style={{ padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer' }}>✕</button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Unit */}
+                    <div>
+                        <label style={labelStyle}>Unit <span style={{ color: '#ef4444' }}>*</span></label>
+                        <select required value={form.unit}
+                            onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                            style={inputStyle}>
+                            <option value="">Select Unit</option>
+                            {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Quantity */}
+                    <div>
+                        <label style={labelStyle}>Quantity <span style={{ color: '#ef4444' }}>*</span></label>
+                        <input type="number" required min="1" step="1" value={form.quantity}
+                            onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                            style={inputStyle} placeholder="0" />
+                    </div>
+
+                    {/* Unit Rate */}
+                    <div>
+                        <label style={labelStyle}>Unit Rate (₹) <span style={{ color: '#ef4444' }}>*</span></label>
+                        <input type="number" required min="0" step="1" value={form.worth_in_rupees}
+                            onChange={(e) => setForm({ ...form, worth_in_rupees: e.target.value })}
+                            style={inputStyle} placeholder="0" />
+                    </div>
+
+                    {/* Result Info */}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '10px' }}>
+                        {form.quantity && form.worth_in_rupees && (
+                            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
+                                Total: ₹{(parseInt(form.quantity) * parseInt(form.worth_in_rupees)).toLocaleString()}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                    <button type="button" onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                    <button type="submit" disabled={submitting} className="btn-primary" style={{ flex: 2, padding: '12px', fontWeight: 700 }}>
+                        {submitting ? 'Saving...' : 'Add Stock Item'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+/* ─── Stock Items Table ───────────────────────────────────────── */
+const StockItemsTable = ({ project, categories, user }: any) => {
+    const [items, setItems] = useState<any[]>([]);
+    const [loadingItems, setLoadingItems] = useState(true);
+    const [filterCat, setFilterCat] = useState('');
+    const [allProjects, setAllProjects] = useState<any[]>([]);
+    const [transferringItem, setTransferringItem] = useState<any>(null);
+    const [transferData, setTransferData] = useState({ target_project_id: '', qty: 0 });
+
+    const fetchItems = async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/stock-items?project_id=${project.project_id}`);
+            if (res.data.success) setItems(res.data.data);
+        } catch { console.error('Failed to fetch stock items'); }
+        finally { setLoadingItems(false); }
+    };
+
+    const fetchAllProjects = async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/projects`);
+            if (res.data.success) {
+                setAllProjects(res.data.data.filter((p: any) => p.project_id !== project.project_id));
+            }
+        } catch (err) { console.error("Failed to fetch projects"); }
+    };
+
+    useEffect(() => {
+        fetchItems();
+        fetchAllProjects();
+        const handler = (e: any) => {
+            if (String(e.detail?.project_id) === String(project.project_id)) fetchItems();
+        };
+        window.addEventListener('stockItemAdded', handler);
+        return () => window.removeEventListener('stockItemAdded', handler);
+    }, [project.project_id]);
+
+    const handleDelete = async (id: number) => {
+        if (!window.confirm('Delete this stock item?')) return;
+        try {
+            const res = await axios.delete(`${API_BASE_URL}/stock-items/${id}`);
+            if (res.data.success) fetchItems();
+        } catch { alert('Failed to delete item'); }
+    };
+
+    const handleSaveUsage = async (item: any) => {
+        try {
+            const res = await axios.put(`${API_BASE_URL}/stock-items/usage`, {
+                id: item.id,
+                quantity_used: item.quantity_used,
+                is_checked: item.is_checked
+            });
+            if (res.data.success) {
+                alert('Stock marked as Received!');
+                fetchItems();
+            }
+        } catch (err) { alert('Failed to save usage'); }
+    };
+
+    const handleTransfer = async () => {
+        const available = parseFloat(transferringItem.quantity) - parseFloat(transferringItem.quantity_used || 0);
+        if (!transferData.target_project_id || transferData.qty <= 0 || transferData.qty > available) {
+            alert("Please enter a valid quantity within available limits.");
+            return;
+        }
+        try {
+            const res = await axios.post(`${API_BASE_URL}/stock-items/transfer`, {
+                item_id: transferringItem.id,
+                target_project_id: transferData.target_project_id,
+                transfer_qty: transferData.qty
+            });
+            if (res.data.success) {
+                alert('Transfer successful!');
+                setTransferringItem(null);
+                setTransferData({ target_project_id: '', qty: 0 });
+                fetchItems();
+            } else {
+                alert(res.data.message);
+            }
+        } catch (err) { alert('Transfer failed'); }
+    };
+
+    const isAdmin = ['admin', 'principal_architect', 'accountant'].includes(user?.role);
+    const isEngineer = user?.role === 'site_engineer';
+
+    const filtered = filterCat ? items.filter(i => i.category_name === filterCat) : items;
+    const stockItems = filtered.filter(i => !i.is_transferred);
+    const transferItems = filtered.filter(i => i.is_transferred);
+
+    const thS: React.CSSProperties = { padding: '12px 14px', textAlign: 'left', color: '#475569', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#f8fafc' };
+    const tdS: React.CSSProperties = { padding: '13px 14px', fontSize: '0.85rem', color: '#374151' };
+
+    const renderTable = (data: any[], title: string) => (
+        <div className="premium-card" style={{ padding: '24px', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#253b50' }}>{title}</h3>
+                {title === "Stock Items" && (
+                    <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>
+                        <option value="">All Categories</option>
+                        {categories.map((c: any) => <option key={c.id} value={c.category_name}>{c.category_name}</option>)}
+                    </select>
+                )}
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                            <th style={thS}>#</th>
+                            <th style={thS}>Name</th>
+                            {title === "Transferred Stock" ? (
+                                <th style={thS}>Qty & Amount</th>
+                            ) : (
+                                <>
+                                    <th style={thS}>Rate (₹)</th>
+                                    <th style={thS}>Qty</th>
+                                    <th style={thS}>Total (₹)</th>
+                                </>
+                            )}
+                            <th style={thS}>Used</th>
+                            <th style={thS}>Used (₹)</th>
+                            <th style={thS}>Rem.</th>
+                            <th style={thS}>Rem. (₹)</th>
+                            <th style={{ ...thS, textAlign: 'center' }}>Status</th>
+                            <th style={{ ...thS, textAlign: 'center' }}>Action</th>
                         </tr>
-                    ) : categories.map((cat: any) => (
-                        <tr key={cat.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '12px', color: '#64748b' }}>{new Date(cat.created_at).toLocaleDateString()}</td>
-                            <td style={{ padding: '12px', fontWeight: 500 }}>{cat.category_name}</td>
-                            <td style={{ padding: '12px', textAlign: 'right' }}>
-                                <button onClick={() => handleDelete(cat.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                    <Trash2 size={18} />
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {data.length === 0 ? (
+                            <tr><td colSpan={11} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>No items found.</td></tr>
+                        ) : data.map((item, idx) => {
+                            const rate = Math.floor(parseFloat(item.worth_in_rupees || 0));
+                            const qty = Math.floor(parseFloat(item.quantity || 0));
+                            const used = Math.floor(parseFloat(item.quantity_used || 0));
+                            const rem = qty - used;
+                            const totalVal = qty * rate;
+                            const usedVal = used * rate;
+                            const remVal = rem * rate;
+
+                            return (
+                                <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ ...tdS, color: '#9ca3af' }}>{idx + 1}</td>
+                                    <td style={{ ...tdS, fontWeight: 600 }}>{item.name}</td>
+                                    {title === "Transferred Stock" ? (
+                                        <td style={{ ...tdS, color: '#2563eb', fontWeight: 600 }}>{qty} qty transfer ₹{totalVal.toLocaleString()}</td>
+                                    ) : (
+                                        <>
+                                            <td style={tdS}>₹{rate.toLocaleString()}</td>
+                                            <td style={tdS}>{qty}</td>
+                                            <td style={{ ...tdS, fontWeight: 700 }}>₹{totalVal.toLocaleString()}</td>
+                                        </>
+                                    )}
+                                    <td style={tdS}>
+                                        {isEngineer && item.is_checked ? (
+                                            <input type="number" value={item.quantity_used} step="1"
+                                                onChange={(e) => {
+                                                    const updated = [...items];
+                                                    const i = updated.findIndex(it => it.id === item.id);
+                                                    updated[i].quantity_used = e.target.value;
+                                                    setItems(updated);
+                                                }}
+                                                style={{ width: '60px', padding: '4px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                        ) : used}
+                                    </td>
+                                    <td style={tdS}>₹{usedVal.toLocaleString()}</td>
+                                    <td style={{ ...tdS, fontWeight: 700, color: rem <= 0 ? '#ef4444' : '#15803d' }}>{rem}</td>
+                                    <td style={{ ...tdS, color: rem <= 0 ? '#ef4444' : '#15803d' }}>₹{remVal.toLocaleString()}</td>
+                                    <td style={{ ...tdS, textAlign: 'center' }}>
+                                        <span style={{
+                                            padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700,
+                                            backgroundColor: item.status === 'received' ? '#dcfce7' : '#fef2f2',
+                                            color: item.status === 'received' ? '#15803d' : '#dc2626'
+                                        }}>{item.status || 'pending'}</span>
+                                    </td>
+                                    <td style={{ ...tdS, textAlign: 'center' }}>
+                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                                            {isEngineer && (
+                                                <>
+                                                    <input type="checkbox" checked={!!item.is_checked}
+                                                        onChange={(e) => {
+                                                            const updated = [...items];
+                                                            const i = updated.findIndex(it => it.id === item.id);
+                                                            updated[i].is_checked = e.target.checked;
+                                                            setItems(updated);
+                                                        }} />
+                                                    {item.is_checked && (
+                                                        <button onClick={() => handleSaveUsage(item)} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer' }}>Save</button>
+                                                    )}
+                                                </>
+                                            )}
+                                            {(isAdmin || isEngineer) && (
+                                                <button onClick={() => setTransferringItem(item)} style={{ background: '#f1f5f9', border: '1px solid #d1d5db', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer' }}>Transfer</button>
+                                            )}
+                                            {isAdmin && (
+                                                <button onClick={() => handleDelete(item.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {renderTable(stockItems, "Stock Items")}
+            {renderTable(transferItems, "Transferred Stock")}
+
+            {/* Transfer Modal */}
+            {transferringItem && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
+                    <div className="premium-card" style={{ width: '100%', maxWidth: '400px', padding: '24px' }}>
+                        <h3 style={{ marginBottom: '20px' }}>Transfer: {transferringItem.name}</h3>
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Select Project</label>
+                            <select value={transferData.target_project_id} onChange={(e) => setTransferData({ ...transferData, target_project_id: e.target.value })}
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db' }}>
+                                <option value="">Select Project</option>
+                                {allProjects.map(p => <option key={p.project_id} value={p.project_id}>{p.project_name}</option>)}
+                            </select>
+                        </div>
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Transfer Qty (Max: {parseFloat(transferringItem.quantity) - parseFloat(transferringItem.quantity_used || 0)})</label>
+                            <input type="number" value={transferData.qty} step="0.01" onChange={(e) => setTransferData({ ...transferData, qty: parseFloat(e.target.value) })}
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button onClick={() => setTransferringItem(null)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db', background: 'white' }}>Cancel</button>
+                            <button onClick={handleTransfer} className="btn-primary" style={{ flex: 1 }}>Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -29,13 +29,13 @@ export const Login: React.FC = () => {
 
             if (response.data.success) {
                 const userData = response.data.data;
-            
+
                 // ✅ Save to localStorage
                 localStorage.setItem("user", JSON.stringify(userData));
-            
+
                 // ✅ Set in context
                 login(userData);
-            
+
                 if (userData.role === 'site_engineer') {
                     navigate('/projects');
                 } else {

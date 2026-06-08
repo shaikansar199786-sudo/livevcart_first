@@ -84,16 +84,24 @@ class StockCategoryController
 
     public function updateUsage($data)
     {
-        $status = $data['is_checked'] ? 'received' : 'pending';
-        $query = "UPDATE project_stock_items 
-                  SET quantity_used = :quantity_used, is_checked = :is_checked, status = :status 
+        // Add quantity_used column if it doesn't exist
+        try {
+            $this->conn->exec("ALTER TABLE project_stock_items ADD COLUMN quantity_used INT DEFAULT 0 AFTER quantity");
+        } catch (Exception $e) {}
+
+        // Add is_checked column if it doesn't exist
+        try {
+            $this->conn->exec("ALTER TABLE project_stock_items ADD COLUMN is_checked TINYINT DEFAULT 0 AFTER quantity_used");
+        } catch (Exception $e) {}
+
+        $is_checked = isset($data['is_checked']) ? ($data['is_checked'] ? 1 : 0) : 0;
+        $query = "UPDATE project_stock_items
+                  SET quantity_used = :quantity_used, is_checked = :is_checked
                   WHERE id = :id";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id',            $data['id']);
         $stmt->bindParam(':quantity_used', $data['quantity_used']);
-        $is_checked = $data['is_checked'] ? 1 : 0;
         $stmt->bindParam(':is_checked',    $is_checked);
-        $stmt->bindParam(':status',        $status);
 
         if ($stmt->execute()) {
             return ["success" => true, "message" => "Usage updated."];

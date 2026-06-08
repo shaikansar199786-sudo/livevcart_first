@@ -76,16 +76,28 @@ export default function Timeline() {
     });
   }
   return (
-    <div style={{ backgroundColor: "#f3f4f6", minHeight: "100vh", padding: "40px", display: "flex", justifyContent: "center" }}>
-      <div style={{ backgroundColor: "white", padding: "40px", width: "100%", maxWidth: "1200px", border: "1px solid #000", boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}>
+    <div className="timeline-wrapper" style={{ backgroundColor: "#f3f4f6", minHeight: "100vh", padding: "40px", display: "flex", justifyContent: "center" }}>
+      <style>{`
+        @media print {
+          @page { size: landscape; margin: 5mm; }
+          body { background-color: white !important; margin: 0 !important; padding: 0 !important; }
+          .timeline-wrapper { padding: 0 !important; background-color: white !important; }
+          .timeline-content { border: none !important; box-shadow: none !important; padding: 0 !important; max-width: none !important; width: 100% !important; }
+          .print-btn { display: none !important; }
+          .table-container { overflow: visible !important; width: 100% !important; }
+          table { zoom: 0.7; }
+        }
+      `}</style>
+      <div className="timeline-content" style={{ backgroundColor: "white", padding: "40px", width: "100%", maxWidth: "1200px", border: "1px solid #000", boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}>
         {/* Professional Document Header */}
-        <div style={{ textAlign: "center", marginBottom: "30px", borderBottom: "3px solid #000", paddingBottom: "15px" }}>
+        <div style={{ textAlign: "center", marginBottom: "30px", borderBottom: "3px solid #000", paddingBottom: "15px", position: "relative" }}>
+          <button onClick={() => window.print()} className="print-btn" style={{ position: 'absolute', right: 0, top: 0, padding: '8px 16px', background: '#253b50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>Print</button>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", margin: 0 }}>
             TIMELINE FOR INTERIORS WORKS FOR CHEERANJIVI SITE — (YENDADA)
           </h1>
           <p style={{ fontSize: "0.7rem", color: "#666", marginTop: "5px" }}>ARK ARCHITECTS AND INTERIOR DESIGNERS</p>
         </div>
-        <div style={{ overflowX: "auto" }}>
+        <div className="table-container" style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", width: "100%", border: "2px solid #000", tableLayout: "fixed" }}>
             <thead>
               {/* Month Header Row */}

@@ -9,6 +9,8 @@ import {
     Phone,
     Loader2,
     ExternalLink,
+    Edit2,
+    Trash2
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -34,9 +36,18 @@ export const Clients: React.FC = () => {
     const [showProjectModal, setShowProjectModal] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     const [team, setTeam] = useState<any[]>([]);
 
-    const [clientForm, setClientForm] = useState({
+    const [clientForm, setClientForm] = useState<{
+        client_id?: string;
+        name: string;
+        projectname: string;
+        consultation_type: string;
+        email: string;
+        phone: string;
+        address: string;
+    }>({
         name: '',
         projectname: '',
         consultation_type: 'Interior Design Consultation',
@@ -96,20 +107,64 @@ export const Clients: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post(`${API_BASE_URL}/clients`, {
-                ...clientForm,
-                created_by: user?.user_id
-            });
-            if (response.data.success) {
-                setShowAddModal(false);
-                setClientForm({ name: '', projectname: '', consultation_type: 'Interior Design Consultation', email: '', phone: '', address: '' });
-                fetchClients();
+            if (isEditing && clientForm.client_id) {
+                const response = await axios.put(`${API_BASE_URL}/clients`, {
+                    ...clientForm
+                });
+                if (response.data.success) {
+                    setShowAddModal(false);
+                    setClientForm({ name: '', projectname: '', consultation_type: 'Interior Design Consultation', email: '', phone: '', address: '' });
+                    setIsEditing(false);
+                    fetchClients();
+                } else {
+                    alert('Failed to update client');
+                }
+            } else {
+                const response = await axios.post(`${API_BASE_URL}/clients`, {
+                    ...clientForm,
+                    created_by: user?.user_id
+                });
+                if (response.data.success) {
+                    setShowAddModal(false);
+                    setClientForm({ name: '', projectname: '', consultation_type: 'Interior Design Consultation', email: '', phone: '', address: '' });
+                    fetchClients();
+                } else {
+                    alert('Failed to add client');
+                }
             }
         } catch (err) {
-            alert('Failed to add client');
+            alert('Failed to process client');
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleDeleteClient = async (id: string) => {
+        if (!window.confirm("Are you sure you want to delete this client?")) return;
+        try {
+            const response = await axios.delete(`${API_BASE_URL}/clients/${id}`);
+            if (response.data.success) {
+                fetchClients();
+            } else {
+                alert('Failed to delete client');
+            }
+        } catch (err) {
+            alert('Failed to delete client');
+        }
+    };
+
+    const handleEditClick = (client: Client) => {
+        setIsEditing(true);
+        setClientForm({
+            client_id: client.client_id,
+            name: client.name,
+            projectname: client.projectname || '',
+            consultation_type: client.consultation_type || 'Interior Design Consultation',
+            email: client.email,
+            phone: client.phone,
+            address: client.address
+        } as any);
+        setShowAddModal(true);
     };
 
     const handleLaunchClick = (client: Client) => {
@@ -153,7 +208,11 @@ export const Clients: React.FC = () => {
                     <p style={{ color: '#6b7280' }}>All registered clients and their project status</p>
                 </div>
                 <button
-                    onClick={() => setShowAddModal(true)}
+                    onClick={() => {
+                        setIsEditing(false);
+                        setClientForm({ name: '', projectname: '', consultation_type: 'Interior Design Consultation', email: '', phone: '', address: '' });
+                        setShowAddModal(true);
+                    }}
                     className="btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
@@ -182,6 +241,9 @@ export const Clients: React.FC = () => {
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Project / Client</th>
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Contact</th>
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Assign Team</th>
+                                {(user?.role === 'admin' || user?.role === 'principal_architect') && (
+                                    <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500, textAlign: 'center' }}>Actions</th>
+                                )}
                             </tr>
                         </thead>
                         <tbody>
@@ -231,6 +293,18 @@ export const Clients: React.FC = () => {
                                             )
                                         )}
                                     </td>
+                                    {(user?.role === 'admin' || user?.role === 'principal_architect') && (
+                                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                <button onClick={() => handleEditClick(client)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '4px' }}>
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button onClick={() => handleDeleteClient(client.client_id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}>
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
@@ -242,7 +316,7 @@ export const Clients: React.FC = () => {
             {showAddModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                     <div className="premium-card" style={{ width: '100%', maxWidth: '500px' }}>
-                        <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>Manual Registry Entry</h3>
+                        <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>{isEditing ? 'Edit Client Entry' : 'Manual Registry Entry'}</h3>
                         <form onSubmit={handleAddClient}>
                             <div style={{ marginBottom: '16px' }}>
                                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Full Name</label>
@@ -259,6 +333,9 @@ export const Clients: React.FC = () => {
                                         <option value="Architectural Design Consultation">Architectural Design Consultation</option>
                                         <option value="Interior Design Consultation">Interior Design Consultation</option>
                                         <option value="Arch + Interior">Arch + Interior</option>
+                                        <option value="Interior Execution Project">Interior Execution Project</option>
+                                        {/* <option value="Master Plan">Master Plan</option>
+                                        <option value="Landscape">Landscape</option> */}
                                     </select>
                                 </div>
                             </div>
@@ -279,7 +356,7 @@ export const Clients: React.FC = () => {
                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                                 <button type="button" onClick={() => setShowAddModal(false)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white' }}>Cancel</button>
                                 <button type="submit" disabled={submitting} className="btn-primary">
-                                    {submitting ? 'Registering...' : 'Register Registry'}
+                                    {submitting ? 'Saving...' : (isEditing ? 'Update Registry' : 'Register Registry')}
                                 </button>
                             </div>
                         </form>
@@ -305,6 +382,9 @@ export const Clients: React.FC = () => {
                                         <option value="Architectural Design Consultation">Architectural Design Consultation</option>
                                         <option value="Interior Design Consultation">Interior Design Consultation</option>
                                         <option value="Arch + Interior">Arch + Interior</option>
+                                        <option value="Interior Execution Project">Interior Execution Project</option>
+                                        <option value="Master Plan">Master Plan</option>
+                                        <option value="Landscape">Landscape</option>
                                     </select>
                                 </div>
                             </div>

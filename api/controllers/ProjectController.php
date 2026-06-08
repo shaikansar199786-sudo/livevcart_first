@@ -31,7 +31,10 @@ class ProjectController
         $type_map = [
             'Architectural Design Consultation' => 'architecture',
             'Interior Design Consultation' => 'interior',
-            'Arch + Interior' => 'both'
+            'Arch + Interior' => 'both',
+            'Interior Execution Project' => 'interior_execution',
+            // 'Master Plan' => 'master_plan',
+            // 'Landscape' => 'landscape'
         ];
         $mapped_project_type = $type_map[$data['project_type']] ?? $data['project_type'];
 
@@ -83,7 +86,7 @@ class ProjectController
 
             // 1. Update project details
             $query = "UPDATE " . $this->table_name . " 
-                      SET project_name = :name, site_address = :site, start_date = :start, expected_end_date = :end, project_head_id = :head, status = :status 
+                      SET project_name = :name, site_address = :site, start_date = :start, expected_end_date = :end, project_head_id = :head, status = :status, project_type = :project_type 
                       WHERE project_id = :id";
             $stmt = $this->conn->prepare($query);
             $stmt->execute([
@@ -93,6 +96,7 @@ class ProjectController
                 'end' => $data['expected_end_date'],
                 'head' => $data['project_head_id'],
                 'status' => $data['status'] ?? 'Pending',
+                'project_type' => $data['project_type'] ?? 'interior',
                 'id' => $project_id
             ]);
 
@@ -215,6 +219,28 @@ class ProjectController
         $stmt->bindParam(':p_id', $project_id);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    public function delete($project_id)
+    {
+        try {
+            $this->conn->beginTransaction();
+
+            // Delete assignments first
+            $del_assign = "DELETE FROM project_assignments WHERE project_id = :id";
+            $stmt_a = $this->conn->prepare($del_assign);
+            $stmt_a->execute(['id' => $project_id]);
+
+            // Delete project
+            $del_proj = "DELETE FROM " . $this->table_name . " WHERE project_id = :id";
+            $stmt_p = $this->conn->prepare($del_proj);
+            $stmt_p->execute(['id' => $project_id]);
+
+            $this->conn->commit();
+            return ["success" => true, "message" => "Project deleted successfully."];
+        } catch (Exception $e) {
+            $this->conn->rollBack();
+            return ["success" => false, "message" => "Failed to delete project: " . $e->getMessage()];
+        }
     }
 }
 ?>

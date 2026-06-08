@@ -44,16 +44,50 @@ class UserController
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function softDelete($user_id)
+    public function update($data)
     {
-        $query = "UPDATE " . $this->table_name . " SET status = 'inactive' WHERE user_id = :user_id";
+        $query = "UPDATE " . $this->table_name . " 
+                SET name = :name, username = :username, role = :role, 
+                    phone = :phone, employee_id = :employee_id, status = :status";
+        
+        if (!empty($data['password'])) {
+            $query .= ", password = :password";
+        }
+        
+        $query .= " WHERE user_id = :user_id";
+
+        $stmt = $this->conn->prepare($query);
+
+        $stmt->bindParam(':name', $data['name']);
+        $stmt->bindParam(':username', $data['username']);
+        $stmt->bindParam(':role', $data['role']);
+        $stmt->bindParam(':phone', $data['phone']);
+        $stmt->bindParam(':employee_id', $data['employee_id']);
+        $stmt->bindParam(':status', $data['status']);
+        $stmt->bindParam(':user_id', $data['user_id']);
+
+        if (!empty($data['password'])) {
+            $hashed_password = password_hash($data['password'], PASSWORD_BCRYPT);
+            $stmt->bindParam(':password', $hashed_password);
+        }
+
+        if ($stmt->execute()) {
+            return ["success" => true, "message" => "User updated successfully."];
+        }
+
+        return ["success" => false, "message" => "Unable to update user."];
+    }
+
+    public function hardDelete($user_id)
+    {
+        $query = "DELETE FROM " . $this->table_name . " WHERE user_id = :user_id";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':user_id', $user_id);
 
         if ($stmt->execute()) {
-            return ["success" => true, "message" => "User deactivated successfully."];
+            return ["success" => true, "message" => "User deleted permanently."];
         }
-        return ["success" => false, "message" => "Unable to deactivate user."];
+        return ["success" => false, "message" => "Unable to delete user."];
     }
 }
 ?>

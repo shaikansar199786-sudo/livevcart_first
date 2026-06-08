@@ -9,7 +9,8 @@ import {
     Calendar,
     User,
     MapPin,
-    Loader2
+    Loader2,
+    Trash2
 } from 'lucide-react';
 
 interface Project {
@@ -116,6 +117,23 @@ export const Projects: React.FC = () => {
         }
     };
 
+    const handleDelete = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (window.confirm('Are you sure you want to delete this project? This cannot be undone.')) {
+            try {
+                const res = await axios.delete(`${API_BASE_URL}/projects/${id}`);
+                if (res.data.success) {
+                    fetchData();
+                } else {
+                    alert(res.data.message || 'Failed to delete project');
+                }
+            } catch (err) {
+                console.error('Delete error', err);
+                alert('An error occurred while deleting the project.');
+            }
+        }
+    };
+
     return (
         <div className="projects-page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
@@ -154,7 +172,10 @@ export const Projects: React.FC = () => {
                         { id: 'all', label: 'All Projects' },
                         { id: 'interior', label: 'Interior Design Consultant' },
                         { id: 'architecture', label: 'Architectural Design' },
-                        { id: 'both', label: 'Arc + Interior' }
+                        { id: 'both', label: 'Arc + Interior' },
+                        { id: 'interior_execution', label: 'Interior Execution' },
+                        // { id: 'master_plan', label: 'Master Plan' },
+                        // { id: 'landscape', label: 'Landscape' }
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -177,22 +198,22 @@ export const Projects: React.FC = () => {
                     ))}
                 </div>
 
-                <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))', 
-                    gap: '24px' 
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))',
+                    gap: '24px'
                 }}>
                     {loading ? (
                         <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></div>
                     ) : (() => {
                         const filtered = projects.filter(p => {
-                            const matchesSearch = 
+                            const matchesSearch =
                                 p.project_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                 p.project_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                 p.client_name.toLowerCase().includes(searchTerm.toLowerCase());
-                            
+
                             const matchesFilter = filterType === 'all' || p.project_type === filterType;
-                            
+
                             return matchesSearch && matchesFilter;
                         });
 
@@ -204,55 +225,66 @@ export const Projects: React.FC = () => {
                             <div key={project.project_id} className="premium-card"
                                 onClick={() => navigate(`/projects/${project.project_id}`)}
                                 style={{ border: '1px solid #f3f4f6', transition: 'transform 0.2s', cursor: 'pointer' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                                <div>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>{project.project_code}</span>
-                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#253b50', marginTop: '4px' }}>{project.project_name}</h3>
-                                    <p style={{ fontSize: '0.9rem', color: '#253b50', fontWeight: 500 }}>Client: {project.client_name}</p>
-                                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                        <span style={{ 
-                                            padding: '2px 8px', 
-                                            borderRadius: '4px', 
-                                            backgroundColor: '#f3f4f6', 
-                                            color: '#4b5563', 
-                                            fontSize: '0.7rem', 
-                                            fontWeight: 600, 
-                                            textTransform: 'uppercase' 
-                                        }}>
-                                            {project.project_type === 'both' ? 'Arc + Interior' : project.project_type === 'architecture' ? 'Architectural' : 'Interior'}
-                                        </span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                                    <div>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>{project.project_code}</span>
+                                        <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#253b50', marginTop: '4px' }}>{project.project_name}</h3>
+                                        <p style={{ fontSize: '0.9rem', color: '#253b50', fontWeight: 500 }}>Client: {project.client_name}</p>
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                            <span style={{
+                                                padding: '2px 8px',
+                                                borderRadius: '4px',
+                                                backgroundColor: '#f3f4f6',
+                                                color: '#4b5563',
+                                                fontSize: '0.7rem',
+                                                fontWeight: 600,
+                                                textTransform: 'uppercase'
+                                            }}>
+                                                {project.project_type === 'both' ? 'Arc + Interior'
+                                                    : project.project_type === 'architecture' ? 'Architectural'
+                                                        : project.project_type === 'interior_execution' ? 'Interior Execution'
+                                                            : project.project_type === 'master_plan' ? 'Master Plan'
+                                                                : project.project_type === 'landscape' ? 'Landscape'
+                                                                    : 'Interior'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span style={{
+                                        padding: '4px 10px',
+                                        borderRadius: '4px',
+                                        backgroundColor: project.status === 'Completed' ? '#d1fae5' : project.status === 'On Going' ? '#dbeafe' : '#fef3c7',
+                                        color: project.status === 'Completed' ? '#065f46' : project.status === 'On Going' ? '#1e40af' : '#92400e',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        textTransform: 'capitalize'
+                                    }}>
+                                        {project.status}
+                                    </span>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', color: '#6b7280', fontSize: '0.9rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                        <MapPin size={16} /> <span>{project.site_address}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                        <User size={16} /> <span>Head: {project.project_head_name}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <Calendar size={16} /> <span>{new Date(project.start_date).toLocaleDateString()} - {new Date(project.expected_end_date).toLocaleDateString()}</span>
                                     </div>
                                 </div>
-                                <span style={{ 
-                                    padding: '4px 10px', 
-                                    borderRadius: '4px', 
-                                    backgroundColor: project.status === 'Completed' ? '#d1fae5' : project.status === 'On Going' ? '#dbeafe' : '#fef3c7', 
-                                    color: project.status === 'Completed' ? '#065f46' : project.status === 'On Going' ? '#1e40af' : '#92400e', 
-                                    fontSize: '0.75rem', 
-                                    fontWeight: 700, 
-                                    textTransform: 'capitalize' 
-                                }}>
-                                    {project.status}
-                                </span>
-                            </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', color: '#6b7280', fontSize: '0.9rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                                    <MapPin size={16} /> <span>{project.site_address}</span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                                    <User size={16} /> <span>Head: {project.project_head_name}</span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <Calendar size={16} /> <span>{new Date(project.start_date).toLocaleDateString()} - {new Date(project.expected_end_date).toLocaleDateString()}</span>
+                                <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <button style={{ color: '#253b50', fontWeight: 600, fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer' }}>View Details</button>
+                                    {(user?.role === 'admin' || user?.role === 'principal_architect' || user?.role === 'accountant') && (
+                                        <button onClick={(e) => handleDelete(project.project_id, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', padding: '4px' }}>
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-
-                            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between' }}>
-                                <button style={{ color: '#253b50', fontWeight: 600, fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer' }}>View Details</button>
-                            </div>
-                        </div>
-                    ))})()}
+                        ))
+                    })()}
                 </div>
             </div>
 
@@ -286,6 +318,9 @@ export const Projects: React.FC = () => {
                                         <option value="interior">Interior Design Consultant</option>
                                         <option value="architecture">Architectural Design</option>
                                         <option value="both">Arc + Interior</option>
+                                        <option value="interior_execution">Interior Execution Project</option>
+                                        {/* <option value="master_plan">Master Plan</option>
+                                        <option value="landscape">Landscape</option> */}
                                     </select>
                                 </div>
                                 <div>

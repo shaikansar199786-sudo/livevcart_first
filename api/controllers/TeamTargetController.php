@@ -16,13 +16,26 @@ class TeamTargetController {
             team_member VARCHAR(150) NOT NULL,
             task1 VARCHAR(500) DEFAULT '',
             task2 VARCHAR(500) DEFAULT '',
-            status ENUM('pending','in_progress','done') DEFAULT 'pending',
+            task1_status ENUM('pending','in_progress','done') DEFAULT 'pending',
+            task2_status ENUM('pending','in_progress','done') DEFAULT 'pending',
             sort_order INT DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_month (month)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
         $this->conn->exec($sql);
+
+        // Add new columns if they don't exist (for existing tables)
+        try {
+            $this->conn->exec("ALTER TABLE team_targets ADD COLUMN task1_status ENUM('pending','in_progress','done') DEFAULT 'pending' AFTER task2");
+        } catch (Exception $e) {
+            // Column might already exist
+        }
+        try {
+            $this->conn->exec("ALTER TABLE team_targets ADD COLUMN task2_status ENUM('pending','in_progress','done') DEFAULT 'pending' AFTER task1_status");
+        } catch (Exception $e) {
+            // Column might already exist
+        }
     }
 
     public function getByMonth($month) {
@@ -41,8 +54,8 @@ class TeamTargetController {
             // Re-insert all rows
             if (!empty($rows)) {
                 $stmt = $this->conn->prepare(
-                    "INSERT INTO team_targets (month, project_id, project_name, team_member, task1, task2, status, sort_order)
-                     VALUES (:month, :project_id, :project_name, :team_member, :task1, :task2, :status, :sort_order)"
+                    "INSERT INTO team_targets (month, project_id, project_name, team_member, task1, task2, task1_status, task2_status, sort_order)
+                     VALUES (:month, :project_id, :project_name, :team_member, :task1, :task2, :task1_status, :task2_status, :sort_order)"
                 );
                 foreach ($rows as $idx => $row) {
                     $stmt->execute([
@@ -52,7 +65,8 @@ class TeamTargetController {
                         ':team_member'  => $row['team_member'] ?? '',
                         ':task1'        => $row['task1'] ?? '',
                         ':task2'        => $row['task2'] ?? '',
-                        ':status'       => $row['status'] ?? 'pending',
+                        ':task1_status' => $row['task1_status'] ?? 'pending',
+                        ':task2_status' => $row['task2_status'] ?? 'pending',
                         ':sort_order'   => $idx,
                     ]);
                 }

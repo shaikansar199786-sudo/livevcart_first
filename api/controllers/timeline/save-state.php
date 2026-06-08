@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 include('../../config/database.php');
+$conn = getMysqliConnection();
 
 /* READ INPUT */
 $raw = file_get_contents("php://input");

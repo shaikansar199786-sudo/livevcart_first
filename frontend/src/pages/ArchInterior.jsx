@@ -12,15 +12,16 @@ import loger from "../assets/logo.png";
 */
 
 export default function ArchInterior({
-    clientName = "Ms Mahalakshmi",
-    salutation = "Mam",
-    refId      = "PR_01/06-01-26/01",
-    date       = "",
-    feeAmount  = "Rs 4,50,000.00 (Four Lakhs Fifty Thousand only)",
-    address = "",
-    place="",
-    paymentStages = [],
-    totalPercentage = "100%",
+  clientName = "Ms Mahalakshmi",
+  // title = "Ms",
+  salutation = "Mam",
+  refId = "PR_01/06-01-26/01",
+  date = "",
+  feeAmount = "Rs 4,50,000.00 (Four Lakhs Fifty Thousand only)",
+  address = "",
+  place = "",
+  paymentStages = [],
+  totalPercentage = "100%",
 }) {
   return (
     <div style={S.root}>
@@ -31,7 +32,7 @@ export default function ArchInterior({
 
         <p style={S.title}>
           TERMS AND CONDITIONS FOR ENGAGEMENT FOR<br />
-          Comprehensive architectural &amp; interior design consultations
+          Comprehensive Architectural &amp; Interior Design Consultations
         </p>
 
         <p style={S.body}>To,</p>
@@ -68,7 +69,7 @@ export default function ArchInterior({
           <NumberedRow key={i} num={`${i + 1}.`} text={text} numWidth={44} />
         ))} </Page>
 
-        <Page>
+      <Page>
 
         <p style={{ ...S.subHead, marginTop: 14 }}>INTERIOR DESIGN CONSULTATION</p>
 
@@ -88,10 +89,10 @@ export default function ArchInterior({
         ].map((text, i) => (
           <BulletRow key={i} text={text} />
         ))}
-     
 
-      {/* PAGE 2 */}
-    
+
+        {/* PAGE 2 */}
+
         {/* SECTION 2 */}
         <p style={S.secHead}>2.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SCHEDULE OF SERVICES:</p>
         <p style={S.justify}>After taking instructions from the Client, we shall render the following services:</p>
@@ -107,8 +108,8 @@ export default function ArchInterior({
         <NumberedRow num="2.04" text="Prepare working drawings, specifications and schedule of quantities sufficient to prepare estimate of cost and tender documents including code of practice covering aspects like mode of measurement, method of payments, quality control procedure on materials & works and other conditions of contract." numWidth={52} />
 
 
-</Page>
-<Page>
+      </Page>
+      <Page>
         <p style={{ ...S.stageHead, marginTop: 14 }}>APPOINTMENT OF CONTRACTORS [STAGE 4]:</p>
         <NumberedRow num="2.05" text="Advise client on appointment of contractors." numWidth={52} />
 
@@ -118,24 +119,24 @@ export default function ArchInterior({
         <NumberedRow num="2.12" text="Check and approve shop drawings submitted by the contractor/ vendors." numWidth={52} />
         <NumberedRow num="2.13" text="Visit of Architect or junior staff at the site of work, fortnightly or as per requirement of the site to evaluate the construction works and where necessary clarify any decision, offer interpretation of the drawings/ specification, attend conferences and meetings to ensure that the project proceeds generally in accordance with condition of contract and keep the client informed and render advice on actions, if required." numWidth={52} />
         <NumberedRow num="2.14" text="In order to ensure that the work at site proceeds in accordance with the contract documents/ drawings and to exercise time and quality controls, the day-to-day supervision will be carried out by a Construction Manager, who shall work under the guidance and direction of the architect and shall be appointed and paid by the client." numWidth={52} />
-     
-        
-      {/* PAGE 3 */}
-    
+
+
+        {/* PAGE 3 */}
+
         {/* SECTION 3 */}
         <p style={S.secHead}>3.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PROFESSIONAL FEES</p>
         <BulletRow text={<><strong>A Lump sum of {feeAmount}</strong> shall be charged as a design and supervision fee in consideration of the professional services rendered</>} />
         <BulletRow text="Plus 18% GST." />
-        
 
-        
+
+
         {/* SECTION 4 */}
         <p style={{ ...S.secHead, marginTop: 18 }}>4.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SCHEDULE OF PAYMENT</p>
         <p style={S.justify}>
           Professional fee shall be paid in the following stages consistent with the work done plus other charges and reimbursable expenses as agreed upon:
         </p>
 
-                  
+
 
         <table style={S.table}>
           <tbody>
@@ -153,36 +154,36 @@ export default function ArchInterior({
             </tr>
           </tbody>
         </table>
-        </Page>
-        <Page>
-            <br></br><br></br><br></br>
+      </Page>
+      <Page>
+        <br></br><br></br><br></br>
         {/* SECTION 5 */}
         <p style={S.secHead}>5.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EFFECTING PAYMENT TO THE ARCHITECT:</p>
         <IndentedRow num="5.1" text="Progressive, on account, payments shall be made by the Client against any of the above stages based on the quantum work done during that stage, as may be mutually agreed to between the Client and the Architect." />
         <IndentedRow num="5.2.1" text="No deductions shall be made from the Architectural fee on account of penalty, liquidated damages, part rates or other sums withheld from payment or recovered from contractors/ suppliers." />
 
 
-      {/* PAGE 4 */}
-      <br></br>
-      <br></br>
-      <br></br>
- 
+        {/* PAGE 4 */}
+        <br></br>
+        <br></br>
+        <br></br>
+
         {/* SECTION 6 */}
         <p style={S.secHead}>6.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REIMBURSABLE EXPENSES:</p>
         <p style={S.justify}>The Client will reimburse the following expenses incurred by him for discharge of his obligations:</p>
         <IndentedRow num="6.01" text="Cost of presentation models or walkthrough prepared at the instance of the Client" />
         <IndentedRow num="6.02" text={`All Out of the pocket expenses like, travel boarding & lodging outside Visakhapatnam if required shall be paid as per  actual, subject to prior approval by client and ${feeAmount} per day as outstation charges.`} />
-                   <br></br><br></br>
+        <br></br><br></br>
 
-                   <br></br>     
-                   <br></br>
-                   <br></br>   {/* SECTION 7 */}
+        <br></br>
+        <br></br>
+        <br></br>   {/* SECTION 7 */}
         <p style={{ ...S.secHead, marginTop: 18 }}>7.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLIENT'S ROLE AND RESPONSIBILITIES:</p>
         <p style={S.justify}>The Client shall discharge all his obligations with the project and engagement of the Architect as follows:</p>
         {[
           "To provide detailed requirements of the project.",
           "To provide property lease/ ownership documents.",
-          
+
           "To provide a site plan, to a suitable scale, showing boundaries, contours at suitable intervals, existing physical features including any existing roads, paths, trees, existing service and utility lines and such lines to which the proposed service can be connected. In case such information is not readily available, the client shall arrange the survey/ collection of necessary information and pay for the same.",
           "To furnish specific conditions/ Statutory/ stipulation/ Codes of Practice/Schedule of rates, etc., desired to be followed.",
           "To pay all the fees, levies, security deposits and expenses in respect of statutory sanction.",
@@ -192,8 +193,8 @@ export default function ArchInterior({
         ].map((text, i) => (
           <BulletRow key={i} text={text} />
         ))}
-</Page>
-<Page>
+      </Page>
+      <Page>
         {/* SECTION 8 */}
         <p style={{ ...S.secHead, marginTop: 18 }}>8.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ARCHITECT'S ROLE AND RESPONSIBILITIES:</p>
         {[
@@ -232,41 +233,58 @@ export default function ArchInterior({
         </div>
 
         <div style={{ marginTop: 10 }}>
-        <div style={S.signRow}>
-  <span style={S.signLabel}>Name of the Architect</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.signLabel}>Name of the Architect</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
+          </div>
 
-<div style={S.signRow}>
-  <span style={S.signLabel}>Date</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}>{date}</span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.signLabel}>Date</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}>{date}</span>
+          </div>
 
-<div style={S.signRow}>
-  <span style={S.signLabel}>Place</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}>{place}</span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.signLabel}>Place</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}>{place}</span>
+          </div>
           <div style={{ marginTop: 14 }}>
             <div style={S.signRow}>
               <span style={S.signLabel}>Seal of the Architect</span>
               <span style={S.signColon}>:</span>
-              <span style={S.signVal}><img src={stamp} alt=""  width="20%"/></span>
+              <span style={S.signVal}><img src={stamp} alt="" width="20%" /></span>
             </div>
           </div>
         </div>
 
         <p style={{ fontWeight: "bold", marginTop: 30, marginBottom: 18 }}>ACCEPTED</p>
         <div>
-          {["Signature of the Client", "Name & address of the Client"].map((label, i) => (
+          {/* {["Signature of the Client", "Name & address of the Client"].map((label, i) => (
             <div key={i} style={{ ...S.signRow, marginBottom: 10 }}>
               <span style={S.signLabel}>{label}</span>
               <span style={S.signColon}>:</span>
               <span style={S.signVal}>&nbsp;</span>
             </div>
-          ))}
+          ))} */}
+
+          <div style={S.signRow}>
+  <span style={S.signLabel}>Name of the Client</span>
+  <span style={S.signColon}>:</span>
+  <span style={S.signVal}>{clientName}</span>
+</div>
+        <div style={S.signRow}>
+          <span style={S.signLabel}>Date</span>
+          <span style={S.signColon}>:</span>
+          <span style={S.signVal}>{date}</span>
+        </div>
+
+        <div style={S.signRow}>
+          <span style={S.signLabel}>Place</span>
+          <span style={S.signColon}>:</span>
+          <span style={S.signVal}>{place}</span>
+        </div>
         </div>
 
         <div style={S.bankBox}>
@@ -329,7 +347,7 @@ function Page({ children }) {
 }
 
 /* ── Letterhead ───────────────────────────────────────────────────────────── */
-const FONT          = "'Times New Roman', Times, Georgia, serif";
+const FONT = "'Times New Roman', Times, Georgia, serif";
 const SERIF_DISPLAY = "'Palatino Linotype','Palatino','Book Antiqua',Georgia,serif";
 
 function Letterhead({ refId }) {
@@ -371,14 +389,14 @@ function Letterhead({ refId }) {
 
 /* ── Styles ───────────────────────────────────────────────────────────────── */
 const S = {
-  root: {  padding: "32px 0", minHeight: "100vh" },
+  root: { padding: "32px 0", minHeight: "100vh" },
   page: {
     width: "210mm", minHeight: "268mm ",
     margin: "0 auto 10px auto",
     padding: "0mm 20mm 10mm 20mm",
     background: "#fff",
-   
-     fontSize: "11pt", lineHeight: 1.65,
+
+    fontSize: "11pt", lineHeight: 1.65,
     color: "#111", boxSizing: "border-box",
   },
   hdrRow: { display: "flex", alignItems: "flex-start", marginBottom: 4 },

@@ -137,17 +137,18 @@ class QuoteController
                 }
                 $this->conn->prepare("DELETE FROM quote_sections WHERE quote_id = ?")->execute([$quote_id]);
 
-                // Update total amount
-                $update_q = "UPDATE quotes SET total_amount = :total, updated_at = CURRENT_TIMESTAMP WHERE quote_id = :q_id";
-                $this->conn->prepare($update_q)->execute(['total' => $data['total_amount'], 'q_id' => $quote_id]);
+                // Update total amount and subtitle
+                $update_q = "UPDATE quotes SET total_amount = :total, subtitle = :subtitle, updated_at = CURRENT_TIMESTAMP WHERE quote_id = :q_id";
+                $this->conn->prepare($update_q)->execute(['total' => $data['total_amount'], 'subtitle' => $data['subtitle'] ?? '', 'q_id' => $quote_id]);
             } else {
                 // Create new quote
                 $quote_number = 'ARK-QT-' . ($is_used_quote ? 'U-' : 'B-') . time();
-                $query = "INSERT INTO quotes (project_id, quote_number, total_amount, created_by, status) 
-                          VALUES (:p_id, :q_num, :total, :u_id, :status)";
+                $query = "INSERT INTO quotes (project_id, subtitle, quote_number, total_amount, created_by, status) 
+                          VALUES (:p_id, :subtitle, :q_num, :total, :u_id, :status)";
                 $stmt = $this->conn->prepare($query);
                 $stmt->execute([
                     'p_id' => $project_id,
+                    'subtitle' => $data['subtitle'] ?? '',
                     'q_num' => $quote_number,
                     'total' => $data['total_amount'] ?? 0,
                     'u_id' => $data['created_by'] ?? 1, // Fallback to 1 if user_id is missing
@@ -157,8 +158,10 @@ class QuoteController
             }
 
             // Insert Sections and Items
-            if (isset($data['sections']) && is_array($data['sections'])) {
+            if (isset($data['sections']) && is_array($data['sections']) && !empty($data['sections'])) {
                 foreach ($data['sections'] as $s_idx => $section) {
+                    if (!isset($section['name']) || empty($section['name'])) continue;
+                    
                     $s_query = "INSERT INTO quote_sections (quote_id, section_name, display_order) 
                                 VALUES (:q_id, :name, :order)";
                     $s_stmt = $this->conn->prepare($s_query);
@@ -196,7 +199,9 @@ class QuoteController
             return ["success" => true, "message" => "Quote saved successfully"];
         } catch (Exception $e) {
             file_put_contents('debug_quote.log', "SAVE ERROR: " . $e->getMessage() . "\n", FILE_APPEND);
-            $this->conn->rollBack();
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
             return ["success" => false, "message" => "Error saving quote: " . $e->getMessage()];
         }
     }

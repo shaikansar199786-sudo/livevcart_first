@@ -96,12 +96,42 @@ class VendorController {
                 'balance_sheet' => []
             ];
 
-            // 1. Vendor Quta (from project_inventory)
-            $stmt1 = $this->conn->query("SELECT pi.*, p.project_name as site FROM project_inventory pi JOIN projects p ON pi.project_id = p.project_id");
+            // 1. Vendor Quta (from project_inventory - grouped by vendor + invoice)
+            $stmt1 = $this->conn->query("SELECT pi.*, p.project_name as site FROM project_inventory pi JOIN projects p ON pi.project_id = p.project_id ORDER BY pi.invoice_date DESC");
             $inventory = $stmt1->fetchAll(PDO::FETCH_ASSOC);
+            
+            // First, calculate invoice totals per vendor + invoice_no + project_id
+            $invoiceTotals = [];
+            foreach ($inventory as $row) {
+                $v = $row['vendor'] ? $row['vendor'] : 'Unknown Vendor';
+                $invoiceNo = $row['invoice_no'] ? $row['invoice_no'] : 'No Invoice';
+                $projectId = $row['project_id'] ? $row['project_id'] : '0';
+                $key = $v . '|' . $invoiceNo . '|' . $projectId;
+                
+                if (!isset($invoiceTotals[$key])) {
+                    $invoiceTotals[$key] = [
+                        'vendor' => $v,
+                        'invoice_no' => $invoiceNo,
+                        'project_id' => $projectId,
+                        'invoice_total' => 0,
+                        'total_paid' => 0
+                    ];
+                }
+                $invoiceTotals[$key]['invoice_total'] += floatval($row['total']);
+                $invoiceTotals[$key]['total_paid'] += floatval($row['paid'] ?? 0);
+            }
+            
+            // Now group by vendor and add invoice total to each item
             $groupedInventory = [];
             foreach ($inventory as $row) {
                 $v = $row['vendor'] ? $row['vendor'] : 'Unknown Vendor';
+                $invoiceNo = $row['invoice_no'] ? $row['invoice_no'] : 'No Invoice';
+                $projectId = $row['project_id'] ? $row['project_id'] : '0';
+                $key = $v . '|' . $invoiceNo . '|' . $projectId;
+                
+                // Add invoice_total to each row
+                $row['invoice_total'] = $invoiceTotals[$key]['invoice_total'];
+                
                 if (!isset($groupedInventory[$v])) {
                     $groupedInventory[$v] = ['vendor_name' => $v, 'items' => [], 'total_amount' => 0];
                 }
@@ -145,6 +175,77 @@ class VendorController {
             // For now, we will return an empty array or basic stats for balance sheet
             
             return ["success" => true, "data" => $response];
+        } catch (PDOException $e) {
+            return ["success" => false, "message" => "Database Error: " . $e->getMessage()];
+        }
+    }
+
+    public function updatePayment($data) {
+        try {
+            $id = $data['id'] ?? null;
+            $payment_date = $data['payment_date'] ?? null;
+            $payment_amount = $data['payment_amount'] ?? null;
+            $payment_mode = $data['payment_mode'] ?? null;
+            $remark = $data['remark'] ?? null;
+
+            if (!$id) {
+                return ["success" => false, "message" => "ID is required"];
+            }
+
+            // Add remark column if it doesn't exist
+            try {
+                $this->conn->exec("ALTER TABLE project_inventory ADD COLUMN remark TEXT DEFAULT NULL AFTER payment_date");
+            } catch (PDOException $e) {
+                // Column already exists, ignore error
+            }
+
+            // Build update query dynamically based on provided fields
+            $updateFields = [];
+            $params = [':id' => $id];
+
+            if ($payment_date !== null) {
+                $updateFields[] = "payment_date = :payment_date";
+                $params[':payment_date'] = $payment_date;
+            }
+            if ($payment_amount !== null) {
+                $updateFields[] = "paid = :payment_amount";
+                $params[':payment_amount'] = $payment_amount;
+            }
+            if ($payment_mode !== null) {
+                $updateFields[] = "payment_mode = :payment_mode";
+                $params[':payment_mode'] = $payment_mode;
+            }
+            if ($remark !== null) {
+                $updateFields[] = "remark = :remark";
+                $params[':remark'] = $remark;
+            }
+
+            if (empty($updateFields)) {
+                return ["success" => false, "message" => "No fields to update"];
+            }
+
+            $sql = "UPDATE project_inventory SET " . implode(', ', $updateFields) . " WHERE id = :id";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($params);
+
+            return ["success" => true, "message" => "Payment updated successfully"];
+        } catch (PDOException $e) {
+            return ["success" => false, "message" => "Database Error: " . $e->getMessage()];
+        }
+    }
+
+    public function deleteInventoryItem($data) {
+        try {
+            $id = $data['id'] ?? null;
+
+            if (!$id) {
+                return ["success" => false, "message" => "ID is required"];
+            }
+
+            $stmt = $this->conn->prepare("DELETE FROM project_inventory WHERE id = :id");
+            $stmt->execute([':id' => $id]);
+
+            return ["success" => true, "message" => "Item deleted successfully"];
         } catch (PDOException $e) {
             return ["success" => false, "message" => "Database Error: " . $e->getMessage()];
         }

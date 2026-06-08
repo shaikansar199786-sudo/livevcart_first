@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { Dashboard } from './pages/Dashboard';
+
 import { TeamManagement } from './pages/TeamManagement';
 import { Leads } from './pages/Leads';
 import { Clients } from './pages/Clients';
@@ -19,6 +19,9 @@ import { Vendors } from './pages/Vendors';
 import { GlobalVendors } from './pages/GlobalVendors';
 import { TeamTarget } from './pages/TeamTarget';
 import { ProjectTrackers } from './pages/ProjectTrackers';
+import { MonthlyIncome } from './pages/MonthlyIncome';
+import { TeamWorkLoad } from './pages/TeamWorkLoad';
+import EstimateCivil from './pages/EstimateCivil';
 
 const AppContent = () => {
   const { isAuthenticated, user } = useAuth();
@@ -32,10 +35,26 @@ const AppContent = () => {
     );
   }
 
+  const getHomeElement = () => {
+    if (user?.role === 'site_engineer') return <Navigate to="/projects" replace />;
+    if (user?.role === 'accountant' || user?.role === 'project_head') return <Navigate to="/clients" replace />;
+    return <ProjectTrackers />;
+  };
+
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={getHomeElement()} />
+        {(user?.role === 'principal_architect' || user?.role === 'admin') && (
+          <Route path="/team-targets" element={<TeamTarget />} />
+        )}
+        {(user?.role === 'principal_architect' || user?.role === 'admin' || user?.role === 'accountant') && (
+          <Route path="/monthly-income" element={<MonthlyIncome />} />
+        )}
+        {(user?.role === 'admin' || user?.role === 'principal_architect') && (
+          <Route path="/team-work-load" element={<TeamWorkLoad />} />
+        )}
+
         <Route path="/clients" element={<Clients />} />
         <Route path="/leads" element={<Leads />} />
         <Route path="/projects" element={<Projects />} />
@@ -44,18 +63,14 @@ const AppContent = () => {
         <Route path="/vendors" element={<Vendors />} />
         <Route path="/global-vendors" element={<GlobalVendors />} />
         <Route path="/finance" element={<Finance />} />
-        <Route path='/timeline' element={<Timeline/>} />
+        <Route path='/timeline' element={<Timeline />} />
         <Route path="/agreements" element={<Agreements />} />
         <Route path="/quotes" element={<QuotesPage />} />
+        <Route path="/estimate-civil" element={<EstimateCivil />} />
         {(user?.role === 'principal_architect' || user?.role === 'admin') && (
           <Route path="/team" element={<TeamManagement />} />
         )}
-        {(user?.role === 'principal_architect' || user?.role === 'admin') && (
-          <Route path="/team-targets" element={<TeamTarget />} />
-        )}
-        {(user?.role === 'principal_architect' || user?.role === 'admin') && (
-          <Route path="/project-trackers" element={<ProjectTrackers />} />
-        )}
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

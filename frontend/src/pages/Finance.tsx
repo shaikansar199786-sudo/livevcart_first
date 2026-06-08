@@ -37,6 +37,7 @@ export const Finance: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [historyTab, setHistoryTab] = useState<'received' | 'spent'>('received');
 
     const [formData, setFormData] = useState({
         project_id: '',
@@ -96,6 +97,20 @@ export const Finance: React.FC = () => {
 
     const totalProjectValue = projects.reduce((sum, p: any) => sum + parseFloat(p.total_budget || 0), 0);
 
+    // Calculate per-project cash in/out
+    const projectFinancials = projects.map((project: any) => {
+        const projectTransactions = transactions.filter(t => t.project_name === project.project_name);
+        const cashIn = projectTransactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+        const cashOut = projectTransactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+        const remaining = cashIn - cashOut;
+        return {
+            project_name: project.project_name,
+            cashIn,
+            cashOut,
+            remaining
+        };
+    }).filter(p => p.cashIn > 0 || p.cashOut > 0); // Only show projects with transactions
+
     return (
         <div className="finance-page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
@@ -114,17 +129,6 @@ export const Finance: React.FC = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <div className="premium-card" style={{ borderLeft: '6px solid #6366f1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <p style={{ color: '#6b7280', fontSize: '0.9rem', marginBottom: '4px' }}>Total Projects Value</p>
-                            <h4 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#6366f1' }}>₹{totalProjectValue.toLocaleString()}</h4>
-                        </div>
-                        <div style={{ backgroundColor: '#e0e7ff', color: '#6366f1', padding: '10px', borderRadius: '12px' }}>
-                            <FileText size={24} />
-                        </div>
-                    </div>
-                </div>
                 <div className="premium-card" style={{ borderLeft: '6px solid #10b981' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
@@ -160,9 +164,44 @@ export const Finance: React.FC = () => {
                 </div>
             </div>
 
+
+
             <div className="premium-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '1.3rem' }}>Transaction History</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px' }}>
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <button
+                            onClick={() => setHistoryTab('received')}
+                            style={{
+                                padding: '8px 16px',
+                                border: 'none',
+                                background: 'none',
+                                fontSize: '1.1rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                color: historyTab === 'received' ? '#10b981' : '#6b7280',
+                                borderBottom: historyTab === 'received' ? '3px solid #10b981' : '3px solid transparent',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            Total Received by Project
+                        </button>
+                        <button
+                            onClick={() => setHistoryTab('spent')}
+                            style={{
+                                padding: '8px 16px',
+                                border: 'none',
+                                background: 'none',
+                                fontSize: '1.1rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                color: historyTab === 'spent' ? '#ef4444' : '#6b7280',
+                                borderBottom: historyTab === 'spent' ? '3px solid #ef4444' : '3px solid transparent',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            Total Spend in Project
+                        </button>
+                    </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '0.85rem' }}>
                             <Filter size={16} /> Filter
@@ -187,7 +226,7 @@ export const Finance: React.FC = () => {
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
-                            ) : transactions.map((t, idx) => (
+                            ) : transactions.filter(t => historyTab === 'received' ? t.type === 'credit' : t.type === 'debit').map((t, idx) => (
                                 <tr key={`${t.transaction_id}-${idx}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                     <td style={{ padding: '16px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -217,7 +256,34 @@ export const Finance: React.FC = () => {
                     </table>
                 </div>
             </div>
-
+            {/* Per-Project Financial Breakdown */}
+            <div className="premium-card" style={{ marginBottom: '30px ', marginTop: '40px' }}>
+                <h3 style={{ fontSize: '1.3rem', marginBottom: '20px' }}>Project-wise Cash Flow</h3>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
+                                <th style={{ padding: '16px', color: '#6b7280', fontWeight: 600 }}>Project Name</th>
+                                <th style={{ padding: '16px', color: '#6b7280', fontWeight: 600, textAlign: 'right' }}>Cash In (₹)</th>
+                                <th style={{ padding: '16px', color: '#6b7280', fontWeight: 600, textAlign: 'right' }}>Cash Out (₹)</th>
+                                <th style={{ padding: '16px', color: '#6b7280', fontWeight: 600, textAlign: 'right' }}>Remaining (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {projectFinancials.length === 0 ? (
+                                <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>No project transactions recorded yet</td></tr>
+                            ) : projectFinancials.map((p, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                    <td style={{ padding: '16px', fontWeight: 600 }}>{p.project_name}</td>
+                                    <td style={{ padding: '16px', fontWeight: 700, textAlign: 'right', color: '#10b981' }}>+₹{p.cashIn.toLocaleString()}</td>
+                                    <td style={{ padding: '16px', fontWeight: 700, textAlign: 'right', color: '#ef4444' }}>-₹{p.cashOut.toLocaleString()}</td>
+                                    <td style={{ padding: '16px', fontWeight: 700, textAlign: 'right', color: p.remaining >= 0 ? '#253b50' : '#dc2626' }}>₹{p.remaining.toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             {showModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                     <div className="premium-card" style={{ width: '100%', maxWidth: '550px', padding: '0', overflow: 'hidden' }}>
@@ -225,7 +291,7 @@ export const Finance: React.FC = () => {
                             <h3 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Record Transaction</h3>
                             <button onClick={() => setShowModal(false)} style={{ color: '#6b7280', cursor: 'pointer', border: 'none', background: 'none', fontSize: '1.5rem' }}>&times;</button>
                         </div>
-                        
+
                         <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
                             <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', padding: '4px', backgroundColor: '#f3f4f6', borderRadius: '10px' }}>
                                 <button
@@ -326,13 +392,13 @@ export const Finance: React.FC = () => {
 
                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                                 <button type="button" onClick={() => setShowModal(false)} style={{ padding: '12px 24px', borderRadius: '8px', border: '1px solid #d1d5db', backgroundColor: 'white', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
-                                <button 
-                                    type="submit" 
-                                    disabled={submitting} 
-                                    className="btn-primary" 
-                                    style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="btn-primary"
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
                                         gap: '8px',
                                         backgroundColor: formData.type === 'credit' ? '#10b981' : '#ef4444',
                                         border: 'none',

@@ -1,31 +1,18 @@
 <?php
-// api/config/database.php
+define('IS_PRODUCTION', false);
 
-// ─────────────────────────────────────────────
-// ENVIRONMENT DETECTION
-// ─────────────────────────────────────────────
-define('IS_PRODUCTION', false); // 🔁 CHANGE TO true ON HOSTINGER
-
-// ─────────────────────────────────────────────
-// DATABASE CONFIGURATION
-// ─────────────────────────────────────────────
 if (IS_PRODUCTION) {
-    // 🔐 Hostinger Credentials (REPLACE THESE)
     define('DB_HOST', 'localhost');
-    define('DB_NAME', 'u123456789_prestark');   // your Hostinger DB name
-    define('DB_USER', 'u123456789_user');       // your Hostinger DB user
-    define('DB_PASS', 'your_password');         // your Hostinger DB password
+    define('DB_NAME', 'u218756229_test_12');
+    define('DB_USER', 'u218756229_test_12');
+    define('DB_PASS', 'UUPDCs4!r');
 } else {
-    // 💻 Local XAMPP Credentials
     define('DB_HOST', 'localhost');
-    define('DB_NAME', 'prestark');
+    define('DB_NAME', 'chnge-arkks');
     define('DB_USER', 'root');
     define('DB_PASS', '');
 }
 
-// ─────────────────────────────────────────────
-// PDO DATABASE CLASS (RECOMMENDED)
-// ─────────────────────────────────────────────
 class Database
 {
     private $host = DB_HOST;
@@ -50,10 +37,8 @@ class Database
             );
 
         } catch (PDOException $exception) {
-
             http_response_code(500);
 
-            // 🔍 Show real error only in local
             if (!IS_PRODUCTION) {
                 echo json_encode([
                     "success" => false,
@@ -73,9 +58,6 @@ class Database
     }
 }
 
-// ─────────────────────────────────────────────
-// OPTIONAL: MySQLi CONNECTION (USE ONLY IF NEEDED)
-// ─────────────────────────────────────────────
 function getMysqliConnection()
 {
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);

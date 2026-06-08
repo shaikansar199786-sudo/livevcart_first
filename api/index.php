@@ -8,6 +8,8 @@ $allowed_origins = [
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5174',
     'https://silver-walrus-702172.hostingersite.com',
+    'https://salmon-viper-858874.hostingersite.com',
+    'https://forestgreen-marten-114512.hostingersite.com',
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -47,6 +49,8 @@ require_once 'controllers/VendorController.php';
 require_once 'controllers/StockCategoryController.php';
 require_once 'controllers/TeamTargetController.php';
 require_once 'controllers/ProjectTrackerController.php';
+require_once 'controllers/MonthlyIncomeController.php';
+require_once 'controllers/CivilEstimateController.php';
 
 
 // Simple Router
@@ -83,7 +87,9 @@ switch ($resource) {
         } elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
             echo json_encode(["success" => true, "data" => $user->getAll()]);
         } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE' && isset($path_parts[1])) {
-            echo json_encode($user->softDelete($path_parts[1]));
+            echo json_encode($user->hardDelete($path_parts[1]));
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            echo json_encode($user->update($input));
         }
         break;
     case 'leads':
@@ -115,6 +121,10 @@ switch ($resource) {
             } else {
                 echo json_encode(["success" => false, "message" => "Failed to create client"]);
             }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            echo json_encode($client->update($input));
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE' && isset($path_parts[1])) {
+            echo json_encode($client->delete($path_parts[1]));
         }
         break;
     case 'projects':
@@ -137,6 +147,8 @@ switch ($resource) {
                 $role = $_GET['role'] ?? null;
                 echo json_encode(["success" => true, "data" => $project->getAll($u_id, $role)]);
             }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            echo json_encode($project->delete($path_parts[1]));
         }
         break;
     case 'inventory':
@@ -154,12 +166,86 @@ switch ($resource) {
             } else {
                 echo json_encode(["success" => true, "data" => $inventory->getProjectInventory($path_parts[1])]);
             }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            // Handle stock status update or quantity_used update
+            $data = $input;
+            $id = $data['id'] ?? 0;
+
+            if (!$id) {
+                echo json_encode([
+                    "status" => "error",
+                    "message" => "Item ID missing"
+                ]);
+                break;
+            }
+
+            // Check if updating quantity_used or stock_status
+            if (isset($data['quantity_used'])) {
+                // Add quantity_used column if it doesn't exist
+                try {
+                    $conn->exec("ALTER TABLE project_inventory ADD COLUMN quantity_used INT DEFAULT 0 AFTER quantity");
+                } catch (Exception $e) {}
+
+                $quantity_used = $data['quantity_used'] ?? 0;
+                $sql = "UPDATE project_inventory SET quantity_used = :quantity_used WHERE id = :id";
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([
+                    ':quantity_used' => $quantity_used,
+                    ':id' => $id
+                ]);
+
+                echo json_encode([
+                    "status" => "success",
+                    "message" => "Usage updated successfully"
+                ]);
+            } elseif (isset($data['stock_status'])) {
+                // Check if stock_status column exists, if not add it
+                try {
+                    $conn->exec("ALTER TABLE project_inventory ADD COLUMN stock_status VARCHAR(50) DEFAULT 'pending' AFTER payment_mode");
+                } catch (Exception $e) {}
+
+                // Check if transfer_qty column exists, if not add it
+                try {
+                    $conn->exec("ALTER TABLE project_inventory ADD COLUMN transfer_qty INT DEFAULT 0 AFTER stock_status");
+                } catch (Exception $e) {}
+
+                $stock_status = $data['stock_status'] ?? '';
+                $transfer_qty = $data['transfer_qty'] ?? 0;
+
+                $sql = "UPDATE project_inventory SET stock_status = :stock_status, transfer_qty = :transfer_qty WHERE id = :id";
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([
+                    ':stock_status' => $stock_status,
+                    ':transfer_qty' => $transfer_qty,
+                    ':id' => $id
+                ]);
+
+                echo json_encode([
+                    "status" => "success",
+                    "message" => "Stock status updated successfully"
+                ]);
+            } else {
+                echo json_encode([
+                    "status" => "error",
+                    "message" => "No valid field to update"
+                ]);
+            }
         }
         break;
     case 'finance':
         $finance = new FinanceController($conn);
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            echo json_encode($finance->recordTransaction($input));
+            if (isset($path_parts[1]) && $path_parts[1] === 'update' && isset($input['transaction_id'])) {
+                echo json_encode($finance->updateTransaction($input['transaction_id'], $input));
+            } else {
+                echo json_encode($finance->recordTransaction($input));
+            }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            $id = $path_parts[1] ?? ($input['transaction_id'] ?? null);
+            echo json_encode($finance->updateTransaction($id, $input));
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $id = $path_parts[1] ?? null;
+            echo json_encode($finance->deleteTransaction($id));
         } elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
             if (isset($path_parts[1]) && $path_parts[1] === 'summary') {
                 echo json_encode(["success" => true, "data" => $finance->getProjectSummary($path_parts[2])]);
@@ -262,6 +348,14 @@ switch ($resource) {
             }
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode($vendorCtrl->create($input));
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            if (isset($path_parts[1]) && $path_parts[1] === 'update-payment') {
+                echo json_encode($vendorCtrl->updatePayment($input));
+            }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            if (isset($path_parts[1]) && $path_parts[1] === 'delete-item') {
+                echo json_encode($vendorCtrl->deleteInventoryItem($input));
+            }
         }
         break;
     case 'team-targets':
@@ -284,6 +378,27 @@ switch ($resource) {
             echo json_encode(['success' => true, 'data' => $trackerCtrl->getByCategory($category)]);
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode($trackerCtrl->save($input['category'], $input['rows']));
+        }
+        break;
+    case 'monthly-income':
+        $incomeCtrl = new MonthlyIncomeController($conn);
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            $month = $_GET['month'] ?? null;
+            if ($month) {
+                echo json_encode(['success' => true, 'data' => $incomeCtrl->getByMonth($month)]);
+            } else {
+                echo json_encode(['success' => true, 'data' => $incomeCtrl->getMonths()]);
+            }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            echo json_encode($incomeCtrl->save($input['month'], $input['rows']));
+        }
+        break;
+    case 'civil-estimate':
+        $civilCtrl = new CivilEstimateController($conn);
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            echo json_encode($civilCtrl->save($input));
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            echo json_encode($civilCtrl->load());
         }
         break;
     default:

@@ -20,6 +20,7 @@ import {
     Printer,
     Save,
     Trash2,
+    Edit2,
     Clock,
     Calendar,
     AlertCircle
@@ -27,9 +28,10 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import QuoteTab from '../components/QuoteTab';
 
-interface ProjectDetailsData {
+interface ProjectDetailsDarunta {
     project_id: string;
     project_code: string;
+    project_head_id?: string;
     project_name: string;
     client_name: string;
     client_phone: string;
@@ -91,7 +93,8 @@ export const ProjectDetails: React.FC = () => {
         }
     }, [user?.role, activeTab]);
 
-    const [project, setProject] = useState<ProjectDetailsData | null>(null);
+    // const [project, setProject] = useState<ProjectDetailsData | null>(null);
+    const [project, setProject] = useState<ProjectDetailsDarunta | null>(null);
     const [loading, setLoading] = useState(true);
     const [showBudgetModal, setShowBudgetModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -127,7 +130,7 @@ export const ProjectDetails: React.FC = () => {
         fetchTransactions();
         fetchInventoryTotal();
         fetchQuoteTotal();
-        if (user?.role === 'admin' || user?.role === 'principal_architect') {
+        if (user?.role === 'admin' || user?.role === 'principal_architect' || user?.role === 'accountant') {
             fetchUsers();
         }
     }, [id, user]);
@@ -248,13 +251,15 @@ export const ProjectDetails: React.FC = () => {
     };
 
     const openEditModal = () => {
+        const headMember = project?.team?.find((t: any) => t.assignment_role === 'project_head');
+        const engineerMember = project?.team?.find((t: any) => t.assignment_role === 'site_engineer');
         setEditForm({
             project_name: project?.project_name || '',
             site_address: project?.site_address || '',
-            start_date: project?.start_date || '',
-            expected_end_date: project?.expected_end_date || '',
-            project_head_id: project?.team?.find(t => t.assignment_role === 'project_head')?.user_id || '',
-            site_engineer_id: project?.team?.find(t => t.assignment_role === 'site_engineer')?.user_id || '',
+            start_date: project?.start_date ? project.start_date.split('T')[0] : '',
+            expected_end_date: project?.expected_end_date ? project.expected_end_date.split('T')[0] : '',
+            project_head_id: headMember?.user_id || project?.project_head_id || '',
+            site_engineer_id: engineerMember?.user_id || '',
             status: project?.status || 'Pending',
             project_type: project?.project_type || 'interior'
         });
@@ -351,7 +356,7 @@ export const ProjectDetails: React.FC = () => {
                             transition: 'all 0.2s'
                         }}
                     >
-                        {tab === 'vendor_quta' ? 'Vendor Quta' : tab.replace('_', ' ')}
+                        {tab === 'vendor_quta' ? 'Vendor Bill' : tab.replace('_', ' ')}
                     </button>
                 ))}
             </div>
@@ -397,13 +402,13 @@ export const ProjectDetails: React.FC = () => {
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                         <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Project Status</label>
-                        <select 
-                            value={project.status} 
+                        <select
+                            value={project.status}
                             onChange={(e) => handleQuickStatusUpdate(e.target.value)}
-                            style={{ 
-                                padding: '8px 12px', 
-                                borderRadius: '6px', 
-                                border: '1px solid #d1d5db', 
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #d1d5db',
                                 backgroundColor: project.status === 'Completed' ? '#d1fae5' : project.status === 'On Going' ? '#dbeafe' : '#fef3c7',
                                 color: project.status === 'Completed' ? '#065f46' : project.status === 'On Going' ? '#1e40af' : '#92400e',
                                 fontWeight: 700,
@@ -432,7 +437,7 @@ export const ProjectDetails: React.FC = () => {
 
             {activeTab === 'overview' && <OverviewTab project={project} quoteTotal={quoteTotal} isAccountant={isAccountant} />}
             {activeTab === 'timeline' && <TimelineTab project={project} user={user} />}
-            {activeTab === 'quote' && <QuoteTab project={project} setQuoteTotal={setQuoteTotal} isReadOnly={user?.role === 'project_head' || user?.role === 'site_engineer'} user={user} isUsedQuote={false} />}
+            {activeTab === 'quote' && <QuoteTab project={project} setQuoteTotal={setQuoteTotal} isReadOnly={user?.role === 'site_engineer'} user={user} isUsedQuote={false} />}
             {activeTab === 'stock_category' && <StockCategoryTab project={project} user={user} />}
 
             {activeTab === 'vendor_quta' && <InventoryTab key={project?.project_id} project={project} setInventoryTotal={setInventoryTotal} user={user} />}
@@ -506,6 +511,9 @@ export const ProjectDetails: React.FC = () => {
                                         <option value="interior">Interior Design Consultant</option>
                                         <option value="architecture">Architectural Design</option>
                                         <option value="both">Arc + Interior</option>
+                                        <option value="interior_execution">Interior Execution Project</option>
+                                        {/* <option value="master_plan">Master Plan</option>
+                                        <option value="landscape">Landscape</option> */}
                                     </select>
                                 </div>
                             </div>
@@ -602,10 +610,7 @@ export const ProjectDetails: React.FC = () => {
                     .premium-card { page-break-inside: avoid; border: none !important; box-shadow: none !important; }
 
                     .timeline-container {
-                        writing-mode: vertical-rl;
                         display: block !important;
-                        padding: 10mm !important;
-                        margin: 0 auto !important;
                     }
                 }
                 
@@ -659,16 +664,21 @@ const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
                                     <span>{project.site_address}</span>
                                 </div>
                                 <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                                    <span style={{ 
-                                        padding: '4px 12px', 
-                                        borderRadius: '20px', 
-                                        backgroundColor: '#253b50', 
-                                        color: 'white', 
-                                        fontSize: '0.7rem', 
+                                    <span style={{
+                                        padding: '4px 12px',
+                                        borderRadius: '20px',
+                                        backgroundColor: '#253b50',
+                                        color: 'white',
+                                        fontSize: '0.7rem',
                                         fontWeight: 700,
                                         textTransform: 'uppercase'
                                     }}>
-                                        {project.project_type === 'both' ? 'Arc + Interior' : project.project_type === 'architecture' ? 'Architectural' : 'Interior'}
+                                        {project.project_type === 'both' ? 'Arc + Interior'
+                                            : project.project_type === 'architecture' ? 'Architectural'
+                                                : project.project_type === 'interior_execution' ? 'Interior Execution'
+                                                    : project.project_type === 'master_plan' ? 'Master Plan'
+                                                        : project.project_type === 'landscape' ? 'Landscape'
+                                                            : 'Interior'}
                                     </span>
                                 </div>
                             </div>
@@ -749,27 +759,19 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
     const [categories, setCategories] = useState<any[]>([]);
     const navigate = useNavigate();
 
-
-    // ✅ ADDED (for print)
     const printRef = useRef<HTMLDivElement>(null);
 
-    const [items, setItems] = useState<any[]>([
-        {
-            invoice_no: '',
-            invoice_date: new Date().toISOString().split('T')[0],
-            vendor: '',
-            name: '',
-            rate: 0,
-            qty: 1,
-            amount: 0,
-            gst: 0,
-            total: 0
-        }
-    ]);
+    const [invoices, setInvoices] = useState<any[]>([]);
+
+    // 💰 GRAND TOTAL
+    const grandTotal = invoices.reduce((sum, invoice) => {
+        const invTotal = invoice.items.reduce((itemSum: number, it: any) => itemSum + (it.total || 0), 0);
+        return sum + invTotal;
+    }, 0);
 
     useEffect(() => {
         setInventoryTotal(grandTotal);
-    }, [items]);
+    }, [invoices]);
 
     // ✅ LOAD DATA FROM DB
     useEffect(() => {
@@ -778,29 +780,106 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
         fetch(`${API_BASE_URL}/controllers/Inventoryproject.php?project_id=${project.project_id}`)
             .then(res => res.json())
             .then(data => {
-                if (data.status === "success" && data.data.length > 0) {
+                if (data.status === "success" && data.data && data.data.length > 0) {
+                    const groups: Record<string, any> = {};
 
-                    const formatted = data.data.map((item: any) => ({
-                        invoice_no: item.invoice_no || '',
-                        invoice_date: item.invoice_date || new Date().toISOString().split('T')[0],
-                        vendor: item.vendor,
-                        name: item.item_name,
-                        rate: Number(item.rate),
-                        qty: Number(item.quantity),
-                        discount: Number(item.discount || 0),
-                        amount: Number(item.amount),
-                        gst: Number(item.gst),
-                        total: Number(item.total)
-                    }));
+                    data.data.forEach((item: any) => {
+                        const invNo = item.invoice_no || '';
+                        const invDate = item.invoice_date || new Date().toISOString().split('T')[0];
+                        const vendorName = item.vendor || '';
+                        const categoryName = item.category || item.name || '';
 
-                    setItems(formatted);
+                        // Group by invoice_no only - items with same invoice_no go together
+                        // If no invoice_no, group by vendor+date combination
+                        let groupKey;
+                        if (invNo) {
+                            groupKey = invNo;
+                        } else {
+                            // For items without invoice_no, group by vendor and date
+                            groupKey = `${vendorName}-${invDate}`;
+                        }
+
+                        if (!groups[groupKey]) {
+                            groups[groupKey] = {
+                                invoice_no: invNo,
+                                invoice_date: invDate,
+                                vendor: vendorName,
+                                category: categoryName,
+                                items: []
+                            };
+                        }
+
+                        groups[groupKey].items.push({
+                            id: item.id,
+                            category: categoryName,
+                            item_name: item.item_name || '',
+                            rate: Number(item.rate || 0),
+                            qty: Number(item.quantity || 1),
+                            discount: Number(item.discount || 0),
+                            amount: Number(item.amount || 0),
+                            gst: Number(item.gst || 0),
+                            total: Number(item.total || 0),
+                            payment_status: item.payment_status || 'Unpaid',
+                            paid: Number(item.paid || 0),
+                            unpaid: Number(item.unpaid || 0),
+                            payment_mode: item.payment_mode || 'Cash',
+                            payment_date: item.payment_date || ''
+                        });
+                    });
+
+                    setInvoices(Object.values(groups));
+                } else {
+                    // No data found, initialize with empty invoice
+                    setInvoices([{
+                        invoice_no: '',
+                        invoice_date: new Date().toISOString().split('T')[0],
+                        vendor: '',
+                        category: '',
+                        items: [{
+                            category: '',
+                            item_name: '',
+                            rate: 0,
+                            qty: 1,
+                            discount: 0,
+                            amount: 0,
+                            gst: 0,
+                            total: 0,
+                            payment_status: 'Unpaid',
+                            paid: 0,
+                            unpaid: 0,
+                            payment_mode: 'Cash',
+                            payment_date: ''
+                        }]
+                    }]);
                 }
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error('Failed to load vendor bill data:', err);
+                // On error, initialize with empty invoice
+                setInvoices([{
+                    invoice_no: '',
+                    invoice_date: new Date().toISOString().split('T')[0],
+                    vendor: '',
+                    category: '',
+                    items: [{
+                        category: '',
+                        item_name: '',
+                        rate: 0,
+                        qty: 1,
+                        discount: 0,
+                        amount: 0,
+                        gst: 0,
+                        total: 0,
+                        payment_status: 'Unpaid',
+                        paid: 0,
+                        unpaid: 0,
+                        payment_mode: 'Cash',
+                        payment_date: ''
+                    }]
+                }]);
+            });
 
     }, [project?.project_id]);
-
-    console.log("PROJECT ID:", project?.project_id);
 
     useEffect(() => {
         if (!project?.project_id) return;
@@ -809,7 +888,6 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
             .then(res => res.json())
             .then(data => {
                 if (data.status === "success") {
-                    console.log("Global Vendors Loaded:", data.data);
                     setVendorList(data.data);
                 }
             })
@@ -824,6 +902,7 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
             })
             .catch(err => console.error("Error fetching categories:", err));
     }, [project?.project_id]);
+
     useEffect(() => {
         const handleClick = () => {
             setFilteredVendors([]);
@@ -834,41 +913,23 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
         return () => window.removeEventListener('click', handleClick);
     }, []);
 
-    // 🔥 UPDATE ROW
-    const updateItem = (index: number, field: string, value: any) => {
-        if (field === 'name' && value === 'ADD_NEW_CATEGORY') {
-            const newCat = window.prompt('Enter new category name:');
-            if (newCat && newCat.trim()) {
-                fetch(`${API_BASE_URL}/stock-categories`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ project_id: project.project_id, category_name: newCat.trim() })
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            setCategories(prev => [...prev, { id: Date.now(), category_name: newCat.trim() }]);
-                            const updated = [...items];
-                            updated[index][field] = newCat.trim();
-                            updateRowTotals(updated, index);
-                        } else {
-                            alert('Failed to add category');
-                        }
-                    })
-                    .catch(err => alert('Failed to add category'));
-            }
-            return;
-        }
-
-        const updated = [...items];
-        updated[index][field] = value;
-        updateRowTotals(updated, index);
+    // Invoice field updates
+    const updateInvoiceField = (invoiceIndex: number, field: string, value: any) => {
+        const updated = [...invoices];
+        updated[invoiceIndex][field] = value;
+        setInvoices(updated);
     };
 
-    const updateRowTotals = (updated: any[], index: number) => {
-        const qty = Number(updated[index].qty || 0);
-        const rate = Number(updated[index].rate || 0);
-        const discount = Number(updated[index].discount || 0);
+    // Item field updates
+    const updateItemField = (invoiceIndex: number, itemIndex: number, field: string, value: any) => {
+        const updated = [...invoices];
+        updated[invoiceIndex].items[itemIndex][field] = value;
+
+        // recalculate row totals
+        const item = updated[invoiceIndex].items[itemIndex];
+        const qty = Number(item.qty || 0);
+        const rate = Number(item.rate || 0);
+        const discount = Number(item.discount || 0);
 
         const subtotal = qty * rate;
         const discountAmt = subtotal * (discount / 100);
@@ -876,29 +937,166 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
         const gst = amount * 0.18;
         const total = amount + gst;
 
-        updated[index].amount = amount;
-        updated[index].gst = gst;
-        updated[index].total = total;
+        item.amount = amount;
+        item.gst = gst;
+        item.total = total;
 
-        setItems(updated);
+        setInvoices(updated);
     };
 
-    // 🖨️ PRINT FUNCTION (updated CSS only)
+    // ➕ ADD INVOICE
+    const addInvoice = () => {
+        setInvoices([
+            ...invoices,
+            {
+                invoice_no: '',
+                invoice_date: new Date().toISOString().split('T')[0],
+                vendor: '',
+                category: '',
+                items: [
+                    {
+                        category: '',
+                        item_name: '',
+                        rate: 0,
+                        qty: 1,
+                        discount: 0,
+                        amount: 0,
+                        gst: 0,
+                        total: 0,
+                        payment_status: 'Unpaid',
+                        paid: 0,
+                        unpaid: 0,
+                        payment_mode: 'Cash',
+                        payment_date: ''
+                    }
+                ]
+            }
+        ]);
+    };
+
+    // ➕ ADD ITEM TO INVOICE
+    const addItemToInvoice = (invoiceIndex: number) => {
+        const updated = [...invoices];
+        updated[invoiceIndex].items.push({
+            category: '',
+            item_name: '',
+            rate: 0,
+            qty: 1,
+            discount: 0,
+            amount: 0,
+            gst: 0,
+            total: 0,
+            payment_status: 'Unpaid',
+            paid: 0,
+            unpaid: 0,
+            payment_mode: 'Cash',
+            payment_date: ''
+        });
+        setInvoices(updated);
+    };
+
+    // ❌ REMOVE ITEM FROM INVOICE
+    const removeItemFromInvoice = (invoiceIndex: number, itemIndex: number) => {
+        const updated = [...invoices];
+        updated[invoiceIndex].items.splice(itemIndex, 1);
+        if (updated[invoiceIndex].items.length === 0) {
+            updated[invoiceIndex].items.push({
+                category: '',
+                item_name: '',
+                rate: 0,
+                qty: 1,
+                discount: 0,
+                amount: 0,
+                gst: 0,
+                total: 0,
+                payment_status: 'Unpaid',
+                paid: 0,
+                unpaid: 0,
+                payment_mode: 'Cash',
+                payment_date: ''
+            });
+        }
+        setInvoices(updated);
+    };
+
+    // ❌ REMOVE INVOICE
+    const removeInvoice = (invoiceIndex: number) => {
+        if (window.confirm("Are you sure you want to delete this entire Invoice and all its items?")) {
+            setInvoices(invoices.filter((_, i) => i !== invoiceIndex));
+        }
+    };
+
+    // 💾 SAVE TO DB
+    const saveInventory = async () => {
+        try {
+            const flatItems = invoices.flatMap(invoice =>
+                invoice.items.map((item: any) => ({
+                    id: item.id,
+                    invoice_no: invoice.invoice_no,
+                    invoice_date: invoice.invoice_date,
+                    vendor: invoice.vendor,
+                    category: item.category,
+                    name: item.item_name,
+                    rate: item.rate,
+                    qty: item.qty,
+                    discount: item.discount,
+                    amount: item.amount,
+                    gst: item.gst,
+                    total: item.total,
+                    payment_status: item.payment_status,
+                    paid: item.paid,
+                    unpaid: item.unpaid,
+                    payment_mode: item.payment_mode,
+                    payment_date: item.payment_date
+                }))
+            );
+
+            const res = await fetch(`${API_BASE_URL}/controllers/Inventoryproject.php`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    project_id: project.project_id,
+                    items: flatItems
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.status === "error") {
+                alert(data.message);
+                return;
+            }
+
+            alert('Saved Successfully 🚀');
+
+        } catch (err) {
+            console.error(err);
+            alert('Error saving inventory');
+        }
+    };
+
+    // 🖨️ PRINT FUNCTION
     const handlePrint = () => {
-        const rows = items.map((item, index) => `
-            <tr>
-                <td>${item.invoice_no || ''}</td>
-                <td>${item.invoice_date || ''}</td>
-                <td>${item.vendor}</td>
-                <td>${item.name}</td>
-                <td>${item.rate}</td>
-                <td>${item.qty}</td>
-                <td>${item.discount}%</td>
-                <td>₹${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td>₹${item.gst.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td>₹${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            </tr>
-        `).join("");
+        const rows = invoices.flatMap(invoice =>
+            invoice.items.map((item: any) => `
+                <tr>
+                    <td>${invoice.invoice_no || ''}</td>
+                    <td>${invoice.invoice_date || ''}</td>
+                    <td>${invoice.vendor}</td>
+                    <td style="color: ${item.payment_status === 'Paid' ? '#16a34a' : '#dc2626'}; font-weight: bold;">${item.payment_status || 'Unpaid'}</td>
+                    <td>${item.category || ''}</td>
+                    <td>${item.item_name}</td>
+                    <td>₹${Number(item.rate).toLocaleString()}</td>
+                    <td>${item.qty}</td>
+                    <td>${item.discount}%</td>
+                    <td>₹${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>₹${item.gst.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>₹${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+            `)
+        ).join("");
 
         const html = `
             <html>
@@ -973,7 +1171,9 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                             <th>Invoice No</th>
                             <th>Date</th>
                             <th>Vendor</th>
+                            <th>Status</th>
                             <th>Category</th>
+                            <th>Item Name</th>
                             <th>Rate</th>
                             <th>Qty</th>
                             <th>Disc (%)</th>
@@ -1003,124 +1203,49 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
         win.print();
     };
 
-    // ➕ ADD ROW
-    const addRow = () => {
-        setItems([
-            ...items,
-            {
-                vendor: '',
-                name: '',
-                rate: 0,
-                qty: 1,
-                discount: 0,
-                amount: 0,
-                gst: 0,
-                total: 0
-            }
-        ]);
-    };
-
-    // ❌ REMOVE ROW
-    const removeRow = (index: number) => {
-        setItems(items.filter((_, i) => i !== index));
-    };
-
-    // 💰 GRAND TOTAL
-    const grandTotal = items.reduce((sum, i) => sum + (i.total || 0), 0);
-
-    // 💾 SAVE TO DB
-    const saveInventory = async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/controllers/Inventoryproject.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    project_id: project.project_id,
-                    items
-                })
-            });
-
-            const text = await res.text();
-            console.log("API RESPONSE:", text);
-
-            const data = JSON.parse(text);
-
-            if (data.status === "error") {
-                alert(data.message);
-                return;
-            }
-
-            alert('Saved Successfully 🚀');
-
-        } catch (err) {
-            console.error(err);
-            alert('Error saving inventory');
-        }
-    };
-
     return (
         <div className="premium-card" ref={printRef}>
 
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 700 }}>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '24px' }}>
                 Vendor Bill
             </h3>
 
-            {/* TABLE */}
-            <div style={{ overflowX: 'auto', marginTop: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                <table style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    backgroundColor: '#ffffff'
-                }}>
-                    <thead style={{ background: '#f8fafc', color: '#475569', borderBottom: '2px solid #e2e8f0' }}>
-                        <tr>
-                            <th style={th}>Invoice No</th>
-                            <th style={th}>Date</th>
-                            <th style={th}>Vendor</th>
-                            <th style={th}>Category</th>
-                            <th style={th}>Rate</th>
-                            <th style={th}>Qty</th>
-                            <th style={th}>Disc (%)</th>
-                            <th style={th}>Without GST</th>
-                            <th style={th}>GST (18%)</th>
-                            <th style={th}>With GST</th>
-                            <th style={th}></th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {items.map((item, i) => (
-                            <tr key={i} style={{
-                                background: i % 2 === 0 ? '#f9fafb' : '#fff'
-                            }}>
-
-                                <td style={td}>
+            {/* INVOICES CONTAINER */}
+            <div>
+                {invoices.map((invoice, i) => {
+                    const invoiceTotal = invoice.items.reduce((sum: number, it: any) => sum + (it.total || 0), 0);
+                    return (
+                        <div key={i} className="premium-card" style={{ padding: '24px', marginBottom: '30px', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', backgroundColor: '#ffffff' }}>
+                            {/* Invoice Header Row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 3fr 1.5fr auto', gap: '15px', paddingBottom: '16px', borderBottom: '2px solid #f1f5f9', marginBottom: '20px', alignItems: 'end' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Invoice No</label>
                                     <input
                                         style={inputStyle}
                                         type="text"
-                                        value={item.invoice_no || ''}
-                                        onChange={(e) => updateItem(i, 'invoice_no', e.target.value)}
-                                        placeholder="Inv #"
+                                        value={invoice.invoice_no || ''}
+                                        onChange={(e) => updateInvoiceField(i, 'invoice_no', e.target.value)}
+                                        placeholder="e.g. INV-1002"
                                     />
-                                </td>
-                                <td style={td}>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Date</label>
                                     <input
                                         style={inputStyle}
                                         type="date"
-                                        value={item.invoice_date || ''}
-                                        onChange={(e) => updateItem(i, 'invoice_date', e.target.value)}
+                                        value={invoice.invoice_date || ''}
+                                        onChange={(e) => updateInvoiceField(i, 'invoice_date', e.target.value)}
                                     />
-                                </td>
-                                <td style={{ ...td, position: 'relative' }}>
+                                </div>
+                                <div style={{ position: 'relative' }}>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Vendor</label>
                                     <input
                                         style={inputStyle}
-                                        value={item.vendor}
+                                        value={invoice.vendor || ''}
                                         placeholder="Type vendor / customer..."
                                         onFocus={(e) => {
                                             const value = e.target.value.trim().toLowerCase();
-                                            const tableVendors = items.map(it => it.vendor).filter(v => v && v.trim() !== '');
+                                            const tableVendors = invoices.map(it => it.vendor).filter(v => v && v.trim() !== '');
                                             const combinedList = Array.from(new Set([...vendorList, ...tableVendors]));
                                             const filtered = combinedList.filter(v =>
                                                 v.toLowerCase().includes(value)
@@ -1131,13 +1256,10 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                         onClick={(e) => e.stopPropagation()}
                                         onChange={(e) => {
                                             const value = e.target.value;
-                                            updateItem(i, 'vendor', value);
+                                            updateInvoiceField(i, 'vendor', value);
                                             const searchTerm = value.trim().toLowerCase();
-
-                                            // Combine global list with what's currently typed in the table
-                                            const tableVendors = items.map(it => it.vendor).filter(v => v && v.trim() !== '');
+                                            const tableVendors = invoices.map(it => it.vendor).filter(v => v && v.trim() !== '');
                                             const combinedList = Array.from(new Set([...vendorList, ...tableVendors]));
-
                                             const filtered = combinedList.filter(v =>
                                                 v.toLowerCase().includes(searchTerm)
                                             );
@@ -1145,9 +1267,7 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                             setActiveIndex(i);
                                         }}
                                     />
-
-                                    {/* 🔽 DROPDOWN */}
-                                    {activeIndex === i && (filteredVendors.length > 0 || (item.vendor.trim() && !vendorList.some(v => v.toLowerCase() === item.vendor.trim().toLowerCase()))) && (
+                                    {activeIndex === i && (filteredVendors.length > 0 || (invoice.vendor.trim() && !vendorList.some(v => v.toLowerCase() === invoice.vendor.trim().toLowerCase()))) && (
                                         <div
                                             onClick={(e) => e.stopPropagation()}
                                             style={{
@@ -1182,7 +1302,7 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
                                                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                                     onClick={() => {
-                                                        updateItem(i, 'vendor', v);
+                                                        updateInvoiceField(i, 'vendor', v);
                                                         setFilteredVendors([]);
                                                         setActiveIndex(null);
                                                     }}
@@ -1190,15 +1310,12 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                                     <span style={{ opacity: 0.7 }}>👤</span> {v}
                                                 </div>
                                             ))}
-
-                                            {/* ➕ ADD NEW OPTION */}
-                                            {item.vendor.trim() && !vendorList.some(v => v.toLowerCase() === item.vendor.trim().toLowerCase()) && (
+                                            {invoice.vendor.trim() && !vendorList.some(v => v.toLowerCase() === invoice.vendor.trim().toLowerCase()) && (
                                                 <div
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        const newVendor = item.vendor.trim();
+                                                        const newVendor = invoice.vendor.trim();
                                                         fetch(`${API_BASE_URL}/vendors`, {
-
                                                             method: "POST",
                                                             headers: { "Content-Type": "application/json" },
                                                             body: JSON.stringify({
@@ -1233,82 +1350,172 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dcfce7'}
                                                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
                                                 >
-                                                    ✨ Add to Global List: "{item.vendor.trim()}"
+                                                    ✨ Add to Global: "{invoice.vendor.trim()}"
                                                 </div>
                                             )}
                                         </div>
                                     )}
-                                </td>
-                                <td style={td}>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Status</label>
                                     <select
-                                        style={{ ...inputStyle, padding: '8px', cursor: 'pointer' }}
-                                        value={item.name}
-                                        onChange={(e) => updateItem(i, 'name', e.target.value)}
+                                        style={{ ...inputStyle, padding: '8px 12px', color: invoice.items[0]?.payment_status === 'Paid' ? '#16a34a' : '#dc2626', fontWeight: 600 }}
+                                        value={invoice.items[0]?.payment_status || 'Unpaid'}
+                                        onChange={(e) => {
+                                            const updated = [...invoices];
+                                            updated[i].items.forEach((item: any) => {
+                                                item.payment_status = e.target.value;
+                                            });
+                                            setInvoices(updated);
+                                        }}
                                     >
-                                        <option value="">Select Category...</option>
-                                        {categories.map((cat: any) => (
-                                            <option key={cat.id} value={cat.category_name}>{cat.category_name}</option>
-                                        ))}
-                                        <option value="ADD_NEW_CATEGORY" style={{ fontWeight: 'bold', color: '#2563eb' }}>+ Add New Category</option>
+                                        <option value="Unpaid" style={{ color: '#dc2626', fontWeight: 600 }}>Unpaid</option>
+                                        <option value="Paid" style={{ color: '#16a34a', fontWeight: 600 }}>Paid</option>
                                     </select>
-                                </td>
-
-                                <td style={td}>
-                                    <input
-                                        type="number"
-                                        style={inputStyle}
-                                        value={item.rate}
-                                        onChange={(e) => updateItem(i, 'rate', e.target.value)}
-                                    />
-                                </td>
-
-                                <td style={td}>
-                                    <input
-                                        type="number"
-                                        style={inputStyle}
-                                        value={item.qty}
-                                        onChange={(e) => updateItem(i, 'qty', e.target.value)}
-                                    />
-                                </td>
-
-                                <td style={td}>
-                                    <input
-                                        type="number"
-                                        style={inputStyle}
-                                        value={item.discount || 0}
-                                        onChange={(e) => updateItem(i, 'discount', e.target.value)}
-                                    />
-                                </td>
-
-                                <td style={{ ...td, color: '#475569', fontWeight: 600 }}>
-                                    ₹{(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-
-                                <td style={{ ...td, color: '#64748b', fontSize: '0.85rem' }}>
-                                    ₹{(item.gst || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-
-                                <td style={{ ...td, fontWeight: 800, color: '#16a34a', fontSize: '1.05rem' }}>
-                                    ₹{(item.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-
-                                <td style={td}>
-                                    <button onClick={() => removeRow(i)} style={deleteBtn}>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                    <button onClick={() => removeInvoice(i)} style={{ ...deleteBtn, background: '#fee2e2', color: '#ef4444', width: '38px', height: '38px', borderRadius: '8px', border: '1px solid #fecaca' }} title="Delete entire Invoice">
                                         ✕
                                     </button>
-                                </td>
-                            </tr>
-                        ))}
+                                </div>
+                            </div>
 
-                        <tr>
-                            <td colSpan={9} style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8fafc' }}>
-                                <button onClick={addRow} style={addBtn}>
-                                    + Add New Item
+                            {/* Items Table */}
+                            <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#ffffff' }}>
+                                    <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                        <tr>
+                                            <th style={{ ...th, padding: '10px 8px', width: '130px' }}>Category</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '130px' }}>Item Name</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '100px' }}>Rate (₹)</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '60px' }}>Qty</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '60px' }}>Disc (%)</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '110px' }}>Without GST</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '110px' }}>GST (18%)</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '110px' }}>With GST</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '120px' }}>Payment Date</th>
+                                            <th style={{ ...th, padding: '10px 8px', width: '50px' }}></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {invoice.items.map((item: any, j: number) => (
+                                            <tr key={j} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                <td style={{ ...td, padding: '8px' }}>
+                                                    <select
+                                                        style={{ ...inputStyle, padding: '6px', cursor: 'pointer' }}
+                                                        value={item.category || ''}
+                                                        onChange={(e) => {
+                                                            if (e.target.value === 'ADD_NEW_CATEGORY') {
+                                                                const newCat = window.prompt('Enter new category name:');
+                                                                if (newCat && newCat.trim()) {
+                                                                    fetch(`${API_BASE_URL}/stock-categories`, {
+                                                                        method: 'POST',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ project_id: project.project_id, category_name: newCat.trim() })
+                                                                    })
+                                                                        .then(res => res.json())
+                                                                        .then(data => {
+                                                                            if (data.success) {
+                                                                                setCategories(prev => [...prev, { id: Date.now(), category_name: newCat.trim() }]);
+                                                                                updateItemField(i, j, 'category', newCat.trim());
+                                                                            } else {
+                                                                                alert('Failed to add category');
+                                                                            }
+                                                                        })
+                                                                        .catch(err => alert('Failed to add category'));
+                                                                }
+                                                            } else {
+                                                                updateItemField(i, j, 'category', e.target.value);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <option value="">Select Category...</option>
+                                                        {categories.map((cat: any) => (
+                                                            <option key={cat.id} value={cat.category_name}>{cat.category_name}</option>
+                                                        ))}
+                                                        <option value="ADD_NEW_CATEGORY" style={{ fontWeight: 'bold', color: '#2563eb' }}>+ Add New Category</option>
+                                                    </select>
+                                                </td>
+                                                <td style={{ ...td, padding: '8px' }}>
+                                                    <input
+                                                        style={inputStyle}
+                                                        type="text"
+                                                        value={item.item_name || ''}
+                                                        onChange={(e) => updateItemField(i, j, 'item_name', e.target.value)}
+                                                        placeholder="Enter item name..."
+                                                    />
+                                                </td>
+                                                <td style={{ ...td, padding: '8px' }}>
+                                                    <input
+                                                        style={inputStyle}
+                                                        type="number"
+                                                        value={item.rate || 0}
+                                                        onChange={(e) => updateItemField(i, j, 'rate', e.target.value)}
+                                                    />
+                                                </td>
+                                                <td style={{ ...td, padding: '8px' }}>
+                                                    <input
+                                                        style={inputStyle}
+                                                        type="number"
+                                                        value={item.qty || 1}
+                                                        onChange={(e) => updateItemField(i, j, 'qty', e.target.value)}
+                                                    />
+                                                </td>
+                                                <td style={{ ...td, padding: '8px' }}>
+                                                    <input
+                                                        style={inputStyle}
+                                                        type="number"
+                                                        value={item.discount || 0}
+                                                        onChange={(e) => updateItemField(i, j, 'discount', e.target.value)}
+                                                    />
+                                                </td>
+                                                <td style={{ ...td, padding: '8px', color: '#475569', fontWeight: 600 }}>
+                                                    ₹{(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                                <td style={{ ...td, padding: '8px', color: '#64748b', fontSize: '0.85rem' }}>
+                                                    ₹{(item.gst || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                                <td style={{ ...td, padding: '8px', fontWeight: 800, color: '#16a34a', fontSize: '1rem' }}>
+                                                    ₹{(item.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                                <td style={{ ...td, padding: '8px' }}>
+                                                    <input
+                                                        style={inputStyle}
+                                                        type="date"
+                                                        value={item.payment_date || ''}
+                                                        onChange={(e) => updateItemField(i, j, 'payment_date', e.target.value)}
+                                                    />
+                                                </td>
+                                                <td style={{ ...td, padding: '8px', textAlign: 'center' }}>
+                                                    <button onClick={() => removeItemFromInvoice(i, j)} style={deleteBtn} title="Remove Item">
+                                                        ✕
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Invoice Footer Actions & Total */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
+                                <button onClick={() => addItemToInvoice(i)} style={{ ...addBtn, backgroundColor: '#10b981' }}>
+                                    + Add Item
                                 </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#475569' }}>
+                                    Invoice Total: <span style={{ color: '#16a34a', fontWeight: 800 }}>₹{invoiceTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* BUTTON TO ADD NEW INVOICE */}
+            <div style={{ textAlign: 'center', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '2px dashed #cbd5e1', marginBottom: '30px' }}>
+                <button onClick={addInvoice} style={{ ...addBtn, padding: '12px 24px', fontSize: '1rem', backgroundColor: '#253b50' }}>
+                    + Add New Invoice
+                </button>
             </div>
 
             {/* GRAND TOTAL */}
@@ -1430,9 +1637,32 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
     const [paymentMode, setPaymentMode] = useState('Cash');
 
+    // Edit state fields
+    const [editingTransaction, setEditingTransaction] = useState<any>(null);
+
     const [submitting, setSubmitting] = useState(false);
 
     const filteredTransactions = transactions.filter((t: any) => t.type === 'debit' && t.category === category);
+
+    // Populate form when editing starts
+    const startEdit = (t: any) => {
+        setEditingTransaction(t);
+        setAmount(t.amount.toString());
+        setPaymentDate(t.transaction_date ? t.transaction_date.split(' ')[0] : new Date().toISOString().split('T')[0]);
+        setName(t.person_name || '');
+        setPaymentMode(t.payment_mode || 'Cash');
+        setDescription(t.description || '');
+    };
+
+    // Cancel editing
+    const cancelEdit = () => {
+        setEditingTransaction(null);
+        setAmount('');
+        setDescription('');
+        setName('');
+        setPaymentDate(new Date().toISOString().split('T')[0]);
+        setPaymentMode('Cash');
+    };
 
     const handleAddExpense = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1445,25 +1675,26 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
                 recorded_by: user?.user_id
             };
 
-            if (category === 'Labor') {
-                payload.amount = amount;
-                payload.person_name = name;
+            payload.amount = amount;
+            payload.person_name = name;
+            payload.date = paymentDate;
+            payload.payment_mode = paymentMode;
+            payload.description = description;
+
+            let response;
+            if (editingTransaction) {
+                payload.transaction_id = editingTransaction.transaction_id;
                 payload.date = paymentDate;
-                payload.payment_mode = paymentMode;
-                payload.description = `Labor Payment - Mode: ${paymentMode}`; // Fallback description
+                response = await axios.post(`${API_BASE_URL}/finance/update`, payload);
             } else {
-                payload.amount = amount;
-                payload.description = description;
+                response = await axios.post(`${API_BASE_URL}/finance`, payload);
             }
 
-            const response = await axios.post(`${API_BASE_URL}/finance`, payload);
             if (response.data.success) {
-                setAmount('');
-                setDescription('');
-                setName('');
-                setPaymentDate(new Date().toISOString().split('T')[0]);
-                setPaymentMode('Cash');
+                cancelEdit();
                 fetchTransactions();
+            } else {
+                alert(response.data.message || 'Failed to save transaction');
             }
         } catch (err) {
             alert('Failed to record expense');
@@ -1472,88 +1703,106 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
         }
     };
 
+    const handleDeleteExpense = async (transactionId: any) => {
+        if (!window.confirm('Are you sure you want to delete this expense?')) return;
+        try {
+            const response = await axios.delete(`${API_BASE_URL}/finance/${transactionId}`);
+            if (response.data.success) {
+                fetchTransactions();
+            } else {
+                alert(response.data.message || 'Failed to delete transaction');
+            }
+        } catch (err) {
+            alert('Failed to delete expense');
+        }
+    };
+
     return (
         <div className="premium-card" style={{ padding: '30px' }}>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '20px' }}>{category} Expenses</h3>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '20px' }}>
+                {editingTransaction ? 'Edit' : ''} {category} Expense{editingTransaction ? 's' : ''}
+            </h3>
 
-            {category === 'Labor' ? (
-                <form onSubmit={handleAddExpense} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '15px', marginBottom: '30px', alignItems: 'end' }}>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Name</label>
-                        <input type="text" required value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter name" />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Date</label>
-                        <input type="date" required value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Amount (₹)</label>
-                        <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="0.00" />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Mode</label>
-                        <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                            <option value="Cash">Cash</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="UPI">UPI</option>
-                            <option value="Cheque">Cheque</option>
-                        </select>
-                    </div>
-                    <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 20px', height: '42px' }}>
-                        {submitting ? 'Saving...' : 'Add'}
+            <form onSubmit={handleAddExpense} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr auto auto', gap: '15px', marginBottom: '30px', alignItems: 'end' }}>
+                <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Name</label>
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter name" />
+                </div>
+                <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Date</label>
+                    <input type="date" required value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                </div>
+                <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Amount (₹)</label>
+                    <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="0.00" />
+                </div>
+                <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Mode</label>
+                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Cheque">Cheque</option>
+                    </select>
+                </div>
+                <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Description</label>
+                    <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter details..." />
+                </div>
+                <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 20px', height: '42px' }}>
+                    {submitting ? 'Saving...' : (editingTransaction ? 'Save' : 'Add')}
+                </button>
+                {editingTransaction && (
+                    <button type="button" onClick={cancelEdit} className="btn-secondary" style={{ padding: '10px 20px', height: '42px', backgroundColor: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                        Cancel
                     </button>
-                </form>
-            ) : (
-                <form onSubmit={handleAddExpense} style={{ display: 'flex', gap: '15px', marginBottom: '30px', alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Amount (₹)</label>
-                        <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="0.00" />
-                    </div>
-                    <div style={{ flex: 2 }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Description</label>
-                        <input type="text" required value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter details..." />
-                    </div>
-                    <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 25px' }}>
-                        {submitting ? 'Saving...' : 'Add Expense'}
-                    </button>
-                </form>
-            )}
+                )}
+            </form>
 
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                     <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
                         <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DATE</th>
-                        {category === 'Labor' ? (
-                            <>
-                                <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>NAME</th>
-                                <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>MODE</th>
-                            </>
-                        ) : (
-                            <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DESCRIPTION</th>
-                        )}
+                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>NAME</th>
+                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>MODE</th>
+                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DESCRIPTION</th>
                         <th style={{ padding: '12px', textAlign: 'right', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>AMOUNT</th>
+                        <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>ACTION</th>
                     </tr>
                 </thead>
                 <tbody>
                     {filteredTransactions.map((t: any, i: number) => (
                         <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '12px', color: '#64748b' }}>{new Date(t.transaction_date).toLocaleDateString()}</td>
-                            {category === 'Labor' ? (
-                                <>
-                                    <td style={{ padding: '12px', fontWeight: 500 }}>{t.person_name || '-'}</td>
-                                    <td style={{ padding: '12px', color: '#64748b' }}>{t.payment_mode || '-'}</td>
-                                </>
-                            ) : (
-                                <td style={{ padding: '12px', fontWeight: 500 }}>{t.description}</td>
-                            )}
+                            <td style={{ padding: '12px', fontWeight: 500 }}>{t.person_name || '-'}</td>
+                            <td style={{ padding: '12px', color: '#64748b' }}>{t.payment_mode || '-'}</td>
+                            <td style={{ padding: '12px', fontWeight: 500 }}>{t.description || '-'}</td>
                             <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>
                                 ₹{parseFloat(t.amount).toLocaleString()}
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                    <button
+                                        onClick={() => startEdit(t)}
+                                        style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
+                                        title="Edit"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteExpense(t.transaction_id)}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
+                                        title="Delete"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))}
                     {filteredTransactions.length === 0 && (
                         <tr>
-                            <td colSpan={category === 'Labor' ? 4 : 3} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                            <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
                                 No expenses recorded yet.
                             </td>
                         </tr>
@@ -1562,7 +1811,7 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
             </table>
         </div>
     );
-};
+};;
 
 const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal = 0 }: any) => {
     const transportTotal = transactions
@@ -1747,57 +1996,322 @@ const UNIT_OPTIONS = [
     'Bags', 'Boxes', 'Rolls', 'Sheets', 'Bundles',
 ];
 
+/* ─── Stock Category Tab (data from Vendor Bill) ──────────────── */
 const StockCategoryTab = ({ project, user }: any) => {
-    const [categories, setCategories] = useState<any[]>([]);
+    const [allItems, setAllItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showFormModal, setShowFormModal] = useState(false);
+    const [filterVendor, setFilterVendor] = useState('');
+    const [allProjects, setAllProjects] = useState<any[]>([]);
+    const [transferringItem, setTransferringItem] = useState<any>(null);
+    const [transferData, setTransferData] = useState({ target_project_id: '', qty: 0 });
 
-    const fetchCategories = async () => {
+    const fetchItems = async () => {
+        setLoading(true);
         try {
-            const res = await axios.get(`${API_BASE_URL}/stock-categories?project_id=${project.project_id}`);
-            if (res.data.success) setCategories(res.data.data);
-        } catch { console.error('Failed to fetch categories'); }
-        finally { setLoading(false); }
+            const res = await fetch(`${API_BASE_URL}/controllers/Inventoryproject.php?project_id=${project.project_id}`);
+            const data = await res.json();
+            if (data.status === 'success' && data.data.length > 0) {
+                const flat = data.data.map((item: any) => ({
+                    id: item.id,
+                    name: item.item_name || '',
+                    vendor: item.vendor || '',
+                    category: item.category || item.name || '',
+                    rate: Number(item.rate || 0),
+                    qty: Number(item.quantity || 1),
+                    total: Number(item.total || 0),
+                    status: item.stock_status || 'pending',
+                    transfer_qty: Number(item.transfer_qty || 0),
+                    invoice_no: item.invoice_no || '',
+                    quantity_used: Number(item.quantity_used || 0),
+                    is_checked: item.is_checked || false,
+                }));
+                setAllItems(flat);
+            } else {
+                setAllItems([]);
+            }
+        } catch (err) {
+            console.error('Failed to fetch vendor bill items:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchAllProjects = async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/projects`);
+            if (res.data.success) {
+                setAllProjects(res.data.data.filter((p: any) => String(p.project_id) !== String(project.project_id)));
+            }
+        } catch { console.error('Failed to fetch projects'); }
     };
 
     useEffect(() => {
-        fetchCategories();
+        fetchItems();
+        fetchAllProjects();
     }, [project.project_id]);
 
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Header with Add Button */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
-                {['admin', 'principal_architect', 'accountant', 'project_head'].includes(user?.role) && (
-                    <button onClick={() => setShowFormModal(true)} className="btn-primary"
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}>
-                        <Plus size={18} /> Add Stock Item
-                    </button>
+    const handleMarkReceived = async (item: any) => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/inventory`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: item.id, stock_status: 'received', transfer_qty: 0 })
+            });
+            const data = await res.json();
+            console.log('Mark received response:', data);
+            if (data.status === 'success') { fetchItems(); }
+            else { alert(data.message || 'Failed to update status'); }
+        } catch (error) {
+            console.error('Mark received error:', error);
+            alert('Failed to mark as received');
+        }
+    };
+
+    const handleTransfer = async () => {
+        const availableQty = transferringItem.qty - transferringItem.quantity_used;
+        if (!transferData.target_project_id || transferData.qty <= 0 || transferData.qty > availableQty) {
+            alert(`Please enter a valid quantity within available limits (Max: ${availableQty}).`);
+            return;
+        }
+        try {
+            const res = await fetch(`${API_BASE_URL}/controllers/Inventoryproject.php`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: transferringItem.id,
+                    stock_status: 'transferred',
+                    transfer_qty: transferData.qty,
+                    target_project_id: transferData.target_project_id
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert('Transfer successful!');
+                setTransferringItem(null);
+                setTransferData({ target_project_id: '', qty: 0 });
+                fetchItems();
+            } else { alert(data.message || 'Transfer failed'); }
+        } catch (err) {
+            console.error('Transfer error:', err);
+            alert('Transfer failed');
+        }
+    };
+
+    const handleSaveUsage = async (item: any) => {
+        try {
+            console.log('Saving usage for item:', item);
+            const res = await fetch(`${API_BASE_URL}/inventory`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: item.id,
+                    quantity_used: item.quantity_used
+                })
+            });
+            const data = await res.json();
+            console.log('Save usage response:', data);
+            if (data.status === 'success') {
+                alert('Usage saved successfully!');
+                fetchItems();
+            } else {
+                alert(data.message || 'Failed to save usage');
+            }
+        } catch (err) {
+            console.error('Save usage error:', err);
+            alert('Failed to save usage');
+        }
+    };
+
+    const isAdmin = ['admin', 'principal_architect', 'accountant'].includes(user?.role);
+    const isEngineer = user?.role === 'site_engineer';
+    const vendors = [...new Set(allItems.map(i => i.vendor).filter(Boolean))];
+    const filtered = filterVendor ? allItems.filter(i => i.vendor === filterVendor) : allItems;
+    const stockItems = filtered.filter(i => i.qty > 0 && i.status !== 'transferred');
+    const transferItems = filtered.filter(i => i.transfer_qty > 0 || i.status === 'transferred');
+    const stockTotal = stockItems.filter(i => i.status === 'received').reduce((s, i) => s + i.total, 0);
+    const transferTotal = transferItems.reduce((s, i) => s + (i.transfer_qty * i.rate), 0);
+
+    const thS: React.CSSProperties = { padding: '12px 14px', textAlign: 'left', color: '#475569', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#f8fafc' };
+    const tdS: React.CSSProperties = { padding: '13px 14px', fontSize: '0.85rem', color: '#374151' };
+
+    const renderTable = (data: any[], title: string) => (
+        <div className="premium-card" style={{ padding: '24px', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#253b50' }}>{title}</h3>
+                    {title === 'Stock Items' && (
+                        <p style={{ fontSize: '0.78rem', color: '#10b981', fontWeight: 600, marginTop: '2px' }}>
+                            Balance Sheet: +₹{stockTotal.toLocaleString()} added to Vendor
+                        </p>
+                    )}
+                    {title === 'Transferred Stock' && (
+                        <p style={{ fontSize: '0.78rem', color: '#ef4444', fontWeight: 600, marginTop: '2px' }}>
+                            Balance Sheet: −₹{transferTotal.toLocaleString()} reduced from Vendor
+                        </p>
+                    )}
+                </div>
+                {title === 'Stock Items' && vendors.length > 0 && (
+                    <select value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)}
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>
+                        <option value="">All Vendors</option>
+                        {vendors.map((v, i) => <option key={i} value={v}>{v}</option>)}
+                    </select>
                 )}
             </div>
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                            <th style={thS}>#</th>
+                            <th style={thS}>Item Name</th>
+                            <th style={thS}>Vendor</th>
+                            <th style={thS}>Category</th>
+                            <th style={thS}>Rate (₹)</th>
+                            <th style={thS}>Qty</th>
+                            <th style={thS}>Total (₹)</th>
+                            {title === 'Stock Items' && <th style={thS}>Used</th>}
+                            {title === 'Stock Items' && <th style={thS}>Used (₹)</th>}
+                            {title === 'Stock Items' && <th style={thS}>Rem.</th>}
+                            {title === 'Stock Items' && <th style={thS}>Rem. (₹)</th>}
+                            {title === 'Transferred Stock' && <th style={thS}>Transfer Qty</th>}
+                            {title === 'Transferred Stock' && <th style={thS}>Transfer Amt (₹)</th>}
+                            <th style={{ ...thS, textAlign: 'center' }}>Status</th>
+                            <th style={{ ...thS, textAlign: 'center' }}>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading ? (
+                            <tr><td colSpan={title === 'Stock Items' ? 14 : 10} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>Loading from Vendor Bill...</td></tr>
+                        ) : data.length === 0 ? (
+                            <tr><td colSpan={title === 'Stock Items' ? 14 : 10} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>No items found. Add items in the Vendor Bill tab first.</td></tr>
+                        ) : data.map((item, idx) => {
+                            const transferAmt = item.transfer_qty * item.rate;
+                            const qty = parseFloat(item.qty || 0);
+                            const used = parseFloat(item.quantity_used || 0);
+                            const rem = qty - used;
+                            const usedVal = used * item.rate;
+                            const remVal = rem * item.rate;
+                            return (
+                                <tr key={`${item.id}-${idx}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ ...tdS, color: '#9ca3af' }}>{idx + 1}</td>
+                                    <td style={{ ...tdS, fontWeight: 600 }}>{item.name}</td>
+                                    <td style={tdS}>{item.vendor}</td>
+                                    <td style={tdS}>{item.category}</td>
+                                    <td style={tdS}>₹{item.rate.toLocaleString()}</td>
+                                    <td style={tdS}>{item.qty}</td>
+                                    <td style={{ ...tdS, fontWeight: 700 }}>₹{item.total.toLocaleString()}</td>
+                                    {title === 'Stock Items' && (
+                                        <td style={tdS}>
+                                            {(isAdmin || isEngineer) && ((item.stock_status || item.status) === 'received' || item.is_checked) ? (
+                                                <input type="number" value={item.quantity_used || 0} step="1"
+                                                    onChange={(e) => {
+                                                        const updated = [...allItems];
+                                                        const i = updated.findIndex(it => it.id === item.id);
+                                                        updated[i].quantity_used = e.target.value;
+                                                        setAllItems(updated);
+                                                    }}
+                                                    style={{ width: '60px', padding: '4px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                            ) : used}
+                                        </td>
+                                    )}
+                                    {title === 'Stock Items' && (
+                                        <td style={tdS}>₹{usedVal.toLocaleString()}</td>
+                                    )}
+                                    {title === 'Stock Items' && (
+                                        <td style={{ ...tdS, fontWeight: 700, color: rem <= 0 ? '#ef4444' : '#15803d' }}>{rem}</td>
+                                    )}
+                                    {title === 'Stock Items' && (
+                                        <td style={{ ...tdS, color: rem <= 0 ? '#ef4444' : '#15803d' }}>₹{remVal.toLocaleString()}</td>
+                                    )}
+                                    {title === 'Transferred Stock' && (
+                                        <td style={{ ...tdS, color: '#2563eb', fontWeight: 600 }}>{item.transfer_qty}</td>
+                                    )}
+                                    {title === 'Transferred Stock' && (
+                                        <td style={{ ...tdS, color: '#ef4444', fontWeight: 700 }}>−₹{transferAmt.toLocaleString()}</td>
+                                    )}
+                                    <td style={{ ...tdS, textAlign: 'center' }}>
+                                        <span style={{
+                                            padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700,
+                                            backgroundColor: (item.stock_status || item.status) === 'received' ? '#dcfce7' : (item.stock_status || item.status) === 'transferred' ? '#dbeafe' : '#fef2f2',
+                                            color: (item.stock_status || item.status) === 'received' ? '#15803d' : (item.stock_status || item.status) === 'transferred' ? '#1d4ed8' : '#dc2626'
+                                        }}>{item.stock_status || item.status || 'pending'}</span>
+                                    </td>
+                                    <td style={{ ...tdS, textAlign: 'center' }}>
+                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                                            {(item.stock_status || item.status) === 'pending' && (isAdmin || isEngineer) && (
+                                                <button onClick={() => handleMarkReceived(item)}
+                                                    style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}>
+                                                    Received
+                                                </button>
+                                            )}
+                                            {(isAdmin || isEngineer) && ((item.stock_status || item.status) === 'received' || item.is_checked) && (
+                                                <button onClick={() => handleSaveUsage(item)}
+                                                    style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer' }}>
+                                                    Save
+                                                </button>
+                                            )}
+                                            {(item.stock_status || item.status) !== 'transferred' && (isAdmin || isEngineer) && (
+                                                <button onClick={() => { setTransferringItem(item); setTransferData({ target_project_id: '', qty: 0 }); }}
+                                                    style={{ background: '#f1f5f9', border: '1px solid #d1d5db', padding: '4px 8px', borderRadius: '4px', fontSize: '0.72rem', cursor: 'pointer' }}>
+                                                    Transfer
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
 
-            {/* Modal for Add Stock Item */}
-            {showFormModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
-                    <div className="premium-card" style={{ width: '100%', maxWidth: '500px', padding: '0', overflow: 'hidden', position: 'relative' }}>
-                        <button onClick={() => setShowFormModal(false)} style={{ position: 'absolute', right: '16px', top: '16px', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                            <X size={24} />
-                        </button>
-                        <StockItemForm
-                            project={project}
-                            categories={categories}
-                            onSuccess={() => { fetchCategories(); setShowFormModal(false); }}
-                            onClose={() => setShowFormModal(false)}
-                        />
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {renderTable(stockItems, 'Stock Items')}
+            {renderTable(transferItems, 'Transferred Stock')}
+
+            {transferringItem && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
+                    <div className="premium-card" style={{ width: '100%', maxWidth: '420px', padding: '28px' }}>
+                        <h3 style={{ marginBottom: '8px' }}>Transfer: {transferringItem.name}</h3>
+                        <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '20px' }}>
+                            Max qty: {transferringItem.qty || 0} | Rate: ₹{(transferringItem.rate || 0).toLocaleString()}/unit
+                        </p>
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Select Target Project</label>
+                            <select value={transferData.target_project_id}
+                                onChange={(e) => setTransferData({ ...transferData, target_project_id: e.target.value })}
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db' }}>
+                                <option value="">Select Project</option>
+                                {allProjects.map(p => <option key={p.project_id} value={p.project_id}>{p.project_name}</option>)}
+                            </select>
+                        </div>
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Transfer Quantity (Max: {transferringItem.qty || 0})</label>
+                            <input type="number" min={1} max={transferringItem.qty || 0} value={transferData.qty || ''}
+                                onChange={(e) => setTransferData({ ...transferData, qty: parseFloat(e.target.value) || 0 })}
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
+                            {transferData.qty > 0 && (
+                                <p style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 600, marginTop: '6px' }}>
+                                    Balance sheet reduction: −₹{((transferData.qty || 0) * (transferringItem.rate || 0)).toLocaleString()}
+                                </p>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button onClick={() => setTransferringItem(null)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db', background: 'white', cursor: 'pointer' }}>Cancel</button>
+                            <button onClick={handleTransfer} className="btn-primary" style={{ flex: 1 }}>Confirm Transfer</button>
+                        </div>
                     </div>
                 </div>
             )}
-
-            {/* ── STOCK ITEMS TABLE ── */}
-            <StockItemsTable project={project} categories={categories} user={user} />
         </div>
     );
 };
+
+
+// Modals
 
 /* ─── Add Stock Item Form (Modal Content) ─────────────────────── */
 const StockItemForm = ({ project, categories, onSuccess, onClose }: any) => {
@@ -2003,33 +2517,45 @@ const StockItemsTable = ({ project, categories, user }: any) => {
                 is_checked: item.is_checked
             });
             if (res.data.success) {
-                alert('Stock marked as Received!');
+                alert('Usage saved successfully!');
                 fetchItems();
             }
         } catch (err) { alert('Failed to save usage'); }
     };
 
     const handleTransfer = async () => {
-        const available = parseFloat(transferringItem.quantity) - parseFloat(transferringItem.quantity_used || 0);
+        const available = parseFloat(transferringItem.quantity || 0) - parseFloat(transferringItem.quantity_used || 0);
+        console.log('Transfer data:', { transferringItem, transferData, available });
         if (!transferData.target_project_id || transferData.qty <= 0 || transferData.qty > available) {
             alert("Please enter a valid quantity within available limits.");
             return;
         }
         try {
+            console.log('Sending transfer request to:', `${API_BASE_URL}/stock-items/transfer`);
+            console.log('Request body:', {
+                item_id: transferringItem.id,
+                target_project_id: transferData.target_project_id,
+                transfer_qty: transferData.qty
+            });
             const res = await axios.post(`${API_BASE_URL}/stock-items/transfer`, {
                 item_id: transferringItem.id,
                 target_project_id: transferData.target_project_id,
                 transfer_qty: transferData.qty
             });
+            console.log('Transfer response:', res.data);
             if (res.data.success) {
                 alert('Transfer successful!');
                 setTransferringItem(null);
                 setTransferData({ target_project_id: '', qty: 0 });
                 fetchItems();
             } else {
-                alert(res.data.message);
+                alert('Transfer failed: ' + (res.data.message || 'Unknown error'));
             }
-        } catch (err) { alert('Transfer failed'); }
+        } catch (err: any) {
+            console.error('Transfer error:', err);
+            console.error('Error response:', err.response?.data);
+            alert('Transfer failed: ' + (err.response?.data?.message || err.message || 'Unknown error'));
+        }
     };
 
     const isAdmin = ['admin', 'principal_architect', 'accountant'].includes(user?.role);
@@ -2103,7 +2629,7 @@ const StockItemsTable = ({ project, categories, user }: any) => {
                                         </>
                                     )}
                                     <td style={tdS}>
-                                        {isEngineer && item.is_checked ? (
+                                        {isEngineer && ((item.stock_status || item.status) === 'received' || item.is_checked) ? (
                                             <input type="number" value={item.quantity_used} step="1"
                                                 onChange={(e) => {
                                                     const updated = [...items];
@@ -2120,9 +2646,9 @@ const StockItemsTable = ({ project, categories, user }: any) => {
                                     <td style={{ ...tdS, textAlign: 'center' }}>
                                         <span style={{
                                             padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700,
-                                            backgroundColor: item.status === 'received' ? '#dcfce7' : '#fef2f2',
-                                            color: item.status === 'received' ? '#15803d' : '#dc2626'
-                                        }}>{item.status || 'pending'}</span>
+                                            backgroundColor: (item.stock_status || item.status) === 'received' ? '#dcfce7' : '#fef2f2',
+                                            color: (item.stock_status || item.status) === 'received' ? '#15803d' : '#dc2626'
+                                        }}>{item.stock_status || item.status || 'pending'}</span>
                                     </td>
                                     <td style={{ ...tdS, textAlign: 'center' }}>
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
@@ -2135,7 +2661,7 @@ const StockItemsTable = ({ project, categories, user }: any) => {
                                                             updated[i].is_checked = e.target.checked;
                                                             setItems(updated);
                                                         }} />
-                                                    {item.is_checked && (
+                                                    {(item.is_checked || (item.stock_status || item.status) === 'received') && (
                                                         <button onClick={() => handleSaveUsage(item)} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer' }}>Save</button>
                                                     )}
                                                 </>
@@ -2176,8 +2702,8 @@ const StockItemsTable = ({ project, categories, user }: any) => {
                             </select>
                         </div>
                         <div style={{ marginBottom: '20px' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Transfer Qty (Max: {parseFloat(transferringItem.quantity) - parseFloat(transferringItem.quantity_used || 0)})</label>
-                            <input type="number" value={transferData.qty} step="0.01" onChange={(e) => setTransferData({ ...transferData, qty: parseFloat(e.target.value) })}
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Transfer Qty (Max: {parseFloat(transferringItem.quantity || 0) - parseFloat(transferringItem.quantity_used || 0)})</label>
+                            <input type="number" value={transferData.qty || ''} step="0.01" onChange={(e) => setTransferData({ ...transferData, qty: parseFloat(e.target.value) || 0 })}
                                 style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
                         </div>
                         <div style={{ display: 'flex', gap: '12px' }}>
@@ -2245,46 +2771,78 @@ const PaymentModal = ({ payment, setPayment, submitting, handleRecordPayment, se
     </div>
 );
 const TimelineTab = ({ project, user }: any) => {
-    const isAdmin = user?.role === 'admin' || user?.role === 'principal_architect';
-    const start = new Date(project.start_date);
-    const end = new Date(project.expected_end_date || new Date(start).setMonth(start.getMonth() + 3));
-
-    const MONTHS: any[] = [];
-    let curr = new Date(start);
-    while (curr <= end) {
-        const mKey = curr.toLocaleString('en-US', { month: 'short' }).toLowerCase();
-        const mLabel = curr.toLocaleString('en-US', { month: 'long' }).toUpperCase();
-        const d = curr.getDate();
-        const fullDate = new Date(curr).toISOString().split('T')[0];
-
-        let existingMonth = MONTHS.find(m => m.key === mKey && m.year === curr.getFullYear());
-        if (!existingMonth) {
-            existingMonth = { key: mKey, label: mLabel, short: mKey.toUpperCase(), year: curr.getFullYear(), days: [] };
-            MONTHS.push(existingMonth);
-        }
-        existingMonth.days.push({ day: d, date: fullDate });
-        curr.setDate(curr.getDate() + 1);
-    }
-    const ALL_COLS = MONTHS.flatMap(m => m.days);
-    const TOTAL_COLS = ALL_COLS.length;
+    const isAdmin = user?.role === 'admin' || user?.role === 'principal_architect' || user?.role === 'project_head';
     const todayStr = new Date().toISOString().split('T')[0];
-    const CATEGORIES = [
-        "1. INITIAL WORKS",
-        "2. FALSE CEILING",
-        "3. ELECTRICAL CHIPPING",
-        "4. PLUMBING/SANITARY",
-        "5. PAINTING",
-        "6. CARPENTRY",
-        "7. GRANITE & TILES",
-        "8. GLASS/MIRROR",
-        "9. SANITARY & BATH",
-        "10. ELECTRICAL FITMENTS",
-        "11. FURNITURE",
-        "12. DEEP CLEANING",
-        "13.CURTAIN RODS AND CURTAINS",
-        "14. HANDOVER"
-    ];
+    const BORDER = "1px solid #000";
 
+    const [tasks, setTasks] = useState<any[]>([]);
+    const [completions, setCompletions] = useState<any>({});
+    const [loading, setLoading] = useState(true);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const [editingTask, setEditingTask] = useState<any>(null);
+    const [newTask, setNewTask] = useState({ category: '', name: '', startDate: '', endDate: '' });
+
+    // ── Build 3-day-interval columns ──────────────────────────────────────
+    let projStart = new Date(project.start_date);
+    let projEnd = new Date(project.expected_end_date || new Date(projStart).setMonth(projStart.getMonth() + 3));
+
+    tasks.forEach(t => {
+        if (t.startDate) {
+            const sd = new Date(t.startDate);
+            if (sd < projStart) projStart = sd;
+        }
+        if (t.endDate) {
+            const ed = new Date(t.endDate);
+            if (ed > projEnd) projEnd = ed;
+        }
+    });
+
+    const baseColDates = new Set<string>();
+
+    // Generate base 3-day intervals from 1st of month
+    const cur = new Date(projStart.getFullYear(), projStart.getMonth(), 1);
+    while (cur <= projEnd) {
+        const d = new Date(cur.getTime() - cur.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        baseColDates.add(d);
+
+        const currentMonth = cur.getMonth();
+        cur.setDate(cur.getDate() + 3);
+        if (cur.getMonth() !== currentMonth) {
+            cur.setDate(1); // Reset to 1st of the new month
+        }
+    }
+
+    // Inject any exact task dates that are missing from the base timeline
+    tasks.forEach(t => {
+        if (t.startDate) baseColDates.add(t.startDate);
+        if (t.endDate) baseColDates.add(t.endDate);
+    });
+
+    // Sort chronologically and format for rendering
+    const ALL_COLS = Array.from(baseColDates)
+        .sort()
+        .map(dateStr => {
+            const d = new Date(dateStr);
+            return { day: d.getDate(), date: dateStr };
+        });
+
+    // Month header groups
+    const monthGroups: { label: string; count: number }[] = [];
+    ALL_COLS.forEach(col => {
+        const d = new Date(col.date);
+        const lbl = d.toLocaleString('en-US', { month: 'long' }).toUpperCase();
+        const last = monthGroups[monthGroups.length - 1];
+        if (last && last.label === lbl) last.count++;
+        else monthGroups.push({ label: lbl, count: 1 });
+    });
+
+    const CATEGORIES = [
+        "1. INITIAL WORKS", "2. FALSE CEILING", "3. ELECTRICAL CHIPPING",
+        "4. PLUMBING/SANITARY", "5. PAINTING", "6. CARPENTRY",
+        "7. GRANITE & TILES", "8. GLASS/MIRROR", "9. SANITARY & BATH",
+        "10. ELECTRICAL FITMENTS", "11. FURNITURE", "12. DEEP CLEANING",
+        "13.CURTAIN RODS AND CURTAINS", "14. HANDOVER"
+    ];
     const SUB_TASKS: any = {
         "1. INITIAL WORKS": ["Spreading floor mats", "Demolition", "Cleaning", "New civil works", "Flooring repair works"],
         "2. FALSE CEILING": ["Channelling", "AC piping, Ceiling Wiring", "Sheeting", "light cutting, light fixing"],
@@ -2302,175 +2860,131 @@ const TimelineTab = ({ project, user }: any) => {
         "14. HANDOVER": ["Handover"]
     };
 
-    const [tasks, setTasks] = useState<any[]>([]);
-    const [completions, setCompletions] = useState<any>({}); // { task_id: { date: 'done' | 'pending' } }
-    const [loading, setLoading] = useState(true);
-
-    // Form State
-    const [newTask, setNewTask] = useState({
-        category: '',
-        name: '',
-        startDate: '',
-        endDate: ''
-    });
-
-    useEffect(() => {
-        if (project?.project_id) {
-            fetchTimeline();
-        }
-    }, [project?.project_id]);
+    useEffect(() => { if (project?.project_id) fetchTimeline(); }, [project?.project_id]);
 
     const fetchTimeline = async () => {
         try {
-            const pid = Number(project?.project_id);
-
-            if (!pid) {
-                console.log("❌ Invalid project_id:", project?.project_id);
-                return;
-            }
-
-            console.log("✅ FETCH PROJECT ID 👉", pid);
-
-            const res = await axios.get(
-                `${API_BASE_URL}/controllers/timeline/state.php?project_id=${pid}`
-            );
-
-            console.log("📦 API RESPONSE 👉", res.data);
-
+            const res = await axios.get(`${API_BASE_URL}/controllers/timeline/state.php?project_id=${project.project_id}`);
             if (res.data.success) {
                 setTasks(res.data.tasks || []);
                 setCompletions(res.data.completions || {});
             }
-
-        } catch (err) {
-            console.error("❌ Failed to fetch timeline", err);
-        } finally {
-            setLoading(false);
-        }
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
     };
 
-    const handleAddTask = async (e: React.FormEvent) => {
+    const persistState = async (t: any[], c: any) => {
+        setSaveStatus('saving');
+        try {
+            await fetch(`${API_BASE_URL}/controllers/timeline/save-state.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ project_id: project.project_id, tasks: t, completions: c, created_by: user.user_id })
+            });
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+        } catch (e) { setSaveStatus('idle'); }
+    };
+
+    const handleAddTask = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTask.category || !newTask.name || !newTask.startDate || !newTask.endDate) return;
-
-        const taskData = {
-            id: Date.now(),
-            ...newTask
-        };
-
-        const updatedTasks = [...tasks, taskData];
-        setTasks(updatedTasks);
+        const updated = [...tasks, { id: Date.now(), ...newTask }];
+        setTasks(updated);
         setNewTask({ category: '', name: '', startDate: '', endDate: '' });
-
-        saveTimeline(updatedTasks, completions);
+        persistState(updated, completions);
     };
 
-    const saveTimeline = async (updatedTasks: any[], updatedCompletions: any) => {
-
-        const payload = {
-            project_id: project.project_id,
-            tasks: updatedTasks,
-            completions: updatedCompletions
-        };
-
-        console.log("SENDING DATA 👉", payload);
-
-        try {
-            const res = await fetch(`${API_BASE_URL}/controllers/timeline/save-state.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    project_id: project.project_id,
-                    tasks: updatedTasks,
-                    completions: updatedCompletions,
-                    created_by: user.user_id
-                })
-            });
-
-            const text = await res.text();
-            console.log("RESPONSE 👉", text);
-
-        } catch (err) {
-            console.error("ERROR 👉", err);
-        }
+    const handleSaveEdit = () => {
+        if (!editingTask) return;
+        const updated = tasks.map(t => t.id === editingTask.id ? editingTask : t);
+        setTasks(updated);
+        setEditingTask(null);
+        persistState(updated, completions);
     };
+
+    const handleDeleteTask = (taskId: any) => {
+        const updated = tasks.filter(t => t.id !== taskId);
+        setTasks(updated);
+        const newC = { ...completions };
+        delete newC[taskId];
+        setCompletions(newC);
+        persistState(updated, newC);
+    };
+
     const toggleStatus = (taskId: any, date: string) => {
-        const currentStatus = completions[taskId]?.[date];
-        const isDone = currentStatus === 'done';
-
-        // Check if day pass for this specific date
-        const isPast = date < todayStr;
-        if (isDone && isPast) return; // Locked
-
-        const updatedCompletions = { ...completions };
-        if (!updatedCompletions[taskId]) updatedCompletions[taskId] = {};
-
-        updatedCompletions[taskId][date] = isDone ? 'pending' : 'done';
-
-        setCompletions(updatedCompletions);
-        saveTimeline(tasks, updatedCompletions);
+        const cur = completions[taskId]?.[date];
+        if (cur === 'done' && date < todayStr) return;
+        const newC = { ...completions, [taskId]: { ...(completions[taskId] || {}), [date]: cur === 'done' ? 'pending' : 'done' } };
+        setCompletions(newC);
+        // Don't auto-save on click — user must press Save
     };
 
-    const getCellColor = (taskId: any, date: string, startDate: string, endDate: string) => {
-        const status = completions[taskId]?.[date];
-        if (status === 'done') return "#70AD47"; // GREEN
+    const getCellColor = (taskId: any, colDate: string, nextColDate: string | null, startDate: string, endDate: string) => {
+        if (completions[taskId]?.[colDate] === 'done') return "#70AD47";
 
-        const isPlanned = date >= startDate && date <= endDate;
-        if (isPlanned) {
-            if (date < todayStr) return "#FF0000"; // RED (Day passed, not green)
-            return "#A6A6A6"; // GREY (Planned)
-        }
+        const cStart = new Date(colDate).getTime();
+        // Spans until the day BEFORE the next column (or +2 days if it's the last column)
+        const cEnd = nextColDate
+            ? new Date(new Date(nextColDate).getTime() - 86400000).getTime()
+            : new Date(new Date(colDate).getTime() + 2 * 86400000).getTime();
+
+        const tStart = new Date(startDate).getTime();
+        const tEnd = new Date(endDate).getTime();
+
+        const overlaps = cStart <= tEnd && cEnd >= tStart;
+        if (overlaps) return colDate < todayStr ? "#FF0000" : "#A6A6A6";
         return "transparent";
     };
 
-    const BORDER = "1px solid #000";
-
     if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></div>;
-    const handlePrint = () => window.print();
 
     return (
         <div className="timeline-container" style={{ backgroundColor: "white", padding: "40px", width: "100%", border: "1px solid #000", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", position: 'relative' }}>
-            <button onClick={handlePrint} className="no-print" style={{ position: 'absolute', right: '40px', top: '10px', padding: '10px 20px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Printer size={18} /> Print Timeline
-            </button>
 
-            {/* TASK ASSIGNMENT FORM (ADMIN ONLY) */}
+            {/* Top action bar */}
+            <div className="no-print" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginBottom: '10px' }}>
+                <button
+                    onClick={() => persistState(tasks, completions)}
+                    disabled={saveStatus === 'saving'}
+                    style={{ padding: '10px 22px', backgroundColor: saveStatus === 'saved' ? '#16a34a' : '#253b50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
+                >
+                    <Save size={16} />
+                    {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved!' : 'Save Timeline'}
+                </button>
+                <button onClick={() => window.print()} style={{ padding: '10px 20px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Printer size={16} /> Print
+                </button>
+            </div>
+
+            {/* Assign Work Form */}
             {isAdmin && (
-                <div style={{ marginBottom: '30px', marginTop: '20px', padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }} className="no-print">
+                <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }} className="no-print">
                     <h3 style={{ marginBottom: '15px', fontSize: '1rem', fontWeight: 700 }}>Assign Work Schedule</h3>
                     <form onSubmit={handleAddTask} className="work-schedule-form">
                         <div>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Category</label>
-                            <select value={newTask.category} onChange={(e) => setNewTask({ ...newTask, category: e.target.value, name: '' })} style={{ width: '100%', padding: '8px', borderRadius: '6px' }}>
+                            <select value={newTask.category} onChange={e => setNewTask({ ...newTask, category: e.target.value, name: '' })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
                                 <option value="">Select Category</option>
                                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
                         <div>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Work Name</label>
-                            <select
-                                value={newTask.name}
-                                onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
-                                disabled={!newTask.category}
-                                style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: !newTask.category ? '#f3f4f6' : 'white' }}
-                            >
+                            <select value={newTask.name} onChange={e => setNewTask({ ...newTask, name: e.target.value })} disabled={!newTask.category} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: !newTask.category ? '#f3f4f6' : 'white' }}>
                                 <option value="">Select Work</option>
-                                {newTask.category && SUB_TASKS[newTask.category]?.map((s: string) => (
-                                    <option key={s} value={s}>{s}</option>
-                                ))}
+                                {newTask.category && SUB_TASKS[newTask.category]?.map((s: string) => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                         <div>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>From</label>
-                            <input type="date" value={newTask.startDate} onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                            <input type="date" value={newTask.startDate} onChange={e => setNewTask({ ...newTask, startDate: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                         </div>
                         <div>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>To</label>
-                            <input type="date" value={newTask.endDate} onChange={(e) => setNewTask({ ...newTask, endDate: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                            <input type="date" value={newTask.endDate} onChange={e => setNewTask({ ...newTask, endDate: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                         </div>
-                        <button type="submit" className="btn-primary" style={{ padding: '10px' }}>Assign Work</button>
+                        <button type="submit" className="btn-primary" style={{ padding: '10px' }}>+ Assign</button>
                     </form>
                 </div>
             )}
@@ -2478,63 +2992,63 @@ const TimelineTab = ({ project, user }: any) => {
             {/* Document Header */}
             <div style={{ textAlign: "center", marginBottom: "30px", borderBottom: "3px solid #000", paddingBottom: "15px" }}>
                 <h1 style={{ fontSize: "1.5rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", margin: 0 }}>
-                    TIMELINE FOR INTERIORS WORKS - {project.project_name.toUpperCase()}
+                    TIMELINE — {project.project_name.toUpperCase()}
                 </h1>
+                <p style={{ fontSize: "0.7rem", color: "#666", marginTop: "5px" }}>ARK ARCHITECTS AND INTERIOR DESIGNERS &nbsp;|&nbsp; Columns = 3-day intervals</p>
             </div>
 
             <div className="timeline-table-wrapper" style={{ overflowX: "auto", paddingBottom: "15px" }}>
-                <table style={{ borderCollapse: "collapse", width: Math.max(1000, 255 + TOTAL_COLS * 22) + "px", border: "2px solid #000", tableLayout: "fixed" }}>
+                <table style={{ borderCollapse: "collapse", width: Math.max(1000, 255 + ALL_COLS.length * 28) + "px", border: "2px solid #000", tableLayout: "fixed" }}>
                     <thead>
                         <tr style={{ backgroundColor: "#F2F2F2" }}>
                             <th style={{ width: "35px", border: BORDER, fontSize: "0.65rem", padding: "5px" }}>No.</th>
                             <th style={{ width: "220px", border: BORDER, fontSize: "0.65rem", padding: "5px", textAlign: "left" }}>Work description</th>
-                            {MONTHS.map(m => (
-                                <th key={m.key} colSpan={m.days.length} style={{ border: BORDER, fontSize: "0.7rem", padding: "5px", textTransform: "uppercase", backgroundColor: "#E2E8F0" }}>
-                                    {m.label}
-                                </th>
+                            {monthGroups.map((m, i) => (
+                                <th key={i} colSpan={m.count} style={{ border: BORDER, fontSize: "0.7rem", padding: "5px", textTransform: "uppercase", backgroundColor: "#E2E8F0" }}>{m.label}</th>
                             ))}
+                            {isAdmin && <th style={{ width: "60px", border: BORDER, fontSize: "0.6rem" }} className="no-print">Edit</th>}
                         </tr>
                         <tr style={{ backgroundColor: "#FFF" }}>
                             <th style={{ border: BORDER }}></th>
                             <th style={{ border: BORDER, textAlign: "left", paddingLeft: "8px", fontSize: "0.6rem", color: "#666" }}>Dates →</th>
                             {ALL_COLS.map((c, i) => (
-                                <th key={i} style={{ border: BORDER, padding: "2px", fontSize: "0.6rem", minWidth: "22px", fontWeight: 700, backgroundColor: c.date === todayStr ? '#fef3c7' : 'transparent' }}>
+                                <th key={i} style={{ border: BORDER, padding: "2px", fontSize: "0.6rem", minWidth: "28px", fontWeight: 700, backgroundColor: c.date === todayStr ? '#fef3c7' : 'transparent' }}>
                                     {c.day}
                                 </th>
                             ))}
+                            {isAdmin && <th style={{ border: BORDER }} className="no-print"></th>}
                         </tr>
                     </thead>
                     <tbody>
                         {CATEGORIES.map((cat, catIdx) => {
                             const catTasks = tasks.filter(t => t.category === cat);
                             if (catTasks.length === 0 && !isAdmin) return null;
-
                             return (
                                 <React.Fragment key={cat}>
                                     <tr style={{ backgroundColor: "#D9D9D9" }}>
                                         <td style={{ border: BORDER, textAlign: "center", fontWeight: 900, fontSize: "0.7rem" }}>{catIdx + 1}</td>
-                                        <td colSpan={1 + TOTAL_COLS} style={{ border: BORDER, padding: "4px 8px", fontWeight: 900, fontSize: "0.75rem", textTransform: "uppercase" }}>
-                                            {cat}
-                                        </td>
+                                        <td colSpan={1 + ALL_COLS.length + (isAdmin ? 1 : 0)} style={{ border: BORDER, padding: "4px 8px", fontWeight: 900, fontSize: "0.75rem", textTransform: "uppercase" }}>{cat}</td>
                                     </tr>
-                                    {catTasks.map((task, taskIdx) => (
+                                    {catTasks.map((task, ti) => (
                                         <tr key={task.id} style={{ height: "30px" }}>
-                                            <td style={{ border: BORDER, textAlign: "center", fontSize: "0.65rem", color: "#666" }}>{catIdx + 1}.{taskIdx + 1}</td>
-                                            <td style={{ border: BORDER, padding: "4px 8px", fontSize: "0.75rem", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                {task.name}
-                                            </td>
-                                            {ALL_COLS.map((col, i) => (
-                                                <td
-                                                    key={i}
-                                                    onClick={() => toggleStatus(task.id, col.date)}
-                                                    style={{
-                                                        border: BORDER,
-                                                        backgroundColor: getCellColor(task.id, col.date, task.startDate, task.endDate),
-                                                        cursor: "pointer",
-                                                        transition: "background 0.1s",
-                                                    }}
-                                                ></td>
-                                            ))}
+                                            <td style={{ border: BORDER, textAlign: "center", fontSize: "0.65rem", color: "#666" }}>{catIdx + 1}.{ti + 1}</td>
+                                            <td style={{ border: BORDER, padding: "4px 8px", fontSize: "0.75rem", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{task.name}</td>
+                                            {ALL_COLS.map((col, i) => {
+                                                const nextColDate = ALL_COLS[i + 1]?.date || null;
+                                                return (
+                                                    <td key={i} onClick={() => toggleStatus(task.id, col.date)}
+                                                        style={{ border: BORDER, backgroundColor: getCellColor(task.id, col.date, nextColDate, task.startDate, task.endDate), cursor: "pointer", transition: "background 0.1s" }}
+                                                    />
+                                                );
+                                            })}
+                                            {isAdmin && (
+                                                <td style={{ border: BORDER, textAlign: "center", padding: "2px" }} className="no-print">
+                                                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                                        <button onClick={() => setEditingTask({ ...task })} title="Edit dates" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '2px' }}><Edit2 size={13} /></button>
+                                                        <button onClick={() => handleDeleteTask(task.id)} title="Delete" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px' }}><X size={13} /></button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </React.Fragment>
@@ -2542,52 +3056,56 @@ const TimelineTab = ({ project, user }: any) => {
                         })}
                         <tr style={{ backgroundColor: "#F2F2F2", height: "35px" }}>
                             <td style={{ border: BORDER }}></td>
-                            <td style={{ border: BORDER, padding: "4px 8px", fontSize: "0.75rem", fontWeight: 900, textTransform: "uppercase" }}>
-                                Total project time
-                            </td>
-                            {ALL_COLS.map((_, i) => (
-                                <td key={i} style={{ border: BORDER, backgroundColor: "#F2F2F2" }}></td>
-                            ))}
+                            <td style={{ border: BORDER, padding: "4px 8px", fontSize: "0.75rem", fontWeight: 900, textTransform: "uppercase" }}>Total project time</td>
+                            {ALL_COLS.map((_, i) => <td key={i} style={{ border: BORDER, backgroundColor: "#F2F2F2" }} />)}
+                            {isAdmin && <td style={{ border: BORDER }} className="no-print" />}
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            {/* Legend Section */}
-            <div style={{ marginTop: "30px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ display: "flex", gap: "25px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <div style={{ width: 18, height: 18, backgroundColor: "#70AD47", border: BORDER }}></div>
-                        <span style={{ fontSize: "0.75rem", fontWeight: 700 }}>COMPLETED (GREEN)</span>
+            {/* Legend */}
+            <div style={{ marginTop: "30px", display: "flex", gap: "25px" }}>
+                {[["#70AD47", "COMPLETED"], ["#FF0000", "OVERDUE"], ["#A6A6A6", "PLANNED"]].map(([color, label]) => (
+                    <div key={label} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{ width: 18, height: 18, backgroundColor: color, border: BORDER }} />
+                        <span style={{ fontSize: "0.75rem", fontWeight: 700 }}>{label}</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <div style={{ width: 18, height: 18, backgroundColor: "#FF0000", border: BORDER }}></div>
-                        <span style={{ fontSize: "0.75rem", fontWeight: 700 }}>OVERDUE (RED)</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <div style={{ width: 18, height: 18, backgroundColor: "#A6A6A6", border: BORDER }}></div>
-                        <span style={{ fontSize: "0.75rem", fontWeight: 700 }}>PLANNED (GREY)</span>
-                    </div>
-                </div>
-
-                {/* Branding & Signatures Removed for Print */}
+                ))}
             </div>
 
+            {/* Edit Task Modal */}
+            {editingTask && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+                    <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '30px', width: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+                        <h3 style={{ marginBottom: '20px', fontWeight: 700, fontSize: '1.1rem' }}>Edit Task Dates</h3>
+                        <p style={{ fontWeight: 600, color: '#253b50', marginBottom: '16px' }}>{editingTask.name}</p>
+                        <div style={{ marginBottom: '14px' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>From Date</label>
+                            <input type="date" value={editingTask.startDate} onChange={e => setEditingTask({ ...editingTask, startDate: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                        </div>
+                        <div style={{ marginBottom: '24px' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>To Date</label>
+                            <input type="date" value={editingTask.endDate} onChange={e => setEditingTask({ ...editingTask, endDate: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setEditingTask(null)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white', cursor: 'pointer' }}>Cancel</button>
+                            <button onClick={handleSaveEdit} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Save size={16} /> Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`
+                .work-schedule-form { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; align-items:end; }
+                @media (max-width:768px) { .work-schedule-form { grid-template-columns:1fr !important; } }
                 @media print {
-                    .print-only { display: flex !important; }
-                    .timeline-container { border: none !important; box-shadow: none !important; }
-                }
-                .work-schedule-form {
-                    display: grid;
-                    grid-template-columns: repeat(5, 1fr);
-                    gap: 10px;
-                    align-items: end;
-                }
-                @media (max-width: 768px) {
-                    .work-schedule-form {
-                        grid-template-columns: repeat(1, 1fr) !important;
-                    }
+                    @page { size: landscape; margin: 5mm; }
+                    .print-only { display:flex !important; }
+                    .timeline-container { border:none !important; box-shadow:none !important; padding: 0 !important; width: 100% !important; }
+                    .timeline-table-wrapper { overflow: visible !important; width: 100% !important; }
+                    .timeline-table-wrapper table { zoom: 0.65; }
+                    .no-print { display:none !important; }
                 }
             `}</style>
         </div>

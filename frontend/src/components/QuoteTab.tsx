@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Loader2, Printer, Save, Undo2, Redo2, Trash2, PlusCircle, ListPlus, MoveUp, MoveDown, Check } from 'lucide-react';
+import { Loader2, Printer, Save, Undo2, Redo2, Trash2, PlusCircle, ListPlus, MoveUp, MoveDown, Check, Heading } from 'lucide-react';
 import EleganceLogo from '../assets/Elegance Logo.png';
 import ArkLogo from '../assets/Logo.png';
 
@@ -38,6 +38,8 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
     const [redoStack, setRedoStack] = useState<QuoteSection[][]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [subtitle, setSubtitle] = useState('');
+    const [gstEnabled, setGstEnabled] = useState(false);
 
     const addToHistory = (newSections: QuoteSection[]) => {
         setHistory(prev => [...prev.slice(-19), sections]); // Keep last 20 states
@@ -86,6 +88,7 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
                     }))
                 }));
                 setSections(mappedSections);
+                setSubtitle(response.data.data.subtitle || '');
             } else if (!isUsedQuote) {
                 // If no quote exists and it's not a used quote, load default data
                 setSections(getDefaultSections());
@@ -291,6 +294,7 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
                 is_used_quote: isUsedQuote,
                 total_amount: total,
                 sections: sections,
+                subtitle: subtitle,
                 created_by: user.user_id
             });
             if (response.data.success) {
@@ -354,7 +358,40 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
         addToHistory(sections.filter(s => s.id !== sectionId));
     };
 
-    const addItem = (sectionId: string, isHeader: boolean = false) => {
+    const addHeaderAfterGroup = (sectionId: string, headerId: string) => {
+        const newItem: QuoteItem = {
+            id: 'i-' + Date.now(),
+            particulars: 'SUB HEADING',
+            brand: 'HEADER',
+            unit: '',
+            quantity: 0,
+            rate: 0,
+            amount: 0
+        };
+        const newSections = sections.map(s => {
+            if (s.id === sectionId) {
+                const index = s.items.findIndex(i => i.id === headerId);
+                if (index !== -1) {
+                    // Find the next header or end of list
+                    let nextHeaderIndex = s.items.length;
+                    for (let j = index + 1; j < s.items.length; j++) {
+                        if (s.items[j].brand === 'HEADER') {
+                            nextHeaderIndex = j;
+                            break;
+                        }
+                    }
+                    const newItems = [...s.items];
+                    newItems.splice(nextHeaderIndex, 0, newItem);
+                    return { ...s, items: newItems };
+                }
+                return { ...s, items: [...s.items, newItem] };
+            }
+            return s;
+        });
+        addToHistory(newSections);
+    };
+
+    const addItem = (sectionId: string, isHeader: boolean = false, insertAfterId?: string) => {
         const newItem: QuoteItem = {
             id: 'i-' + Date.now(),
             particulars: isHeader ? 'SUB HEADING' : 'New Item',
@@ -366,6 +403,14 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
         };
         const newSections = sections.map(s => {
             if (s.id === sectionId) {
+                if (insertAfterId) {
+                    const index = s.items.findIndex(i => i.id === insertAfterId);
+                    if (index !== -1) {
+                        const newItems = [...s.items];
+                        newItems.splice(index + 1, 0, newItem);
+                        return { ...s, items: newItems };
+                    }
+                }
                 return { ...s, items: [...s.items, newItem] };
             }
             return s;
@@ -399,6 +444,14 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
         return sections.reduce((sum, s) => sum + s.items.reduce((itemSum, i) => itemSum + (i.amount || 0), 0), 0);
     };
 
+    const getGstAmount = () => {
+        return gstEnabled ? getGrandTotal() * 0.18 : 0;
+    };
+
+    const getFinalTotal = () => {
+        return getGrandTotal() + getGstAmount();
+    };
+
     const handlePrint = () => {
         window.print();
     };
@@ -426,7 +479,18 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
                 <img src={ArkLogo} alt="Watermark" style={{ width: '100%', objectFit: 'contain' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }} className="no-print">
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Project Estimate: {isUsedQuote ? 'Used Materials' : 'Initial Quote'}</h3>
+                <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Project Estimate: {isUsedQuote ? 'Used Materials' : 'Initial Quote'}</h3>
+                    {!isReadOnly && (
+                        <input
+                            type="text"
+                            placeholder="Enter subtitle..."
+                            value={subtitle}
+                            onChange={(e) => setSubtitle(e.target.value)}
+                            style={{ marginTop: '8px', padding: '6px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.9rem', width: '300px' }}
+                        />
+                    )}
+                </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     {!isReadOnly && (
                         <>
@@ -469,6 +533,7 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
                 )}
                 <div style={{ marginTop: '0px', textAlign: 'center' }}>
                     <h2 style={{ margin: 0, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>{project.project_id === 'standalone' ? 'Project Quote' : 'Project Estimate'}</h2>
+                    {subtitle && <h3 style={{ margin: '5px 0', fontSize: '12px', color: '#475569', fontWeight: 600 }}>{subtitle}</h3>}
                     <p style={{ margin: '0px 0', fontWeight: 600, fontSize: '0.85rem' }}>{project.project_name}</p>
                 </div>
             </div>
@@ -506,7 +571,7 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
                                         <td style={{ padding: '5px', border: '1px solid #ddd', textAlign: 'center' }} className="no-print">
                                             <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
                                                 <button onClick={() => addItem(section.id)} title="Add Item" style={{ color: '#16a34a', background: 'none', border: 'none', cursor: 'pointer' }}><PlusCircle size={18} /></button>
-                                                <button onClick={() => addItem(section.id, true)} title="Add Header" style={{ color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer' }}><ListPlus size={18} /></button>
+                                                <button onClick={() => addItem(section.id, true)} title="Add Sub Title" style={{ color: '#f59e0b', background: 'none', border: 'none', cursor: 'pointer' }}><Heading size={18} /></button>
                                                 <button onClick={() => deleteSection(section.id)} title="Delete Section" style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={18} /></button>
                                             </div>
                                         </td>
@@ -583,8 +648,12 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
                                             </td>
                                             {!isReadOnly && (
                                                 <td style={{ padding: '5px', border: '1px solid #ddd', textAlign: 'center' }} className="no-print">
-                                                    {!isHeader && <button onClick={() => deleteItem(section.id, item.id)} title="Delete Item" style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>}
-                                                    {isHeader && <button onClick={() => deleteItem(section.id, item.id)} title="Delete Header" style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={16} /></button>}
+                                                    <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
+                                                        {!isHeader && <button onClick={() => addItem(section.id, false, item.id)} title="Add Item Below" style={{ color: '#16a34a', background: 'none', border: 'none', cursor: 'pointer' }}><PlusCircle size={15} /></button>}
+                                                        {isHeader && <button onClick={() => addItem(section.id, false, item.id)} title="Add Item In Group" style={{ color: '#16a34a', background: 'none', border: 'none', cursor: 'pointer' }}><PlusCircle size={15} /></button>}
+                                                        {isHeader && <button onClick={() => addHeaderAfterGroup(section.id, item.id)} title="Add Sub Title After Group" style={{ color: '#f59e0b', background: 'none', border: 'none', cursor: 'pointer' }}><Heading size={15} /></button>}
+                                                        <button onClick={() => deleteItem(section.id, item.id)} title={isHeader ? "Delete Header" : "Delete Item"} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                                                    </div>
                                                 </td>
                                             )}
                                         </tr>
@@ -595,6 +664,31 @@ const QuoteTab: React.FC<QuoteTabProps> = ({ project, setQuoteTotal, isReadOnly,
                         <tr style={{ backgroundColor: '#253b50', color: 'white', fontWeight: 800 }}>
                             <td colSpan={isUsedQuote ? 6 : 5} style={{ padding: '6px 6px', border: '1px solid #ddd', textAlign: 'right', fontSize: '0.75rem' }}>GRAND TOTAL</td>
                             <td style={{ padding: '6px 6px', border: '1px solid #ddd', textAlign: 'right', fontSize: '0.75rem' }}>₹{grandTotal.toLocaleString()}</td>
+                        </tr>
+                        {gstEnabled && (
+                            <tr style={{ backgroundColor: '#1e40af', color: 'white', fontWeight: 800 }}>
+                                <td colSpan={isUsedQuote ? 6 : 5} style={{ padding: '6px 6px', border: '1px solid #ddd', textAlign: 'right', fontSize: '0.75rem' }}>GST (18%)</td>
+                                <td style={{ padding: '6px 6px', border: '1px solid #ddd', textAlign: 'right', fontSize: '0.75rem' }}>₹{getGstAmount().toLocaleString()}</td>
+                            </tr>
+                        )}
+                        {gstEnabled && (
+                            <tr style={{ backgroundColor: '#065f46', color: 'white', fontWeight: 800 }}>
+                                <td colSpan={isUsedQuote ? 6 : 5} style={{ padding: '6px 6px', border: '1px solid #ddd', textAlign: 'right', fontSize: '0.8rem' }}>FINAL TOTAL (with GST)</td>
+                                <td style={{ padding: '6px 6px', border: '1px solid #ddd', textAlign: 'right', fontSize: '0.8rem' }}>₹{getFinalTotal().toLocaleString()}</td>
+                            </tr>
+                        )}
+                        <tr style={{ backgroundColor: '#f8fafc' }} className="no-print">
+                            <td colSpan={isUsedQuote ? 7 : 6} style={{ padding: '8px 6px', border: '1px solid #ddd', textAlign: 'left', fontSize: '0.85rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, color: '#253b50' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={gstEnabled}
+                                        onChange={(e) => setGstEnabled(e.target.checked)}
+                                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                    />
+                                    Add 18% GST to Grand Total
+                                </label>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

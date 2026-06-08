@@ -12,17 +12,17 @@ import loger from "../assets/logo.png";
 */
 
 export default function ArchContract({
-  clientName       = "Mr Ajay",
-  salutation       = "Sir",
-  refId            = "PR_2024_009/01",
-  date             = "",
-  feeAmount        = "Rs 2,30,000.00 (Two Lakhs Thirty Thousand Only)",
-  architectName    = "Rohit Kannagatha",
+  clientName = "Mr Ajay",
+  salutation = "Sir",
+  refId = "PR_2024_009/01",
+  date = "",
+  feeAmount = "Rs 2,30,000.00 (Two Lakhs Thirty Thousand Only)",
+  architectName = "Rohit Kannagatha",
   outstationCharge = "Rs 2,000/-",
-  address          = "",
-  place            = "",
-  paymentStages    = [],
-  totalPercentage  = "100%",
+  address = "",
+  place = "",
+  paymentStages = [],
+  totalPercentage = "100%",
 }) {
   return (
     <div style={S.root}>
@@ -33,7 +33,7 @@ export default function ArchContract({
 
         <p style={S.title}>
           TERMS AND CONDITIONS FOR ENGAGEMENT FOR<br />
-          Comprehensive architectural &amp; interior design consultation
+          Comprehensive Architectural  Consultation
         </p>
 
         <p style={S.body}>To,</p>
@@ -71,7 +71,7 @@ export default function ArchContract({
         ))}
 
 
-  
+
       </Page>
 
       {/* PAGE 2 */}
@@ -160,8 +160,8 @@ export default function ArchContract({
         ].map((text, i) => (
           <BulletRow key={i} text={text} />
         ))}
-        </Page>
-        <Page>
+      </Page>
+      <Page>
         {/* SECTION 8 */}
         <p style={{ ...S.secHead, marginTop: 18 }}>8.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ARCHITECT'S ROLE AND RESPONSIBILITIES:</p>
         {[
@@ -180,7 +180,7 @@ export default function ArchContract({
           <BulletRow key={i} text={text} />
         ))}
       </Page>
-     {/* PAGE 5 */}
+      {/* PAGE 5 */}
       <Page>
         <p style={S.secHead}>9.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OWNERSHIP OF COPYRIGHT:</p>
         <p style={S.justify}>
@@ -199,50 +199,55 @@ export default function ArchContract({
         </div>
 
         <div style={{ marginTop: 10 }}>
-        <div style={S.signRow}>
-  <span style={S.signLabel}>Name of the Architect</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.signLabel}>Name of the Architect</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
+          </div>
 
-<div style={S.signRow}>
-  <span style={S.signLabel}>Date</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}>{date}</span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.signLabel}>Date</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}>{date}</span>
+          </div>
 
-<div style={S.signRow}>
-  <span style={S.signLabel}>Place</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}>{place}</span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.signLabel}>Place</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}>{place}</span>
+          </div>
           <div style={{ marginTop: 14 }}>
             <div style={S.signRow}>
               <span style={S.signLabel}>Seal of the Architect</span>
               <span style={S.signColon}>:</span>
-              <span style={S.signVal}><img src={stamp} alt=""  width="20%"/></span>
+              <span style={S.signVal}><img src={stamp} alt="" width="20%" /></span>
             </div>
           </div>
         </div>
 
         <p style={{ fontWeight: "bold", marginTop: 30, marginBottom: 18 }}>ACCEPTED</p>
+        {/* <div style={S.signRow}>
+          <span style={S.signLabel}>Name of the Architect</span>
+          <span style={S.signColon}>:</span>
+          <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
+        </div> */}
+
+<div style={S.signRow}>
+  <span style={S.signLabel}>Name of the Client</span>
+  <span style={S.signColon}>:</span>
+  <span style={S.signVal}>{clientName}</span>
+</div>
         <div style={S.signRow}>
-  <span style={S.signLabel}>Name of the Architect</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
-</div>
+          <span style={S.signLabel}>Date</span>
+          <span style={S.signColon}>:</span>
+          <span style={S.signVal}>{date}</span>
+        </div>
 
-<div style={S.signRow}>
-  <span style={S.signLabel}>Date</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}>{date}</span>
-</div>
-
-<div style={S.signRow}>
-  <span style={S.signLabel}>Place</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}>{place}</span>
-</div>
+        <div style={S.signRow}>
+          <span style={S.signLabel}>Place</span>
+          <span style={S.signColon}>:</span>
+          <span style={S.signVal}>{place}</span>
+        </div>
 
         <div style={S.bankBox}>
           <p style={{ fontWeight: "bold", margin: "0 0 2px 0" }}>Bank Details:</p>
@@ -304,7 +309,7 @@ function Page({ children }) {
 }
 
 /* ── Letterhead ───────────────────────────────────────────────────────────── */
-const FONT          = "'Times New Roman', Times, Georgia, serif";
+const FONT = "'Times New Roman', Times, Georgia, serif";
 const SERIF_DISPLAY = "'Palatino Linotype','Palatino','Book Antiqua',Georgia,serif";
 
 function Letterhead({ refId }) {
@@ -315,7 +320,7 @@ function Letterhead({ refId }) {
           <p style={S.ref}>REF: {refId}</p>
         </div>
         <div style={S.hdrRight}>
-    <img src={loger} alt="" width="50%" />
+          <img src={loger} alt="" width="50%" />
           <p style={S.firmName}>AbhikalpanaRachna Kendra</p>
           <p style={S.firmTag}>Architecture . Planning . Landscape . Interiors</p>
           <p style={S.contact}>E mail: infoatark@gmail.com</p>
@@ -333,14 +338,14 @@ function Letterhead({ refId }) {
 
 /* ── Styles ───────────────────────────────────────────────────────────────── */
 const S = {
-  root: {  padding: "10px 0 0px", minHeight: "100vh" },
+  root: { padding: "10px 0 0px", minHeight: "100vh" },
   page: {
     width: "212mm",
     minHeight: "280mm",   // 👈 A4 full height (important)
     margin: "0 auto 0px auto",
     padding: "12mm 10mm 18mm 10mm",
     background: "#fff",
-    
+
     fontFamily: FONT,
     fontSize: "11pt",
     lineHeight: 1.65,
@@ -349,7 +354,7 @@ const S = {
     pageBreakAfter: "always",
   },
   hdrRow: { display: "flex", alignItems: "flex-start", marginBottom: 4 },
-  hdrLeft: { flex: "0 0 30%", paddingLeft: 4,  minHeight: 110, paddingTop: 4 },
+  hdrLeft: { flex: "0 0 30%", paddingLeft: 4, minHeight: 110, paddingTop: 4 },
   hdrRight: { flex: 1, textAlign: "right" },
   firmName: { fontFamily: SERIF_DISPLAY, fontSize: "17pt", fontStyle: "italic", margin: "0 0 1px 0", lineHeight: 1.2 },
   firmTag: { fontFamily: FONT, fontSize: "9pt", fontWeight: "bold", letterSpacing: "0.8px", margin: "2px 0 8px 0" },

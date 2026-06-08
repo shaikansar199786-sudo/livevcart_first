@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 export const GlobalVendors: React.FC = () => {
@@ -13,6 +13,69 @@ export const GlobalVendors: React.FC = () => {
         balance_sheet: []
     });
     const [loading, setLoading] = useState(true);
+
+    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+    const [editingState, setEditingState] = useState<Record<string, { field: string; value: any }>>({});
+
+    const toggleGroup = (key: string) => {
+        setExpandedGroups(prev => ({
+            ...prev,
+            [key]: !prev[key]
+        }));
+    };
+
+    const startEditing = (itemId: string, field: string, currentValue: any) => {
+        setEditingState(prev => ({
+            ...prev,
+            [itemId]: { field, value: currentValue }
+        }));
+    };
+
+    const cancelEditing = (itemId: string) => {
+        setEditingState(prev => {
+            const newState = { ...prev };
+            delete newState[itemId];
+            return newState;
+        });
+    };
+
+    const updateEditingValue = (itemId: string, value: any) => {
+        setEditingState(prev => ({
+            ...prev,
+            [itemId]: { ...prev[itemId], value }
+        }));
+    };
+
+    const handleSave = async (itemId: string) => {
+        const editing = editingState[itemId];
+        if (!editing) return;
+
+        try {
+            const updateData: any = { id: itemId };
+            if (editing.field === 'payment_date') updateData.payment_date = editing.value;
+            if (editing.field === 'payment_amount') updateData.payment_amount = editing.value;
+            if (editing.field === 'remark') updateData.remark = editing.value;
+            if (editing.field === 'payment_mode') updateData.payment_mode = editing.value;
+
+            await axios.put(`${API_BASE_URL}/vendors/update-payment`, updateData);
+            cancelEditing(itemId);
+            fetchGlobalData();
+        } catch (error) {
+            console.error('Failed to update:', error);
+        }
+    };
+
+    const handleDelete = async (itemId: string) => {
+        if (!confirm('Are you sure you want to delete this item?')) return;
+
+        try {
+            await axios.delete(`${API_BASE_URL}/vendors/delete-item`, { data: { id: itemId } });
+            fetchGlobalData();
+        } catch (error) {
+            console.error('Failed to delete:', error);
+            alert('Failed to delete item');
+        }
+    };
 
     useEffect(() => {
         fetchGlobalData();
@@ -43,7 +106,7 @@ export const GlobalVendors: React.FC = () => {
     return (
         <div className="vendors-container" style={{ padding: '20px', width: '100%' }}>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#253b50', marginBottom: '20px' }}>Global Vendors</h1>
-            
+
             <div className="tabs-container" style={{ display: 'flex', gap: '10px', marginBottom: '30px', borderBottom: '2px solid #e2e8f0' }}>
                 {tabs.map(tab => (
                     <button
@@ -83,35 +146,190 @@ export const GlobalVendors: React.FC = () => {
                                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                                             <thead>
                                                 <tr style={{ backgroundColor: '#f1f5f9' }}>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'center', width: '50px' }}>S.No</th>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Project / Site</th>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Item</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Rate</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Qty</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Disc (%)</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Without GST</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>GST (18%)</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>With GST</th>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Bill Date</th>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Payment Date</th>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Payment Amount</th>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Bill Amount (Invoice Total)</th>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Mode</th>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Remark</th>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'center', width: '60px' }}>Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {vendor.items.map((item: any, idx: number) => (
-                                                    <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f8fafc', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'white' : '#f8fafc'}>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#1e293b', fontWeight: 600 }}>{item.site || '-'}</td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{item.item_name}</td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right' }}>₹{parseFloat(item.rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right' }}>{item.quantity}</td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right' }}>{item.discount}%</td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right' }}>₹{parseFloat(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right' }}>₹{parseFloat(item.gst).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 600, color: '#059669' }}>₹{parseFloat(item.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                    </tr>
-                                                ))}
-                                                <tr style={{ backgroundColor: '#e2e8f0' }}>
-                                                    <td colSpan={7} style={{ padding: '14px 12px', textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>Total Value =</td>
-                                                    <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: 800, color: '#059669', fontSize: '1.05rem' }}>
-                                                        ₹{vendor.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                    </td>
-                                                </tr>
+                                                {vendor.items.map((item: any, idx: number) => {
+                                                    const editing = editingState[item.id];
+                                                    const isEditingPaymentDate = editing?.field === 'payment_date';
+                                                    const isEditingPaymentAmount = editing?.field === 'payment_amount';
+                                                    const isEditingPaymentMode = editing?.field === 'payment_mode';
+                                                    const isEditingRemark = editing?.field === 'remark';
+
+                                                    return (
+                                                        <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f8fafc', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'white' : '#f8fafc'}>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#1e293b', fontWeight: 600, textAlign: 'center' }}>{idx + 1}</td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#1e293b', fontWeight: 600 }}>{item.site || '-'}</td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{item.item_name || item.description || '-'}</td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                                                                {item.invoice_date ? new Date(item.invoice_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                                                                {isEditingPaymentDate ? (
+                                                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                                                        <input
+                                                                            type="date"
+                                                                            value={editing?.value || ''}
+                                                                            onChange={(e) => updateEditingValue(item.id, e.target.value)}
+                                                                            style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem' }}
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => handleSave(item.id)}
+                                                                            style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        >✓</button>
+                                                                        <button
+                                                                            onClick={() => cancelEditing(item.id)}
+                                                                            style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        >✗</button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span
+                                                                        onClick={() => startEditing(item.id, 'payment_date', item.payment_date || '')}
+                                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                                    >
+                                                                        {item.payment_date ? new Date(item.payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right', fontWeight: 600 }}>
+                                                                {isEditingPaymentAmount ? (
+                                                                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={editing?.value || 0}
+                                                                            onChange={(e) => updateEditingValue(item.id, parseFloat(e.target.value))}
+                                                                            style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '100px', textAlign: 'right' }}
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => handleSave(item.id)}
+                                                                            style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        >✓</button>
+                                                                        <button
+                                                                            onClick={() => cancelEditing(item.id)}
+                                                                            style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        >✗</button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span
+                                                                        onClick={() => startEditing(item.id, 'payment_amount', item.paid || 0)}
+                                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                                    >
+                                                                        ₹{parseFloat(item.paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right', fontWeight: 600 }}>₹{parseFloat(item.invoice_total || item.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                                                                {isEditingPaymentMode ? (
+                                                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                                                        <select
+                                                                            value={editing?.value || 'Cash'}
+                                                                            onChange={(e) => updateEditingValue(item.id, e.target.value)}
+                                                                            style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '100px' }}
+                                                                        >
+                                                                            <option value="Cash">Cash</option>
+                                                                            <option value="Bank Transfer">Bank Transfer</option>
+                                                                            <option value="UPI">UPI</option>
+                                                                            <option value="Cheque">Cheque</option>
+                                                                        </select>
+                                                                        <button
+                                                                            onClick={() => handleSave(item.id)}
+                                                                            style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        >✓</button>
+                                                                        <button
+                                                                            onClick={() => cancelEditing(item.id)}
+                                                                            style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        >✗</button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span
+                                                                        onClick={() => startEditing(item.id, 'payment_mode', item.payment_mode || 'Cash')}
+                                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                                    >
+                                                                        {item.payment_mode || '-'}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                                                                {isEditingRemark ? (
+                                                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={editing?.value || ''}
+                                                                            onChange={(e) => updateEditingValue(item.id, e.target.value)}
+                                                                            style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '150px' }}
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => handleSave(item.id)}
+                                                                            style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        >✓</button>
+                                                                        <button
+                                                                            onClick={() => cancelEditing(item.id)}
+                                                                            style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        >✗</button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span
+                                                                        onClick={() => startEditing(item.id, 'remark', item.remark || '')}
+                                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                                    >
+                                                                        {item.remark || '-'}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'center' }}>
+                                                                <button
+                                                                    onClick={() => handleDelete(item.id)}
+                                                                    style={{ padding: '6px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                    title="Delete item"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {(() => {
+                                                    // Calculate total bill amount by summing all item totals
+                                                    const totalBillAmount = vendor.items.reduce((sum: number, item: any) => sum + parseFloat(item.total || 0), 0);
+                                                    const totalPaymentAmount = vendor.items.reduce((sum: number, item: any) => sum + parseFloat(item.paid || 0), 0);
+                                                    const totalUnpaid = totalBillAmount - totalPaymentAmount;
+                                                    return (
+                                                        <>
+                                                            <tr style={{ backgroundColor: '#f0fdf4' }}>
+                                                                <td colSpan={6} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#166534' }}>Total Bill Amount =</td>
+                                                                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#166534' }}>
+                                                                    ₹{totalBillAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td colSpan={3}></td>
+                                                            </tr>
+                                                            <tr style={{ backgroundColor: '#fef2f2' }}>
+                                                                <td colSpan={5} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#991b1b' }}>Total Payment Amount =</td>
+                                                                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#991b1b' }}>
+                                                                    ₹{totalPaymentAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td colSpan={4}></td>
+                                                            </tr>
+                                                            <tr style={{ backgroundColor: '#e2e8f0' }}>
+                                                                <td colSpan={5} style={{ padding: '14px 12px', textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>Total Outstanding =</td>
+                                                                <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: 800, color: '#059669', fontSize: '1.05rem' }}>
+                                                                    ₹{totalUnpaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td colSpan={4}></td>
+                                                            </tr>
+                                                        </>
+                                                    );
+                                                })()}
                                             </tbody>
                                         </table>
                                     </div>
@@ -127,41 +345,96 @@ export const GlobalVendors: React.FC = () => {
                     {['transport', 'labor', 'miscellaneous'].includes(activeTab) && (
                         globalData[activeTab].length > 0 ? (
                             <div className="vendors-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '30px' }}>
-                                {globalData[activeTab].map((person: any, index: number) => (
-                                    <div key={index} className="premium-card vendor-card" style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', padding: 0 }}>
-                                        <div style={{ backgroundColor: '#f8fafc', padding: '16px', textAlign: 'center', fontWeight: 800, fontSize: '1.1rem', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>
-                                            {person.person_name}
-                                        </div>
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
-                                            <thead>
-                                                <tr style={{ backgroundColor: '#f1f5f9' }}>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Project / Site</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'center' }}>Date</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Amount</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {person.transactions.map((t: any, idx: number) => (
-                                                    <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f8fafc', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'white' : '#f8fafc'}>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#1e293b', fontWeight: 500 }}>{t.site || '-'}</td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'center' }}>
-                                                            {t.transaction_date ? new Date(t.transaction_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '-') : '-'}
-                                                        </td>
-                                                        <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 600, color: '#059669' }}>
-                                                            ₹{parseFloat(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                                <tr style={{ backgroundColor: '#e2e8f0' }}>
-                                                    <td colSpan={2} style={{ padding: '14px 12px', textAlign: 'right', fontWeight: 800, color: '#1e293b' }}>Total =</td>
-                                                    <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: 800, color: '#059669', fontSize: '1.05rem' }}>
+                                {globalData[activeTab].map((person: any, index: number) => {
+                                    const grouped = person.transactions.reduce((acc: any, t: any) => {
+                                        const site = t.site || 'General';
+                                        if (!acc[site]) {
+                                            acc[site] = { site, total: 0, latest_date: t.transaction_date, items: [] };
+                                        }
+                                        acc[site].total += parseFloat(t.amount);
+                                        acc[site].items.push(t);
+                                        if (new Date(t.transaction_date) > new Date(acc[site].latest_date)) {
+                                            acc[site].latest_date = t.transaction_date;
+                                        }
+                                        return acc;
+                                    }, {});
+
+                                    const siteGroups = Object.values(grouped);
+
+                                    return (
+                                        <div key={index} className="premium-card vendor-card" style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', padding: 0 }}>
+                                            <div style={{ backgroundColor: '#f8fafc', padding: '16px', textAlign: 'center', fontWeight: 800, fontSize: '1.1rem', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>
+                                                {person.person_name}
+                                            </div>
+                                            <div style={{ padding: '0' }}>
+                                                {siteGroups.map((group: any, gIdx: number) => {
+                                                    const groupKey = `${person.person_name}-${group.site}-${index}`;
+                                                    const isExpanded = !!expandedGroups[groupKey];
+                                                    return (
+                                                        <div key={gIdx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                            <div
+                                                                onClick={() => toggleGroup(groupKey)}
+                                                                style={{
+                                                                    display: 'grid',
+                                                                    gridTemplateColumns: '1fr 120px 140px',
+                                                                    padding: '12px 16px',
+                                                                    cursor: 'pointer',
+                                                                    backgroundColor: isExpanded ? '#f1f5f9' : 'transparent',
+                                                                    transition: 'background-color 0.2s',
+                                                                    alignItems: 'center'
+                                                                }}
+                                                            >
+                                                                <div style={{ fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                    <span style={{
+                                                                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                                                        transition: 'transform 0.2s',
+                                                                        fontSize: '0.8rem',
+                                                                        display: 'inline-block'
+                                                                    }}>▶</span>
+                                                                    {group.site}
+                                                                </div>
+                                                                <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#64748b' }}>
+                                                                    {group.latest_date ? new Date(group.latest_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '-') : '-'}
+                                                                </div>
+                                                                <div style={{ textAlign: 'right', fontWeight: 700, color: '#059669' }}>
+                                                                    ₹{group.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </div>
+                                                            </div>
+
+                                                            {isExpanded && (
+                                                                <div style={{ backgroundColor: '#f8fafc', padding: '8px 16px 12px 40px', fontSize: '0.85rem' }}>
+                                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', color: '#64748b', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '8px', fontWeight: 600 }}>
+                                                                        <div>Description</div>
+                                                                        <div style={{ textAlign: 'right' }}>Amount</div>
+                                                                    </div>
+                                                                    {group.items.map((item: any, iIdx: number) => (
+                                                                        <div key={iIdx} style={{ display: 'grid', gridTemplateColumns: '1fr 140px', padding: '4px 0', borderBottom: iIdx === group.items.length - 1 ? 'none' : '1px dashed #e2e8f0' }}>
+                                                                            <div style={{ color: '#475569' }}>
+                                                                                {item.description || '-'}
+                                                                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '8px' }}>
+                                                                                    ({new Date(item.transaction_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })})
+                                                                                </span>
+                                                                            </div>
+                                                                            <div style={{ textAlign: 'right', fontWeight: 500 }}>
+                                                                                ₹{parseFloat(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                                <div style={{ backgroundColor: '#e2e8f0', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <div style={{ fontWeight: 800, color: '#1e293b' }}>Total {activeTab.toUpperCase()} =</div>
+                                                    <div style={{ fontWeight: 800, color: '#059669', fontSize: '1.05rem' }}>
                                                         ₹{person.total_payment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontSize: '1.1rem' }}>

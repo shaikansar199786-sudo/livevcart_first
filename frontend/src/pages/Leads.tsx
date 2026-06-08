@@ -371,6 +371,8 @@ export const Leads: React.FC = () => {
                     <option value="commercial_interior">Commercial Interior</option>
                     <option value="architecture">Architecture</option>
                     <option value="landscape">Landscape</option>
+                    <option value="interior_execution">Interior Execution Project</option>
+                    <option value="master_plan">Master Plan</option>
                   </select>
                 </div>
                 <div>
@@ -437,6 +439,8 @@ export const Leads: React.FC = () => {
                     <option value="commercial_interior">Commercial Interior</option>
                     <option value="architecture">Architecture</option>
                     <option value="landscape">Landscape</option>
+                    <option value="interior_execution">Interior Execution Project</option>
+                    <option value="master_plan">Master Plan</option>
                   </select>
                 </div>
                 <div>

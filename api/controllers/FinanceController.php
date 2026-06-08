@@ -86,5 +86,60 @@ class FinanceController
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function updateTransaction($id, $data)
+    {
+        $query = "UPDATE finance_transactions 
+                  SET amount = :amount, 
+                      payment_mode = :payment_mode, 
+                      person_name = :person_name, 
+                      description = :description, 
+                      transaction_date = :date
+                  WHERE transaction_id = :id";
+
+        $stmt = $this->conn->prepare($query);
+
+        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':amount', $data['amount']);
+        
+        $payment_mode = $data['payment_mode'] ?? null;
+        $stmt->bindParam(':payment_mode', $payment_mode);
+        
+        $person_name = $data['person_name'] ?? null;
+        $stmt->bindParam(':person_name', $person_name);
+        
+        $description = $data['description'] ?? null;
+        $stmt->bindParam(':description', $description);
+        
+        $date = $data['date'] ?? date('Y-m-d');
+        $stmt->bindParam(':date', $date);
+
+        try {
+            if ($stmt->execute()) {
+                return ["success" => true, "message" => "Transaction updated."];
+            }
+        } catch (PDOException $e) {
+            return ["success" => false, "message" => "Database error: " . $e->getMessage()];
+        }
+        
+        return ["success" => false, "message" => "Failed to update transaction."];
+    }
+
+    public function deleteTransaction($id)
+    {
+        $query = "DELETE FROM finance_transactions WHERE transaction_id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id);
+
+        try {
+            if ($stmt->execute()) {
+                return ["success" => true, "message" => "Transaction deleted."];
+            }
+        } catch (PDOException $e) {
+            return ["success" => false, "message" => "Database error: " . $e->getMessage()];
+        }
+        
+        return ["success" => false, "message" => "Failed to delete transaction."];
+    }
 }
 ?>

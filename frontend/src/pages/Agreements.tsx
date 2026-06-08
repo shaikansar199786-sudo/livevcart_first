@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Printer } from "lucide-react";
 
 import Arch from "./Arch";
 import Interior from "./Interior";
 import ArchInterior from "./ArchInterior";
+import EleganceInterior from "./EleganceInterior";
+
+// Helper function to format date as dd-mm-yyyy
+const getCurrentDateDDMMYYYY = () => {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${day}-${month}-${year}`;
+};
 
 /* ───────── PRINT CSS ───────── */
 const PRINT_CSS = `
@@ -41,7 +51,8 @@ const PRINT_CSS = `
 
 function PrintStyles() {
   return (
-    <style dangerouslySetInnerHTML={{ __html: `
+    <style dangerouslySetInnerHTML={{
+      __html: `
       ${PRINT_CSS}
       @media (max-width: 1024px) {
         #agreement-container {
@@ -69,10 +80,11 @@ function convertNumberToWords(price: string | number): string {
   if (!price) return "";
   const num = parseInt(price.toString().replace(/,/g, '').replace(/[^\d]/g, ''), 10);
   if (isNaN(num)) return "";
-
   if (num === 0) return "Zero";
 
-  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ',
+    'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ',
+    'Seventeen ', 'Eighteen ', 'Nineteen '];
   const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
   let numStr = num.toString();
@@ -92,23 +104,39 @@ function convertNumberToWords(price: string | number): string {
 
 export default function Agreements() {
   const [templateType, setTemplateType] = useState("arch_interior");
-  const [refId, setRefId] = useState("PR_2026_009/01");
-  const [title, setTitle] = useState("Mr.");
-  const [clientName, setClientName] = useState("");
-  const [address, setAddress] = useState("");
-  const [feeAmount, setFeeAmount] = useState("");
-  const [date, setDate] = useState("");
-  const [place, setPlace] = useState("");
+
+  /* ── Standard agreement fields ── */
+  const [refId, setRefId]             = useState("PR_2026_009/01");
+  const [title, setTitle]             = useState("Mr.");
+  const [clientName, setClientName]   = useState("");
+  const [address, setAddress]         = useState("");
+  const [feeAmount, setFeeAmount]     = useState("");
+  const [date, setDate]               = useState(getCurrentDateDDMMYYYY());
+  const [place, setPlace]             = useState("");
   const [paymentStages, setPaymentStages] = useState([
-    { stage: "Retainer", description: "On appointment/ Signing of the agreement/ Acceptance of the offer", percentage: "10%" },
-    { stage: "Stage 1", description: "On finalization of basic plans, floor plans and elevation", percentage: "20%" },
-    { stage: "Stage 2", description: "On preparation of working drawings for, commencement of work", percentage: "10%" },
-    { stage: "Stage 3", description: "On commencement of construction work at site or within 6 months of Stage 2, whichever is earlier", percentage: "10%" },
-    { stage: "Stage 4", description: "Finalisation of Interior design concept and specifications", percentage: "20%" },
-    { stage: "Stage 5", description: "Preparation of working drawings for interior works", percentage: "10%" },
-    { stage: "Stage 6", description: "On completion of wood works", percentage: "10%" },
-    { stage: "Stage 7", description: "On Completion of the project", percentage: "10%" },
+    { stage: "Retainer",  description: "On appointment/ Signing of the agreement/ Acceptance of the offer",   percentage: "10%" },
+    { stage: "Stage 1",   description: "On finalization of basic plans, floor plans and elevation",             percentage: "20%" },
+    { stage: "Stage 2",   description: "On preparation of working drawings for, commencement of work",         percentage: "10%" },
+    { stage: "Stage 3",   description: "On commencement of construction work at site or within 6 months of Stage 2, whichever is earlier", percentage: "10%" },
+    { stage: "Stage 4",   description: "Finalisation of Interior design concept and specifications",            percentage: "20%" },
+    { stage: "Stage 5",   description: "Preparation of working drawings for interior works",                   percentage: "10%" },
+    { stage: "Stage 6",   description: "On completion of wood works",                                          percentage: "10%" },
+    { stage: "Stage 7",   description: "On Completion of the project",                                         percentage: "10%" },
   ]);
+
+  /* ── Elegance Interior-specific fields ── */
+  const [eleganceClientName, setEleganceClientName]   = useState("Mrs Kinnera");
+  const [eleganceDate, setEleganceDate]               = useState(getCurrentDateDDMMYYYY());
+  const [contractValue, setContractValue]             = useState("42,18,130");
+  const [contractValueWords, setContractValueWords]   = useState("Forty Two Lakhs Eighteen Thousand One Hundred and Thirty");
+  const [completionDays, setCompletionDays]           = useState("120");
+
+  /* Auto-compute words from numeric value */
+  const handleContractValueChange = (val: string) => {
+    setContractValue(val);
+    const words = convertNumberToWords(val);
+    if (words && words !== "overflow") setContractValueWords(words);
+  };
 
   const handleStageChange = (index: number, field: string, value: string) => {
     const updatedStages = [...paymentStages];
@@ -116,31 +144,39 @@ export default function Agreements() {
     setPaymentStages(updatedStages);
   };
 
-  const addStage = () => {
-    setPaymentStages([...paymentStages, { stage: "", description: "", percentage: "" }]);
-  };
+  const addStage = () => setPaymentStages([...paymentStages, { stage: "", description: "", percentage: "" }]);
 
-  const removeStage = (index: number) => {
-    setPaymentStages(paymentStages.filter((_, i) => i !== index));
-  };
+  const removeStage = (index: number) => setPaymentStages(paymentStages.filter((_, i) => i !== index));
 
   const handlePrint = () => window.print();
 
-  const calculateTotalPercentage = () => {
-    return paymentStages.reduce((acc, stage) => {
+  const calculateTotalPercentage = () =>
+    paymentStages.reduce((acc, stage) => {
       const val = parseFloat(stage.percentage.replace('%', '')) || 0;
       return acc + val;
     }, 0);
-  };
 
   const renderTemplate = () => {
+    if (templateType === "elegance_interior") {
+      return (
+        <EleganceInterior
+          clientName={eleganceClientName}
+          date={eleganceDate}
+          contractValue={contractValue}
+          contractValueWords={contractValueWords}
+          completionDays={completionDays}
+        />
+      );
+    }
+
     const totalPercentage = calculateTotalPercentage();
     const salutation = title === "Mr." ? "Sir" : "Madam";
     const feeWords = convertNumberToWords(feeAmount);
     const displayFee = feeWords ? `Rs. ${feeAmount}/- (Rupees ${feeWords})` : feeAmount;
+    const fullClientName = `${title} ${clientName}`.trim();
 
     const props = {
-      clientName: clientName,
+      clientName: fullClientName,
       salutation,
       refId,
       address,
@@ -150,17 +186,16 @@ export default function Agreements() {
       paymentStages,
       totalPercentage: totalPercentage + "%"
     };
+
     switch (templateType) {
-      case "interior_only":
-        return <Interior {...props} />;
-      case "arch_consultation":
-        return <Arch {...props} />;
-      case "arch_interior":
-        return <ArchInterior {...props} />;
-      default:
-        return <div>No Template</div>;
+      case "interior_only":       return <Interior {...props} />;
+      case "arch_consultation":   return <Arch {...props} />;
+      case "arch_interior":       return <ArchInterior {...props} />;
+      default:                    return <div>No Template</div>;
     }
   };
+
+  const isElegance = templateType === "elegance_interior";
 
   return (
     <>
@@ -181,120 +216,137 @@ export default function Agreements() {
         {/* LEFT SIDEBAR FORM */}
         <div className="no-print" style={styles.sidebar} id="agreement-sidebar">
           <h2 style={styles.title}>Proposal Generator</h2>
-          <p style={styles.subtitle}>
-            Select consultation type and fill details
-          </p>
+          <p style={styles.subtitle}>Select consultation type and fill details</p>
 
           <div style={styles.form}>
 
+            {/* Consultation Type */}
             <div style={styles.group}>
               <label>Consultation Type</label>
-              <select style={styles.input}
-                value={templateType}
-                onChange={(e) => setTemplateType(e.target.value)}
-              >
+              <select style={styles.input} value={templateType} onChange={(e) => setTemplateType(e.target.value)}>
                 <option value="interior_only">Interior Design</option>
                 <option value="arch_consultation">Arch Consultation</option>
                 <option value="arch_interior">Architecture + Interior</option>
+                <option value="elegance_interior">Elegance Interior Designing</option>
               </select>
             </div>
 
-            <div style={styles.group}>
-              <label>Date</label>
-              <input style={styles.input}
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
+            {/* ── ELEGANCE INTERIOR FIELDS ── */}
+            {isElegance ? (
+              <>
+                <div style={styles.group}>
+                  <label>Date</label>
+                  <input style={styles.input} type="text" value={eleganceDate}
+                    onChange={(e) => setEleganceDate(e.target.value)}
+                    placeholder="dd-mm-yyyy" />
+                </div>
 
+                <div style={styles.group}>
+                  <label>Client Name</label>
+                  <input style={styles.input} value={eleganceClientName}
+                    onChange={(e) => setEleganceClientName(e.target.value)}
+                    placeholder="e.g. Mrs Kinnera" />
+                </div>
 
-            <div style={styles.group}>
-              <label>Place</label>
-              <input style={styles.input}
-                value={place}
-                onChange={(e) => setPlace(e.target.value)}
-              />
-            </div>
+                <div style={styles.group}>
+                  <label>Contract Value (₹) — Numbers only</label>
+                  <input style={styles.input} type="text" value={contractValue}
+                    onChange={(e) => handleContractValueChange(e.target.value)}
+                    placeholder="e.g. 4218130" />
+                </div>
 
-            <div style={styles.group}>
-              <label>Ref Number</label>
-              <input style={styles.input}
-                value={refId}
-                onChange={(e) => setRefId(e.target.value)}
-              />
-
-            </div>
-
-            <div style={styles.group}>
-              <label>Client Name</label>
-              <div style={{ display: "flex", gap: "10px" }}>
-                <select
-                  style={{ ...styles.input, width: "90px" }}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                >
-                  <option value="Mr.">Mr.</option>
-                  <option value="Ms.">Ms.</option>
-                  <option value="Mrs.">Mrs.</option>
-                  <option value="Miss">Miss</option>
-                </select>
-                <input style={{ ...styles.input, flex: 1 }}
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="First and Last Name"
-                />
-              </div>
-            </div>
-
-            <div style={styles.group}>
-              <label>Project / Address</label>
-              <input style={styles.input}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </div>
-
-            <div style={styles.group}>
-              <label>Professional Fees</label>
-              <input style={styles.input}
-                type="text"
-                value={feeAmount}
-                onChange={(e) => setFeeAmount(e.target.value)}
-              />
-            </div>
-
-            <div style={{ marginTop: '10px' }}>
-              <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Payment Schedule</label>
-              {paymentStages.map((stage, index) => (
-                <div key={index} style={{ marginBottom: '15px', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600 }}>Stage {index + 1}</span>
-                    <button onClick={() => removeStage(index)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}>Remove</button>
-                  </div>
-                  <input
-                    style={{ ...styles.input, marginBottom: '5px', width: '100%', boxSizing: 'border-box' }}
-                    placeholder="Stage Name"
-                    value={stage.stage}
-                    onChange={(e) => handleStageChange(index, 'stage', e.target.value)}
-                  />
+                <div style={styles.group}>
+                  <label>Amount in Words</label>
                   <textarea
-                    style={{ ...styles.input, marginBottom: '5px', width: '100%', minHeight: '60px', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                    placeholder="Description"
-                    value={stage.description}
-                    onChange={(e) => handleStageChange(index, 'description', e.target.value)}
-                  />
-                  <input
-                    style={{ ...styles.input, width: '100%', boxSizing: 'border-box' }}
-                    placeholder="Percentage (e.g. 10%)"
-                    value={stage.percentage}
-                    onChange={(e) => handleStageChange(index, 'percentage', e.target.value)}
+                    style={{ ...styles.input, minHeight: 70, fontFamily: "inherit", resize: "vertical" }}
+                    value={contractValueWords}
+                    onChange={(e) => setContractValueWords(e.target.value)}
+                    placeholder="Auto-filled from value above, or type manually"
                   />
                 </div>
-              ))}
-              <button onClick={addStage} style={{ ...styles.topBtn, width: '100%', marginTop: '5px', backgroundColor: '#f8fafc' }}>+ Add Stage</button>
-            </div>
 
+                <div style={styles.group}>
+                  <label>Completion Period (Days)</label>
+                  <input style={styles.input} type="number" value={completionDays}
+                    onChange={(e) => setCompletionDays(e.target.value)}
+                    min={1} />
+                </div>
+              </>
+            ) : (
+              /* ── STANDARD FIELDS ── */
+              <>
+                <div style={styles.group}>
+                  <label>Date</label>
+                  <input style={styles.input} type="text" value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    placeholder="dd-mm-yyyy" />
+                </div>
+
+                <div style={styles.group}>
+                  <label>Place</label>
+                  <input style={styles.input} value={place}
+                    onChange={(e) => setPlace(e.target.value)} />
+                </div>
+
+                <div style={styles.group}>
+                  <label>Ref Number</label>
+                  <input style={styles.input} value={refId}
+                    onChange={(e) => setRefId(e.target.value)} />
+                </div>
+
+                <div style={styles.group}>
+                  <label>Client Name</label>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <select style={{ ...styles.input, width: "90px" }} value={title}
+                      onChange={(e) => setTitle(e.target.value)}>
+                      <option value="Mr.">Mr.</option>
+                      <option value="Ms.">Ms.</option>
+                      <option value="Mrs.">Mrs.</option>
+                      <option value="Miss">Miss</option>
+                    </select>
+                    <input style={{ ...styles.input, flex: 1 }} value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="First and Last Name" />
+                  </div>
+                </div>
+
+                <div style={styles.group}>
+                  <label>Project / Address</label>
+                  <input style={styles.input} value={address}
+                    onChange={(e) => setAddress(e.target.value)} />
+                </div>
+
+                <div style={styles.group}>
+                  <label>Professional Fees</label>
+                  <input style={styles.input} type="text" value={feeAmount}
+                    onChange={(e) => setFeeAmount(e.target.value)} />
+                </div>
+
+                <div style={{ marginTop: '10px' }}>
+                  <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Payment Schedule</label>
+                  {paymentStages.map((stage, index) => (
+                    <div key={index} style={{ marginBottom: '15px', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600 }}>Stage {index + 1}</span>
+                        <button onClick={() => removeStage(index)} style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}>Remove</button>
+                      </div>
+                      <input style={{ ...styles.input, marginBottom: '5px', width: '100%', boxSizing: 'border-box' }}
+                        placeholder="Stage Name" value={stage.stage}
+                        onChange={(e) => handleStageChange(index, 'stage', e.target.value)} />
+                      <textarea style={{ ...styles.input, marginBottom: '5px', width: '100%', minHeight: '60px', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                        placeholder="Description" value={stage.description}
+                        onChange={(e) => handleStageChange(index, 'description', e.target.value)} />
+                      <input style={{ ...styles.input, width: '100%', boxSizing: 'border-box' }}
+                        placeholder="Percentage (e.g. 10%)" value={stage.percentage}
+                        onChange={(e) => handleStageChange(index, 'percentage', e.target.value)} />
+                    </div>
+                  ))}
+                  <button onClick={addStage} style={{ ...styles.topBtn, width: '100%', marginTop: '5px', backgroundColor: '#f8fafc' }}>
+                    + Add Stage
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           <button onClick={handlePrint} style={styles.printBtn}>
@@ -312,7 +364,6 @@ export default function Agreements() {
 }
 
 /* ───────── STYLES ───────── */
-
 const styles = {
   header: {
     display: "flex",
@@ -321,7 +372,6 @@ const styles = {
     borderBottom: "1px solid #e5e7eb",
     background: "#fff"
   },
-
   topBtn: {
     padding: "6px 12px",
     borderRadius: "20px",
@@ -329,7 +379,6 @@ const styles = {
     background: "#fff",
     cursor: "pointer"
   },
-
   container: {
     display: "flex",
     gap: "20px",
@@ -337,7 +386,6 @@ const styles = {
     alignItems: "flex-start",
     minHeight: "100vh"
   },
-
   sidebar: {
     width: "340px",
     flexShrink: 0,
@@ -350,37 +398,11 @@ const styles = {
     position: "sticky" as const,
     top: "20px"
   },
-
-  title: {
-    margin: 0,
-    fontSize: "20px",
-    fontWeight: "700"
-  },
-
-  subtitle: {
-    fontSize: "13px",
-    color: "#64748b",
-    marginBottom: "15px"
-  },
-
-  form: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: "14px"
-  },
-
-  group: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: "6px",
-    fontSize: "13px"
-  },
-
-  row: {
-    display: "flex",
-    gap: "10px"
-  },
-
+  title: { margin: 0, fontSize: "20px", fontWeight: "700" },
+  subtitle: { fontSize: "13px", color: "#64748b", marginBottom: "15px" },
+  form: { display: "flex", flexDirection: "column" as const, gap: "14px" },
+  group: { display: "flex", flexDirection: "column" as const, gap: "6px", fontSize: "13px" },
+  row: { display: "flex", gap: "10px" },
   input: {
     padding: "10px",
     borderRadius: "8px",
@@ -388,7 +410,6 @@ const styles = {
     fontSize: "14px",
     outline: "none"
   },
-
   printBtn: {
     marginTop: "15px",
     padding: "12px",
@@ -401,12 +422,11 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "8px"
+    gap: "8px",
+    width: "100%"
   },
-
   preview: {
     flex: 1,
-
     padding: "20px",
     borderRadius: "12px",
     overflow: "auto"

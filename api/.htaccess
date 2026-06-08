@@ -1,6 +1,6 @@
 Options -Indexes
 RewriteEngine On
-RewriteBase /ARK/api/
+# Removed RewriteBase for better compatibility across servers
 
 # Allow real files and directories to pass through
 RewriteCond %{REQUEST_FILENAME} !-f

@@ -99,5 +99,41 @@ class ClientController
         
         return 'ARK/' . $prefix . '/' . $fy . '/' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
     }
+
+    public function update($data)
+    {
+        $query = "UPDATE " . $this->table_name . " SET 
+                  name = :name, 
+                  projectname = :projectname, 
+                  consultation_type = :type, 
+                  email = :email, 
+                  phone = :phone, 
+                  address = :address 
+                  WHERE client_id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':name', $data['name']);
+        $stmt->bindParam(':projectname', $data['projectname']);
+        $stmt->bindParam(':type', $data['consultation_type']);
+        $stmt->bindParam(':email', $data['email']);
+        $stmt->bindParam(':phone', $data['phone']);
+        $stmt->bindParam(':address', $data['address']);
+        $stmt->bindParam(':id', $data['client_id']);
+
+        if ($stmt->execute()) {
+            return ["success" => true, "message" => "Client updated successfully"];
+        }
+        return ["success" => false, "message" => "Failed to update client"];
+    }
+
+    public function delete($id)
+    {
+        $query = "UPDATE " . $this->table_name . " SET status = 'deleted' WHERE client_id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id);
+        if ($stmt->execute()) {
+            return ["success" => true, "message" => "Client deleted successfully"];
+        }
+        return ["success" => false, "message" => "Failed to delete client"];
+    }
 }
 ?>

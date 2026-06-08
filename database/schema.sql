@@ -539,3 +539,15 @@ CREATE TABLE IF NOT EXISTS finance_transactions (
     FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE SET NULL,
     FOREIGN KEY (recorded_by) REFERENCES users(user_id)
 );
+
+-- TABLE: monthly_income
+CREATE TABLE IF NOT EXISTS monthly_income (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    month_year VARCHAR(10) NOT NULL,
+    category ENUM('elegance', 'ark', 'new_projects', 'major_expenditures') NOT NULL,
+    description TEXT,
+    amount DECIMAL(15, 2) DEFAULT 0,
+    transaction_date DATE DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_month_year (month_year)
+);

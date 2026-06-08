@@ -11,7 +11,8 @@ import {
     LogOut,
     Menu,
     X,
-    Target
+    Target,
+    Wallet
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -30,17 +31,19 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     };
 
     const allMenuItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['principal_architect', 'admin', 'accountant'] },
-        { icon: Users, label: 'Clients', path: '/clients', roles: ['principal_architect', 'admin', 'accountant'] },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['principal_architect', 'admin'] },
+        { icon: Target, label: 'Team Target', path: '/team-targets', roles: ['principal_architect', 'admin'] },
+        { icon: Wallet, label: 'Monthly Income', path: '/monthly-income', roles: ['principal_architect', 'admin', 'accountant'] },
+        { icon: Users, label: 'Team Work Load', path: '/team-work-load', roles: ['admin', 'principal_architect'] },
+        { icon: Users, label: 'Clients', path: '/clients', roles: ['principal_architect', 'admin', 'accountant', 'project_head'] },
         { icon: Briefcase, label: 'Projects', path: '/projects', roles: ['principal_architect', 'admin', 'accountant', 'project_head', 'site_engineer'] },
         { icon: HardHat, label: 'Contractors', path: '/vendors', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: ShoppingCart, label: 'Vendors', path: '/global-vendors', roles: ['principal_architect', 'admin', 'accountant'] },
-        { icon: CreditCard, label: 'Finance', path: '/finance', roles: ['principal_architect', 'accountant'] },
+        { icon: CreditCard, label: 'Finance', path: '/finance', roles: ['principal_architect', 'accountant', 'admin'] },
         { icon: FileText, label: 'Agreements', path: '/agreements', roles: ['principal_architect', 'admin', 'accountant'] },
         { icon: FileText, label: 'Estimation Quota', path: '/quotes', roles: ['principal_architect', 'admin', 'accountant'] },
-        { icon: Users, label: 'Team', path: '/team', roles: ['principal_architect'] },
-        { icon: Target, label: 'Team Target', path: '/team-targets', roles: ['principal_architect', 'admin'] },
-        { icon: LayoutDashboard, label: 'Project Tracker', path: '/project-trackers', roles: ['principal_architect', 'admin'] },
+        { icon: FileText, label: 'Estimate Civil', path: '/estimate-civil', roles: ['admin', 'principal_architect', 'project_head', 'accountant'] },
+        { icon: Users, label: 'Team', path: '/team', roles: ['principal_architect', 'admin'] },
     ];
 
     const menuItems = allMenuItems.filter(item => user && item.roles.includes(user.role as any));
@@ -104,25 +107,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         })}
                     </ul>
                 </nav>
-                <div className="sidebar-footer" style={{ position: 'absolute', bottom: '24px', left: '24px', right: '24px' }}>
-                    <button
-                        onClick={handleLogout}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            width: '100%',
-                            padding: '12px',
-                            backgroundColor: 'transparent',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            color: 'white',
-                            borderRadius: '8px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        <LogOut size={18} style={{ marginRight: '12px' }} />
-                        Logout
-                    </button>
-                </div>
             </aside>
             <main className="main-content">
                 <header className="layout-header no-print" style={{
@@ -165,6 +149,28 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         }}>
                             {user?.name.charAt(0)}
                         </div>
+                        <button
+                            onClick={handleLogout}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 16px',
+                                backgroundColor: '#fee2e2',
+                                color: '#ef4444',
+                                border: 'none',
+                                borderRadius: '12px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                fontWeight: 600,
+                                fontSize: '0.9rem'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fecaca'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                        >
+                            <LogOut size={18} />
+                            <span>Logout</span>
+                        </button>
                     </div>
                 </header>
                 {children}

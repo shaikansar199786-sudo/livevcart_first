@@ -19,9 +19,11 @@ export const TeamManagement: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showStaffPassword, setShowStaffPassword] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
     const handleDeleteMember = async (userId: string) => {
-        if (!window.confirm('Are you sure you want to deactivate this staff member? They will no longer be able to log in, but their data will be preserved.')) return;
+        if (!window.confirm('Are you sure you want to permanently delete this staff member? This action cannot be undone.')) return;
 
         try {
             const response = await axios.delete(`${API_BASE_URL}/users/${userId}`);
@@ -44,6 +46,36 @@ export const TeamManagement: React.FC = () => {
         status: 'active'
     });
 
+    const openAddModal = () => {
+        setIsEditing(false);
+        setEditingUserId(null);
+        setFormData({
+            name: '',
+            username: '',
+            password: '',
+            role: 'project_head',
+            phone: '',
+            employee_id: '',
+            status: 'active'
+        });
+        setShowAddModal(true);
+    };
+
+    const openEditModal = (member: UserMember) => {
+        setIsEditing(true);
+        setEditingUserId(member.user_id);
+        setFormData({
+            name: member.name,
+            username: member.username,
+            password: '', // Leave blank to not update password
+            role: member.role,
+            phone: member.phone || '',
+            employee_id: member.employee_id || '',
+            status: member.status || 'active'
+        });
+        setShowAddModal(true);
+    };
+
     useEffect(() => {
         fetchMembers();
     }, []);
@@ -65,22 +97,21 @@ export const TeamManagement: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const response = await axios.post(`${API_BASE_URL}/users`, formData);
+            let response;
+            if (isEditing && editingUserId) {
+                response = await axios.put(`${API_BASE_URL}/users`, { ...formData, user_id: editingUserId });
+            } else {
+                response = await axios.post(`${API_BASE_URL}/users`, formData);
+            }
+            
             if (response.data.success) {
                 setShowAddModal(false);
-                setFormData({
-                    name: '',
-                    username: '',
-                    password: '',
-                    role: 'project_head',
-                    phone: '',
-                    employee_id: '',
-                    status: 'active'
-                });
                 fetchMembers();
+            } else {
+                alert(response.data.message || 'An error occurred');
             }
         } catch (err) {
-            alert('Error adding member');
+            alert('Error saving member data');
         } finally {
             setSubmitting(false);
         }
@@ -94,7 +125,7 @@ export const TeamManagement: React.FC = () => {
                     <p style={{ color: '#6b7280' }}>Manage roles and access for your staff members</p>
                 </div>
                 <button
-                    onClick={() => setShowAddModal(true)}
+                    onClick={openAddModal}
                     className="btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
@@ -138,7 +169,7 @@ export const TeamManagement: React.FC = () => {
                                         <Loader2 className="animate-spin" style={{ margin: '0 auto', color: '#253b50' }} />
                                     </td>
                                 </tr>
-                            ) : members.map((member) => (
+                            ) : members.filter(m => m.status === 'active').map((member) => (
                                 <tr key={member.user_id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                     <td style={{ padding: '16px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -177,11 +208,16 @@ export const TeamManagement: React.FC = () => {
                                     </td>
                                     <td style={{ padding: '16px' }}>
                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button style={{ color: '#253b50', padding: '4px 8px', borderRadius: '4px', border: '1px solid #253b50', fontSize: '0.85rem' }}>Edit</button>
+                                            <button 
+                                                onClick={() => openEditModal(member)}
+                                                style={{ color: '#253b50', padding: '4px 8px', borderRadius: '4px', border: '1px solid #253b50', fontSize: '0.85rem', cursor: 'pointer', background: 'none' }}
+                                            >
+                                                Edit
+                                            </button>
                                             {member.role !== 'principal_architect' && member.status === 'active' && (
                                                 <button
                                                     onClick={() => handleDeleteMember(member.user_id)}
-                                                    style={{ color: '#ef4444', padding: '4px 8px', borderRadius: '4px', border: '1px solid #ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                    style={{ color: '#ef4444', padding: '4px 8px', borderRadius: '4px', border: '1px solid #ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', background: 'none' }}
                                                 >
                                                     <Trash2 size={14} /> Delete
                                                 </button>
@@ -198,7 +234,7 @@ export const TeamManagement: React.FC = () => {
             {showAddModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                     <div className="premium-card" style={{ width: '100%', maxWidth: '500px', backgroundColor: 'white' }}>
-                        <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>Add New Staff Member</h3>
+                        <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>{isEditing ? 'Edit Staff Member' : 'Add New Staff Member'}</h3>
                         <form onSubmit={handleSubmit}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                 <div>
@@ -239,11 +275,11 @@ export const TeamManagement: React.FC = () => {
                             </div>
 
                             <div style={{ marginBottom: '16px' }}>
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Password</label>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Password {isEditing && <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>(Leave blank to keep current)</span>}</label>
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type={showStaffPassword ? "text" : "password"}
-                                        required
+                                        required={!isEditing}
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         style={{ width: '100%', padding: '10px 40px 10px 10px', borderRadius: '6px', border: '1px solid #d1d5db' }}
@@ -302,7 +338,7 @@ export const TeamManagement: React.FC = () => {
                                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                                 >
                                     {submitting && <Loader2 className="animate-spin" size={16} />}
-                                    Add Member
+                                    {isEditing ? 'Save Changes' : 'Add Member'}
                                 </button>
                             </div>
                         </form>

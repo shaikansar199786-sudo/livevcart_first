@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 include('../../config/database.php');
+$conn = getMysqliConnection();
 
 $project_id = intval($_GET['project_id'] ?? 0);
 

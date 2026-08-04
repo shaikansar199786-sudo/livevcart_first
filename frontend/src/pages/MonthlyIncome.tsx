@@ -5,7 +5,7 @@ import { Plus, Trash2, Save, Printer, ChevronLeft, ChevronRight, Loader2, Trendi
 
 interface IncomeRow {
     id?: number;
-    category: 'elegance' | 'ark' | 'new_projects' | 'major_expenditures';
+    category: 'elegance' | 'Livincart' | 'new_projects' | 'major_expenditures';
     description: string;
     amount: string | number;
     date: string;
@@ -16,7 +16,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
 
 const CATEGORIES = [
     { id: 'elegance', label: 'Elegance', color: '#63b3ed' },
-    { id: 'ark', label: 'ARK', color: '#68d391' },
+    { id: 'Livincart', label: 'Livincart', color: '#68d391' },
     { id: 'new_projects', label: 'New Projects', color: '#a0aec0' },
     { id: 'major_expenditures', label: 'Major Expenditures', color: '#f6ad55' }
 ];
@@ -38,14 +38,20 @@ export const MonthlyIncome: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [projects, setProjects] = useState<any[]>([]);
+    const [selectedProject, setSelectedProject] = useState<any>(null);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
 
-    const month = `${MONTHS[monthIdx].substring(0, 3)}-${String(year).substring(2)}`;
-    const fullMonthStr = `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
+    const month = `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
+    const displayMonth = `${MONTHS[monthIdx].substring(0, 3)}-${String(year).substring(2)}`;
 
-    const fetchIncome = useCallback(async () => {
+    const fetchIncome = useCallback(async (specificMonth?: string) => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_BASE_URL}/monthly-income?month=${month}`);
+            const monthToFetch = specificMonth || month;
+            const res = await axios.get(`${API_BASE_URL}/monthly-income?month=${monthToFetch}`);
             let fetchedRows: IncomeRow[] = [];
             if (res.data?.data?.length > 0) {
                 fetchedRows = res.data.data.map((row: any) => ({
@@ -58,7 +64,7 @@ export const MonthlyIncome: React.FC = () => {
             // Ensure fixed expenditure categories are always present
             const expenditureRows = fetchedRows.filter(r => r.category === 'major_expenditures');
             const fixedDescriptions = FIXED_EXPENDITURE_CATEGORIES;
-            
+
             // Add missing fixed categories
             fixedDescriptions.forEach(desc => {
                 const exists = expenditureRows.some(r => r.description === desc);
@@ -92,6 +98,64 @@ export const MonthlyIncome: React.FC = () => {
     }, [month]);
 
     useEffect(() => { fetchIncome(); }, [fetchIncome]);
+
+    const fetchProjects = async () => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/projects`);
+            if (response.data.success) {
+                setProjects(response.data.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch projects:', error);
+        }
+    };
+
+    const calculateInteriorProjectExpenses = async () => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/projects`);
+            if (response.data.success) {
+                const interiorProjects = response.data.data.filter(
+                    (p: any) => p.project_type === 'interior' || p.project_type === 'interior_execution'
+                );
+
+                let totalSpent = 0;
+                for (const project of interiorProjects) {
+                    try {
+                        const financeResponse = await axios.get(`${API_BASE_URL}/finance/${project.project_id}`);
+                        if (financeResponse.data.success) {
+                            const transactions = financeResponse.data.data;
+                            const projectSpent = transactions
+                                .filter((t: any) => t.type === 'debit')
+                                .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+                            totalSpent += projectSpent;
+                        }
+                    } catch (error) {
+                        console.error(`Failed to fetch finance for project ${project.project_id}:`, error);
+                    }
+                }
+
+                // Update the Project expenses row in major_expenditures
+                setRows(prev => {
+                    const updated = [...prev];
+                    const projectExpensesIdx = updated.findIndex(
+                        r => r.category === 'major_expenditures' && r.description === 'Project expenses'
+                    );
+                    if (projectExpensesIdx >= 0) {
+                        updated[projectExpensesIdx] = {
+                            ...updated[projectExpensesIdx],
+                            amount: Math.round(totalSpent).toString()
+                        };
+                    }
+                    return updated;
+                });
+            }
+        } catch (error) {
+            console.error('Failed to calculate interior project expenses:', error);
+        }
+    };
+
+    useEffect(() => { fetchProjects(); }, []);
+    useEffect(() => { calculateInteriorProjectExpenses(); }, []);
 
     const addRow = (category: IncomeRow['category']) => {
         setRows(prev => [...prev, { category, description: '', amount: '', date: new Date().toISOString().split('T')[0] }]);
@@ -136,6 +200,86 @@ export const MonthlyIncome: React.FC = () => {
         }
     };
 
+    const handleRecordPayment = async () => {
+        if (!selectedProject || !paymentAmount) {
+            alert('Please select a project and enter a valid amount.');
+            return;
+        }
+
+        // Remove commas from amount and parse
+        const cleanAmount = paymentAmount.replace(/,/g, '');
+        const numericAmount = parseFloat(cleanAmount);
+
+        if (isNaN(numericAmount) || numericAmount <= 0) {
+            alert('Please enter a valid amount.');
+            return;
+        }
+
+        // Debug logging
+        console.log('Project type:', selectedProject.project_type);
+        console.log('Project name:', selectedProject.project_name);
+
+        const category = (selectedProject.project_type === 'interior' || selectedProject.project_type === 'interior_execution')
+            ? 'elegance'
+            : 'Livincart';
+
+        console.log('Selected category:', category);
+
+        const newRow: IncomeRow = {
+            category,
+            description: `${selectedProject.project_name} - ${selectedProject.project_code}`,
+            amount: numericAmount.toString(),
+            date: paymentDate
+        };
+
+        console.log('New row:', newRow);
+
+        // Derive month from payment date
+        const paymentDateObj = new Date(paymentDate);
+        const paymentMonth = `${paymentDateObj.getFullYear()}-${String(paymentDateObj.getMonth() + 1).padStart(2, '0')}`;
+
+        console.log('Payment date:', paymentDate);
+        console.log('Derived month from payment date:', paymentMonth);
+        console.log('Current UI selected month:', month);
+
+        // Alert if payment month differs from UI month
+        if (paymentMonth !== month) {
+            alert(`Payment date is in ${paymentMonth} but you're viewing ${month}. The payment will be saved to ${month}. Please navigate to ${paymentMonth} to view it.`);
+        }
+
+        // Save to the currently selected UI month
+        const cleanRows = [...rows, newRow].filter(r => r.description || r.amount);
+
+        console.log('Saving to month:', month);
+        console.log('Rows being saved:', cleanRows);
+
+        // Automatically save the payment to the backend
+        setSaving(true);
+        try {
+            const response = await axios.post(`${API_BASE_URL}/monthly-income`, { month, rows: cleanRows });
+            console.log('Save response:', response.data);
+            if (response.data.success) {
+                // Refresh data from backend
+                await fetchIncome();
+                setSaved(true);
+                setTimeout(() => setSaved(false), 3000);
+            } else {
+                alert('Failed to save payment: ' + (response.data.message || 'Unknown error'));
+            }
+        } catch (error: any) {
+            console.error('Save error:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Failed to save payment. Please try again.';
+            alert('Failed to save payment: ' + errorMessage);
+        } finally {
+            setSaving(false);
+        }
+
+        setShowPaymentModal(false);
+        setSelectedProject(null);
+        setPaymentAmount('');
+        setPaymentDate(new Date().toISOString().split('T')[0]);
+    };
+
     const prevMonth = () => {
         if (monthIdx === 0) { setMonthIdx(11); setYear(y => y - 1); }
         else setMonthIdx(m => m - 1);
@@ -151,11 +295,11 @@ export const MonthlyIncome: React.FC = () => {
         getCategoryRows(category).reduce((sum, r) => sum + (parseFloat(String(r.amount)) || 0), 0);
 
     const totalElegance = getCategoryTotal('elegance');
-    const totalArk = getCategoryTotal('ark');
+    const totalLivincart = getCategoryTotal('Livincart');
     const totalNewProjects = getCategoryTotal('new_projects');
     const totalExpenditures = getCategoryTotal('major_expenditures');
 
-    const grandTotal = totalElegance + totalArk + totalNewProjects;
+    const grandTotal = totalElegance + totalLivincart + totalNewProjects;
     const netBalance = grandTotal - totalExpenditures;
 
     return (
@@ -166,6 +310,10 @@ export const MonthlyIncome: React.FC = () => {
                     <p style={{ color: '#6b7280' }}>Track income across departments and monitor expenditures.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
+                    <button onClick={() => setShowPaymentModal(true)} className="btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#fca311' }}>
+                        <DollarSign size={18} /> Record Payment
+                    </button>
                     <button onClick={handleSave} disabled={saving} className="btn-primary"
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: saved ? '#10b981' : '#253b50' }}>
                         {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
@@ -196,8 +344,8 @@ export const MonthlyIncome: React.FC = () => {
 
             {/* Print Header */}
             <div className="print-only" style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid #253b50', paddingBottom: '10px' }}>
-                <h1 style={{ fontSize: '24px', margin: 0 }}>ARK ARCHITECTS & INTERIORS</h1>
-                <h2 style={{ fontSize: '18px', margin: '5px 0', color: '#4b5563' }}>Monthly Financial Statement - {month}</h2>
+                <h1 style={{ fontSize: '24px', margin: 0 }}>Livincart ARCHITECTS & INTERIORS</h1>
+                <h2 style={{ fontSize: '18px', margin: '5px 0', color: '#4b5563' }}>Monthly Financial Statement - {displayMonth}</h2>
             </div>
 
             {/* Summary Cards */}
@@ -250,8 +398,8 @@ export const MonthlyIncome: React.FC = () => {
                                         const globalIdx = rows.indexOf(row);
                                         const isFixedCategory = cat.id === 'major_expenditures' && FIXED_EXPENDITURE_CATEGORIES.includes(row.description);
                                         const isMajorExpenditures = cat.id === 'major_expenditures';
-                                        const inputHeight = isMajorExpenditures ? '15px' : '80px';
-                                        const fontSize = isMajorExpenditures ? '0.9rem' : '1.5rem';
+                                        const inputHeight = isMajorExpenditures ? '15px' : '20px';
+                                        const fontSize = '0.9rem';
                                         return (
                                             <tr key={globalIdx} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                                 <td style={{ padding: '8px 0' }}>
@@ -284,12 +432,12 @@ export const MonthlyIncome: React.FC = () => {
                                                 </td>
                                                 <td style={{ padding: '8px 0', width: '200px' }}>
                                                     <input
-                                                        type="number"
+                                                        type="text"
                                                         step="1"
                                                         min="0"
-                                                        value={row.amount}
+                                                        value={row.amount ? Number(row.amount).toLocaleString() : ''}
                                                         onChange={e => {
-                                                            const value = e.target.value;
+                                                            const value = e.target.value.replace(/,/g, '');
                                                             // Allow only whole numbers (no decimals)
                                                             if (value === '' || /^\d+$/.test(value)) {
                                                                 updateRow(globalIdx, 'amount', value);
@@ -357,6 +505,80 @@ export const MonthlyIncome: React.FC = () => {
                 </div>
             </div>
 
+            {/* Payment Modal */}
+            {
+                showPaymentModal && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                        <div className="premium-card" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '30px' }}>
+                            <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>Record Project Payment</h3>
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Select Project</label>
+                                <select
+                                    value={selectedProject?.project_id || ''}
+                                    onChange={(e) => {
+                                        const project = projects.find(p => p.project_id === e.target.value);
+                                        setSelectedProject(project || null);
+                                    }}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                >
+                                    <option value="">Select a project</option>
+                                    {projects.map(project => (
+                                        <option key={project.project_id} value={project.project_id}>
+                                            {project.project_name} ({project.project_code}) - {project.project_type}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Payment Date</label>
+                                <input
+                                    type="date"
+                                    value={paymentDate}
+                                    onChange={(e) => setPaymentDate(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                />
+                            </div>
+                            <div style={{ marginBottom: '24px' }}>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Amount (₹)</label>
+                                <input
+                                    type="number"
+                                    value={paymentAmount}
+                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                    placeholder="Enter amount"
+                                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                />
+                            </div>
+                            {selectedProject && (
+                                <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '6px', fontSize: '0.85rem' }}>
+                                    <strong>Will be added to:</strong> {(selectedProject.project_type === 'interior' || selectedProject.project_type === 'interior_execution') ? 'ELEGANCE' : 'Livincart'}
+                                </div>
+                            )}
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPaymentModal(false);
+                                        setSelectedProject(null);
+                                        setPaymentAmount('');
+                                        setPaymentDate(new Date().toISOString().split('T')[0]);
+                                    }}
+                                    style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white', cursor: 'pointer' }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleRecordPayment}
+                                    style={{ padding: '10px 20px', borderRadius: '6px', border: 'none', backgroundColor: '#6366f1', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+                                >
+                                    Record Payment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
             <style>{`
                 @media print {
                     .no-print { display: none !important; }
@@ -383,7 +605,7 @@ export const MonthlyIncome: React.FC = () => {
                     }
                 }
             `}</style>
-        </div>
+        </div >
     );
 };
 

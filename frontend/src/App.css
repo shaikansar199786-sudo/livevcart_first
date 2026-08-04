@@ -205,19 +205,14 @@
   }
 
   .print-area {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
+    position: static !important;
+    transform: none !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
   }
 
-  /* 🔥 MAIN MAGIC */
-  .print-area {
-    transform: scale(0.75);   /* 👈 adjust this */
-    transform-origin: top left;
-  }
-
-  button, select, input {
-    display: none;
+  .no-print, button.no-print {
+    display: none !important;
   }
 }

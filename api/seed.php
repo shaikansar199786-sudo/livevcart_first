@@ -9,7 +9,7 @@ try {
     $username = "admin";
     $password = password_hash("admin123", PASSWORD_BCRYPT);
     $role = "principal_architect";
-    $employee_id = "ARK001";
+    $employee_id = "Livincart001";
     $status = "active";
 
     $query = "INSERT INTO users (name, username, password, role, employee_id, status) 

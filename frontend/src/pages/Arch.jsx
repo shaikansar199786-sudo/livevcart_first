@@ -1,9 +1,6 @@
 import React from "react";
-import stamp from "../assets/stamp.png";
-import sig from "../assets/sig.png";
-import loger from "../assets/logo.png";
 /*import stamp from "../assets/stamp.png";
-  ARK Architects – Exact replica of contract_arch-int__4_.docx
+  Livincart Architects – Exact replica of contract_arch-int__4_.docx
   Numbering matches docx exactly:
     Section 1  → numbered list 1–13
     Section 2  → numbered 2.01, 2.02 ... with stage headings
@@ -17,7 +14,7 @@ export default function ArchContract({
   refId = "PR_2024_009/01",
   date = "",
   feeAmount = "Rs 2,30,000.00 (Two Lakhs Thirty Thousand Only)",
-  architectName = "Rohit Kannagatha",
+  architectName = "Livincart",
   outstationCharge = "Rs 2,000/-",
   address = "",
   place = "",
@@ -189,7 +186,7 @@ export default function ArchContract({
 
         <div style={S.thankWrap}>
           <p style={{ margin: "0 0 10px 0" }}>Thanking you,</p>
-          <img src={sig} alt="" width="20%" />
+
           <p style={{ margin: "0 0 4px 0" }}>Yours faithfully,</p>
         </div>
 
@@ -202,7 +199,7 @@ export default function ArchContract({
           <div style={S.signRow}>
             <span style={S.signLabel}>Name of the Architect</span>
             <span style={S.signColon}>:</span>
-            <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
+            <span style={S.signVal}><strong>Livincart Architects and Interior Designers</strong></span>
           </div>
 
           <div style={S.signRow}>
@@ -220,7 +217,7 @@ export default function ArchContract({
             <div style={S.signRow}>
               <span style={S.signLabel}>Seal of the Architect</span>
               <span style={S.signColon}>:</span>
-              <span style={S.signVal}><img src={stamp} alt="" width="20%" /></span>
+              <span style={S.signVal}></span>
             </div>
           </div>
         </div>
@@ -229,14 +226,14 @@ export default function ArchContract({
         {/* <div style={S.signRow}>
           <span style={S.signLabel}>Name of the Architect</span>
           <span style={S.signColon}>:</span>
-          <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
+          <span style={S.signVal}><strong>Livincart Architects and Interior Designers</strong></span>
         </div> */}
 
-<div style={S.signRow}>
-  <span style={S.signLabel}>Name of the Client</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}>{clientName}</span>
-</div>
+        <div style={S.signRow}>
+          <span style={S.signLabel}>Name of the Client</span>
+          <span style={S.signColon}>:</span>
+          <span style={S.signVal}>{clientName}</span>
+        </div>
         <div style={S.signRow}>
           <span style={S.signLabel}>Date</span>
           <span style={S.signColon}>:</span>
@@ -251,9 +248,9 @@ export default function ArchContract({
 
         <div style={S.bankBox}>
           <p style={{ fontWeight: "bold", margin: "0 0 2px 0" }}>Bank Details:</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>Abhikalpana Rachna Kendra</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>A/c No.: 126905500081</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>IFSC: ICIC0001269</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>LIVINCART ARCHITECTS AND INTERIOR DESIGNERS</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>A/c No.: 000000000</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>IFSC: ICIC0000000</p>
           <p style={{ fontWeight: "bold", margin: 0 }}>HSL Complex Branch</p>
         </div>
       </Page>
@@ -320,15 +317,15 @@ function Letterhead({ refId }) {
           <p style={S.ref}>REF: {refId}</p>
         </div>
         <div style={S.hdrRight}>
-          <img src={loger} alt="" width="50%" />
-          <p style={S.firmName}>AbhikalpanaRachna Kendra</p>
+
+          <p style={S.firmName}>Livincart</p>
           <p style={S.firmTag}>Architecture . Planning . Landscape . Interiors</p>
-          <p style={S.contact}>E mail: infoatark@gmail.com</p>
-          <p style={S.contact}>Ph: 91 – 9908041365</p>
-          <p style={S.contact}>10-385/1/13, Sri Siridi Sai Veternary Colony, Visalakshinagar</p>
+          <p style={S.contact}>E mail: infoatLivincart@gmail.com</p>
+          <p style={S.contact}>Ph: 91 – 1234567890</p>
+          <p style={S.contact}>Sai  Colony, vspr</p>
           <p style={S.contact}>Near Hanumanthwaka Jn, Visakhapatnam – 530 040</p>
-          <p style={{ ...S.contact, fontStyle: "italic" }}>www.arkarchitects.co.in</p>
-          <p style={{ ...S.contact, fontStyle: "italic" }}>www.facebook.com/arkarchitect</p>
+          <p style={{ ...S.contact, fontStyle: "italic" }}>www.Livincartarchitects.co.in</p>
+          <p style={{ ...S.contact, fontStyle: "italic" }}>www.facebook.com/Livincartarchitect</p>
         </div>
       </div>
       {/* <hr style={{ borderTop: "1px solid #555", margin: "6px 0 10px 0" }} /> */}

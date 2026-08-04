@@ -1,0 +1,16 @@
+# Remove upload and request body limits for demoark
+LimitRequestBody 0
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 1024M
+    php_value post_max_size 1024M
+    php_value memory_limit 1024M
+    php_value max_execution_time 1800
+    php_value max_input_time 1800
+</IfModule>
+<IfModule mod_php.c>
+    php_value upload_max_filesize 1024M
+    php_value post_max_size 1024M
+    php_value memory_limit 1024M
+    php_value max_execution_time 1800
+    php_value max_input_time 1800
+</IfModule>

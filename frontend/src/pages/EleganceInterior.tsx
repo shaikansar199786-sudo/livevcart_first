@@ -313,7 +313,7 @@ const S: Record<string, React.CSSProperties> = {
   firmTag: { fontFamily: FONT, fontSize: "9pt", fontWeight: "bold", letterSpacing: "0.8px", margin: "2px 0 8px" },
   contact: { fontFamily: FONT, fontSize: "9pt", margin: 0, lineHeight: 1.5 },
   centered: { fontFamily: FONT, textAlign: "center", margin: "1 px 0" },
-  
+
   body: { fontFamily: FONT, fontSize: "11pt", margin: "0 0 4px" },
   justify: { fontFamily: FONT, fontSize: "11pt", textAlign: "justify", margin: "0 0 8px", lineHeight: 1.7 },
   clause: { fontFamily: FONT, fontSize: "11pt", margin: "14px 0 6px", textDecoration: "underline" },

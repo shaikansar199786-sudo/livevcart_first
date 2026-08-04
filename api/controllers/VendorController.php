@@ -26,7 +26,7 @@ class VendorController {
                         p.project_name as site,
                         ft.transaction_date as payment_date,
                         ft.amount as payment_amount,
-                        ft.payment_mode as remarks
+                        ft.payment_mode as remLivincarts
                       FROM finance_transactions ft
                       JOIN projects p ON ft.project_id = p.project_id
                       WHERE ft.category = 'Labor' AND ft.person_name IS NOT NULL AND ft.person_name != ''
@@ -186,15 +186,15 @@ class VendorController {
             $payment_date = $data['payment_date'] ?? null;
             $payment_amount = $data['payment_amount'] ?? null;
             $payment_mode = $data['payment_mode'] ?? null;
-            $remark = $data['remark'] ?? null;
+            $remLivincart = $data['remLivincart'] ?? null;
 
             if (!$id) {
                 return ["success" => false, "message" => "ID is required"];
             }
 
-            // Add remark column if it doesn't exist
+            // Add remLivincart column if it doesn't exist
             try {
-                $this->conn->exec("ALTER TABLE project_inventory ADD COLUMN remark TEXT DEFAULT NULL AFTER payment_date");
+                $this->conn->exec("ALTER TABLE project_inventory ADD COLUMN remLivincart TEXT DEFAULT NULL AFTER payment_date");
             } catch (PDOException $e) {
                 // Column already exists, ignore error
             }
@@ -215,9 +215,9 @@ class VendorController {
                 $updateFields[] = "payment_mode = :payment_mode";
                 $params[':payment_mode'] = $payment_mode;
             }
-            if ($remark !== null) {
-                $updateFields[] = "remark = :remark";
-                $params[':remark'] = $remark;
+            if ($remLivincart !== null) {
+                $updateFields[] = "remLivincart = :remLivincart";
+                $params[':remLivincart'] = $remLivincart;
             }
 
             if (empty($updateFields)) {

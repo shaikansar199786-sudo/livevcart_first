@@ -55,7 +55,7 @@ export const Projects: React.FC = () => {
         project_code: '',
         project_name: '',
         client_id: '',
-        project_type: 'residential_interior',
+        project_type: 'Furniture projects',
         site_address: '',
         start_date: new Date().toISOString().split('T')[0],
         expected_end_date: '',
@@ -86,6 +86,23 @@ export const Projects: React.FC = () => {
             console.error('Failed to fetch data');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleProjectStatusChange = async (projectId: string, newStatus: string, e: React.ChangeEvent<HTMLSelectElement>) => {
+        e.stopPropagation();
+        try {
+            const res = await axios.post(`${API_BASE_URL}/projects/update-status`, {
+                project_id: projectId,
+                status: newStatus
+            });
+            if (res.data.success) {
+                fetchData();
+            } else {
+                alert(res.data.message || 'Failed to update project status');
+            }
+        } catch (err) {
+            alert('Error updating project status');
         }
     };
 
@@ -138,19 +155,9 @@ export const Projects: React.FC = () => {
         <div className="projects-page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                 <div>
-                    <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#253b50' }}>Projects</h2>
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'black' }}>Projects</h2>
                     <p style={{ color: '#6b7280' }}>Manage project allocations and team assignments</p>
                 </div>
-                {(user?.role === 'principal_architect' || user?.role === 'admin') && (
-                    <button
-                        onClick={() => setShowAddModal(true)}
-                        className="btn-primary"
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                    >
-                        <Plus size={18} />
-                        Launch New Project
-                    </button>
-                )}
             </div>
 
             <div className="premium-card">
@@ -170,12 +177,9 @@ export const Projects: React.FC = () => {
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px' }}>
                     {[
                         { id: 'all', label: 'All Projects' },
-                        { id: 'interior', label: 'Interior Design Consultant' },
-                        { id: 'architecture', label: 'Architectural Design' },
-                        { id: 'both', label: 'Arc + Interior' },
-                        { id: 'interior_execution', label: 'Interior Execution' },
-                        // { id: 'master_plan', label: 'Master Plan' },
-                        // { id: 'landscape', label: 'Landscape' }
+                        { id: 'Furniture projects', label: 'Furniture projects' },
+                        { id: 'Interior Projects', label: 'Interior Projects' },
+                        { id: 'Execution Projects', label: 'Execution Projects' }
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -184,7 +188,7 @@ export const Projects: React.FC = () => {
                                 padding: '8px 16px',
                                 borderRadius: '20px',
                                 border: '1px solid #e5e7eb',
-                                backgroundColor: filterType === tab.id ? '#253b50' : 'white',
+                                backgroundColor: filterType === tab.id ? 'black' : 'white',
                                 color: filterType === tab.id ? 'white' : '#6b7280',
                                 fontWeight: 600,
                                 fontSize: '0.85rem',
@@ -206,13 +210,16 @@ export const Projects: React.FC = () => {
                     {loading ? (
                         <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></div>
                     ) : (() => {
+                        console.log('Currently loaded projects:', projects);
+                        console.log('Current filter type:', filterType);
                         const filtered = projects.filter(p => {
                             const matchesSearch =
-                                p.project_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                p.project_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                p.client_name.toLowerCase().includes(searchTerm.toLowerCase());
+                                (p.project_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                (p.project_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                (p.client_name || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-                            const matchesFilter = filterType === 'all' || p.project_type === filterType;
+                            const matchesFilter = filterType === 'all' || 
+                                (p.project_type && p.project_type.trim().toLowerCase() === filterType.toLowerCase());
 
                             return matchesSearch && matchesFilter;
                         });
@@ -228,38 +235,24 @@ export const Projects: React.FC = () => {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                                     <div>
                                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>{project.project_code}</span>
-                                        <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#253b50', marginTop: '4px' }}>{project.project_name}</h3>
-                                        <p style={{ fontSize: '0.9rem', color: '#253b50', fontWeight: 500 }}>Client: {project.client_name}</p>
+                                        <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'black', marginTop: '4px' }}>{project.project_name}</h3>
+                                        <p style={{ fontSize: '0.9rem', color: 'black', fontWeight: 500 }}>Client: {project.client_name}</p>
                                         <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                            <span style={{
-                                                padding: '2px 8px',
-                                                borderRadius: '4px',
-                                                backgroundColor: '#f3f4f6',
-                                                color: '#4b5563',
-                                                fontSize: '0.7rem',
-                                                fontWeight: 600,
-                                                textTransform: 'uppercase'
-                                            }}>
-                                                {project.project_type === 'both' ? 'Arc + Interior'
-                                                    : project.project_type === 'architecture' ? 'Architectural'
-                                                        : project.project_type === 'interior_execution' ? 'Interior Execution'
-                                                            : project.project_type === 'master_plan' ? 'Master Plan'
-                                                                : project.project_type === 'landscape' ? 'Landscape'
-                                                                    : 'Interior'}
-                                            </span>
+                                            {project.project_type && (
+                                                <span style={{
+                                                    padding: '4px 10px',
+                                                    borderRadius: '6px',
+                                                    backgroundColor: '#1e293b',
+                                                    color: '#f8fafc',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    letterSpacing: '0.5px'
+                                                }}>
+                                                    {project.project_type}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
-                                    <span style={{
-                                        padding: '4px 10px',
-                                        borderRadius: '4px',
-                                        backgroundColor: project.status === 'Completed' ? '#d1fae5' : project.status === 'On Going' ? '#dbeafe' : '#fef3c7',
-                                        color: project.status === 'Completed' ? '#065f46' : project.status === 'On Going' ? '#1e40af' : '#92400e',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 700,
-                                        textTransform: 'capitalize'
-                                    }}>
-                                        {project.status}
-                                    </span>
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', color: '#6b7280', fontSize: '0.9rem' }}>
@@ -275,8 +268,8 @@ export const Projects: React.FC = () => {
                                 </div>
 
                                 <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <button style={{ color: '#253b50', fontWeight: 600, fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer' }}>View Details</button>
-                                    {(user?.role === 'admin' || user?.role === 'principal_architect' || user?.role === 'accountant') && (
+                                    <button style={{ color: 'black', fontWeight: 600, fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer' }}>View Details</button>
+                                    {(user?.role === 'admin' || user?.role === 'accountant') && (
                                         <button onClick={(e) => handleDelete(project.project_id, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', padding: '4px' }}>
                                             <Trash2 size={16} />
                                         </button>
@@ -296,7 +289,7 @@ export const Projects: React.FC = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Code</label>
-                                    <input type="text" required placeholder="e.g. ARK-PR-001" value={formData.project_code} onChange={(e) => setFormData({ ...formData, project_code: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                                    <input type="text" required placeholder="e.g. Livincart-PR-001" value={formData.project_code} onChange={(e) => setFormData({ ...formData, project_code: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Name</label>
@@ -315,21 +308,8 @@ export const Projects: React.FC = () => {
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Type</label>
                                     <select value={formData.project_type} onChange={(e) => setFormData({ ...formData, project_type: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        <option value="interior">Interior Design Consultant</option>
-                                        <option value="architecture">Architectural Design</option>
-                                        <option value="both">Arc + Interior</option>
-                                        <option value="interior_execution">Interior Execution Project</option>
-                                        {/* <option value="master_plan">Master Plan</option>
-                                        <option value="landscape">Landscape</option> */}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Status</label>
-                                    <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        <option value="Pending">Pending</option>
-                                        <option value="On Going">On Going</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Cancelled">Cancelled</option>
+                                        <option value="Furniture projects">Furniture projects</option>
+                                        <option value="Interior Projects">Interior Projects</option>
                                     </select>
                                 </div>
                             </div>
@@ -351,13 +331,13 @@ export const Projects: React.FC = () => {
                             </div>
 
                             <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '16px', marginBottom: '24px' }}>
-                                <h4 style={{ marginBottom: '12px', color: '#253b50' }}>Team Allocation</h4>
+                                <h4 style={{ marginBottom: '12px', color: 'black' }}>Team Allocation</h4>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                     <div>
                                         <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Head</label>
                                         <select required value={formData.project_head_id} onChange={(e) => setFormData({ ...formData, project_head_id: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
                                             <option value="">Assign Head</option>
-                                            {team.filter(t => ['principal_architect', 'project_head', 'admin'].includes(t.role)).map(t => (
+                                            {team.filter(t => ['admin', 'project_head', 'admin'].includes(t.role)).map(t => (
                                                 <option key={t.user_id} value={t.user_id}>{t.name} ({t.role.replace('_', ' ')})</option>
                                             ))}
                                         </select>

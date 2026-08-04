@@ -1,10 +1,6 @@
-
-
-
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { useRef } from "react";
 import {
     ArrowLeft,
     CreditCard,
@@ -23,10 +19,17 @@ import {
     Edit2,
     Clock,
     Calendar,
-    AlertCircle
+    AlertCircle,
+    ArrowUp,
+    ArrowDown,
+    Layers,
+    ArrowUpDown,
+    ChevronDown,
+    ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import QuoteTab from '../components/QuoteTab';
+import { DocumentTab } from '../components/DocumentTab';
 
 interface ProjectDetailsDarunta {
     project_id: string;
@@ -37,10 +40,11 @@ interface ProjectDetailsDarunta {
     client_phone: string;
     client_address: string;
     site_address: string;
+    location: string;
     project_type: string;
     start_date: string;
     expected_end_date: string;
-    total_budget: string;
+    total_budget: number;
     total_paid: number;
     total_spent: number;
     remaining_balance: number;
@@ -80,18 +84,38 @@ export const ProjectDetails: React.FC = () => {
     const { id } = useParams();
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
-    // Set initial tab based on role, fallback to overview
-    const [activeTab, setActiveTab] = useState(
-        (user?.role === 'site_engineer' || user?.role === 'project_head') ? 'timeline' : 'overview'
-    );
+    // Set initial tab based on query param, localStorage or fallback
+    const [activeTab, setActiveTab] = useState(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const tabParam = searchParams.get('tab');
+        if (tabParam) return tabParam;
+        const savedTab = localStorage.getItem(`active_project_tab_${id}`);
+        return savedTab || 'overview';
+    });
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const tabParam = searchParams.get('tab');
+        if (tabParam) {
+            setActiveTab(tabParam);
+            localStorage.setItem(`active_project_tab_${id}`, tabParam);
+        }
+    }, [location.search, id]);
 
     // Update tab if role loads later and they are on a restricted tab
     useEffect(() => {
-        if ((user?.role === 'site_engineer' || user?.role === 'project_head') && activeTab === 'overview') {
+        const savedTab = localStorage.getItem(`active_project_tab_${id}`);
+        if (!savedTab && (user?.role === 'site_engineer' || user?.role === 'project_head') && activeTab === 'overview') {
             setActiveTab('timeline');
         }
-    }, [user?.role, activeTab]);
+    }, [user?.role, activeTab, id]);
+
+    const handleTabChange = (tab: string) => {
+        setActiveTab(tab);
+        localStorage.setItem(`active_project_tab_${id}`, tab);
+    };
 
     // const [project, setProject] = useState<ProjectDetailsData | null>(null);
     const [project, setProject] = useState<ProjectDetailsDarunta | null>(null);
@@ -130,7 +154,7 @@ export const ProjectDetails: React.FC = () => {
         fetchTransactions();
         fetchInventoryTotal();
         fetchQuoteTotal();
-        if (user?.role === 'admin' || user?.role === 'principal_architect' || user?.role === 'accountant') {
+        if (user?.role === 'admin' || user?.role === 'accountant') {
             fetchUsers();
         }
     }, [id, user]);
@@ -220,6 +244,7 @@ export const ProjectDetails: React.FC = () => {
         }
         setSubmitting(true);
         try {
+            // Save to finance_transactions table
             const response = await axios.post(`${API_BASE_URL}/finance`, {
                 project_id: id,
                 type: 'credit',
@@ -231,6 +256,44 @@ export const ProjectDetails: React.FC = () => {
                 recorded_by: user?.user_id
             });
             if (response.data.success) {
+                // Also save to monthly_income table
+                try {
+                    const paymentDateObj = new Date(payment.date);
+                    const paymentMonth = `${paymentDateObj.getFullYear()}-${String(paymentDateObj.getMonth() + 1).padStart(2, '0')}`;
+
+                    // Determine category based on project type
+                    const category = (project?.project_type === 'Interior Projects' || project?.project_type === 'Site Execution Tracker' || project?.project_type === 'Execution Projects')
+                        ? 'elegance'
+                        : 'Livincart';
+
+                    // Fetch existing monthly income data for this month
+                    const monthRes = await axios.get(`${API_BASE_URL}/monthly-income?month=${paymentMonth}`);
+                    let existingRows = [];
+                    if (monthRes.data?.data?.length > 0) {
+                        existingRows = monthRes.data.data.map((row: any) => ({
+                            ...row,
+                            amount: row.amount ? Math.round(Number(row.amount)).toString() : '',
+                            date: row.transaction_date || row.date || payment.date
+                        }));
+                    }
+
+                    // Add new payment row
+                    const newRow = {
+                        category,
+                        description: `${project?.project_name} - ${project?.project_code}`,
+                        amount: payment.amount,
+                        date: payment.date
+                    };
+
+                    const cleanRows = [...existingRows, newRow].filter((r: any) => r.description || r.amount);
+
+                    // Save to monthly_income
+                    await axios.post(`${API_BASE_URL}/monthly-income`, { month: paymentMonth, rows: cleanRows });
+                } catch (monthlyError) {
+                    console.error('Failed to save to monthly_income:', monthlyError);
+                    // Don't fail the whole operation if monthly_income save fails
+                }
+
                 setShowPaymentModal(false);
                 setPayment({
                     amount: '',
@@ -261,7 +324,7 @@ export const ProjectDetails: React.FC = () => {
             project_head_id: headMember?.user_id || project?.project_head_id || '',
             site_engineer_id: engineerMember?.user_id || '',
             status: project?.status || 'Pending',
-            project_type: project?.project_type || 'interior'
+            project_type: project?.project_type || 'Furniture projects'
         });
         setShowEditModal(true);
     };
@@ -272,7 +335,9 @@ export const ProjectDetails: React.FC = () => {
         try {
             const response = await axios.put(`${API_BASE_URL}/projects`, {
                 project_id: id,
-                ...editForm
+                ...editForm,
+                project_head_id: editForm.project_head_id || null,
+                site_engineer_id: editForm.site_engineer_id || null
             });
             if (response.data.success) {
                 setShowEditModal(false);
@@ -311,41 +376,49 @@ export const ProjectDetails: React.FC = () => {
     if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}><Loader2 className="animate-spin" size={48} color="#253b50" /></div>;
     if (!project) return <div style={{ padding: '40px', textAlign: 'center' }}>Project not found</div>;
 
-    const isAccountant = user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'principal_architect';
+    const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
 
     const renderTabs = () => {
-        const tabs = ['overview', 'timeline', 'quote', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'balance_sheet'].filter(tab => {
+        const tabs = ['overview', 'quote', 'documents', 'timeline', 'pm_timeline', 'stage_notes', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'other_expenses', 'balance_sheet'].filter(tab => {
 
-            // Admin, Principal Architect, and Accountant see all tabs
-            if (user?.role === 'admin' || user?.role === 'principal_architect' || user?.role === 'accountant') {
+            // Admin and Accountant see all tabs
+            if (user?.role === 'admin' || user?.role === 'accountant') {
                 return true;
             }
 
             // Project Head sees these tabs
             if (user?.role === 'project_head') {
-                return ['timeline', 'quote', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous'].includes(tab);
+                return ['timeline', 'pm_timeline', 'stage_notes', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'other_expenses'].includes(tab);
             }
 
+            // Project Manager sees timeline tabs + stage notes
+            if (user?.role === 'project_manager' || user?.role === 'manager') {
+                return ['timeline', 'pm_timeline', 'stage_notes', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'other_expenses'].includes(tab);
+            }
 
-            // Site Engineer ONLY sees timeline and used_quote
+            // Site Engineer sees timeline tabs
             if (user?.role === 'site_engineer') {
-                return ['timeline', 'stock_category'].includes(tab);
+                return ['timeline', 'pm_timeline', 'stage_notes', 'stock_category'].includes(tab);
             }
 
+            // Designer roles see overview, documents, timeline and stage notes
+            if (['d1', 'd2', 'graphic_designer', 'gd'].includes(user?.role)) {
+                return ['overview', 'documents', 'timeline', 'pm_timeline', 'stage_notes'].includes(tab);
+            }
 
-            // Default visibility
+            // Default: overview only
             return tab === 'overview';
         });
 
         return (
-            <div className="tabs-container" style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '1px' }}>
+            <div className="tabs-container" style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '1px', flexWrap: 'wrap' }}>
                 {tabs.map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => setActiveTab(tab)}
+                        onClick={() => handleTabChange(tab)}
                         style={{
-                            padding: '12px 24px',
-                            fontSize: '0.95rem',
+                            padding: '12px 20px',
+                            fontSize: '0.92rem',
                             fontWeight: 600,
                             cursor: 'pointer',
                             background: 'none',
@@ -356,7 +429,7 @@ export const ProjectDetails: React.FC = () => {
                             transition: 'all 0.2s'
                         }}
                     >
-                        {tab === 'vendor_quta' ? 'Vendor Bill' : tab.replace('_', ' ')}
+                        {tab === 'vendor_quta' ? 'Vendor Bill' : tab === 'timeline' ? 'Designer Timeline' : tab === 'pm_timeline' ? 'Project Manager Timeline' : tab === 'stage_notes' ? '📋 Stage Notes' : tab === 'quote' ? 'Quote' : tab === 'other_expenses' ? 'Other Expenses' : tab.replace('_', ' ')}
                     </button>
                 ))}
             </div>
@@ -400,30 +473,7 @@ export const ProjectDetails: React.FC = () => {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Project Status</label>
-                        <select
-                            value={project.status}
-                            onChange={(e) => handleQuickStatusUpdate(e.target.value)}
-                            style={{
-                                padding: '8px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid #d1d5db',
-                                backgroundColor: project.status === 'Completed' ? '#d1fae5' : project.status === 'On Going' ? '#dbeafe' : '#fef3c7',
-                                color: project.status === 'Completed' ? '#065f46' : project.status === 'On Going' ? '#1e40af' : '#92400e',
-                                fontWeight: 700,
-                                fontSize: '0.85rem',
-                                outline: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value="Pending">Pending</option>
-                            <option value="On Going">On Going</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                    {(user?.role === 'admin' || user?.role === 'principal_architect') && (
+                    {user?.role === 'admin' && (
                         <button onClick={openEditModal} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             Edit Project Settings
                         </button>
@@ -435,18 +485,23 @@ export const ProjectDetails: React.FC = () => {
                 {renderTabs()}
             </div>
 
-            {activeTab === 'overview' && <OverviewTab project={project} quoteTotal={quoteTotal} isAccountant={isAccountant} />}
-            {activeTab === 'timeline' && <TimelineTab project={project} user={user} />}
-            {activeTab === 'quote' && <QuoteTab project={project} setQuoteTotal={setQuoteTotal} isReadOnly={user?.role === 'site_engineer'} user={user} isUsedQuote={false} />}
+            {activeTab === 'overview' && <OverviewTab project={project} budget={budget} quoteTotal={quoteTotal} isAccountant={isAccountant} setShowBudgetModal={setShowBudgetModal} />}
+            {activeTab === 'documents' && <DocumentTab projectId={project.project_id} />}
+            {activeTab === 'timeline' && <TimelineTab project={project} user={user} type="designer" fetchProjectDetails={fetchProjectDetails} totalPaid={transactions.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0)} />}
+            {activeTab === 'pm_timeline' && <TimelineTab project={project} user={user} type="pm" fetchProjectDetails={fetchProjectDetails} totalPaid={transactions.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0)} />}
+            {activeTab === 'stage_notes' && <StageNotesTab project={project} user={user} filterType="pm" />}
+            {activeTab === 'quote' && <QuoteTab key={`qtab-${project?.project_id}-${project?.client_name}`} project={project} setQuoteTotal={(val: number) => { setQuoteTotal(val); setBudget(val.toString()); fetchProjectDetails(); }} isReadOnly={user?.role === 'site_engineer'} user={user} isUsedQuote={false} />}
             {activeTab === 'stock_category' && <StockCategoryTab project={project} user={user} />}
 
             {activeTab === 'vendor_quta' && <InventoryTab key={project?.project_id} project={project} setInventoryTotal={setInventoryTotal} user={user} />}
             {activeTab === 'transport' && <ExpenseCategoryTab project={project} category="Transport" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
             {activeTab === 'labor' && <ExpenseCategoryTab project={project} category="Labor" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
             {activeTab === 'miscellaneous' && <ExpenseCategoryTab project={project} category="Miscellaneous" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
+            {activeTab === 'other_expenses' && <ExpenseCategoryTab project={project} category="Other" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
             {activeTab === 'balance_sheet' && <BalanceSheetTab project={project} transactions={transactions}
                 quoteTotal={quoteTotal}
-                inventoryTotal={inventoryTotal} />}
+                inventoryTotal={inventoryTotal}
+                fetchTransactions={fetchTransactions} />}
 
 
 
@@ -472,7 +527,7 @@ export const ProjectDetails: React.FC = () => {
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Head</label>
                                     <select required value={editForm.project_head_id} onChange={(e) => setEditForm({ ...editForm, project_head_id: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
                                         <option value="">Select Head</option>
-                                        {allUsers.filter(t => ['principal_architect', 'project_head', 'admin'].includes(t.role)).map(t => (
+                                        {allUsers.filter(t => ['admin', 'project_head', 'admin'].includes(t.role)).map(t => (
                                             <option key={t.user_id} value={t.user_id}>{t.name}</option>
                                         ))}
                                     </select>
@@ -495,25 +550,12 @@ export const ProjectDetails: React.FC = () => {
                                     <input type="date" required value={editForm.expected_end_date} onChange={(e) => setEditForm({ ...editForm, expected_end_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                                 </div>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Status</label>
-                                    <select required value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        <option value="Pending">Pending</option>
-                                        <option value="On Going">On Going</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Cancelled">Cancelled</option>
-                                    </select>
-                                </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Type</label>
                                     <select required value={editForm.project_type} onChange={(e) => setEditForm({ ...editForm, project_type: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        <option value="interior">Interior Design Consultant</option>
-                                        <option value="architecture">Architectural Design</option>
-                                        <option value="both">Arc + Interior</option>
-                                        <option value="interior_execution">Interior Execution Project</option>
-                                        {/* <option value="master_plan">Master Plan</option>
-                                        <option value="landscape">Landscape</option> */}
+                                        <option value="Furniture projects">Furniture projects</option>
+                                        <option value="Interior Projects">Interior Projects</option>
                                     </select>
                                 </div>
                             </div>
@@ -643,8 +685,10 @@ export const ProjectDetails: React.FC = () => {
     );
 };
 
-const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
-    const progress = Math.round((project.total_paid / (quoteTotal || 1)) * 100);
+const OverviewTab = ({ project, budget, quoteTotal, isAccountant, setShowBudgetModal }: any) => {
+    // We use budget for Financial Overview instead of quoteTotal
+    const displayBudget = Number(budget) || 0;
+    const progress = Math.round((project.total_paid / (displayBudget || 1)) * 100);
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -673,12 +717,7 @@ const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
                                         fontWeight: 700,
                                         textTransform: 'uppercase'
                                     }}>
-                                        {project.project_type === 'both' ? 'Arc + Interior'
-                                            : project.project_type === 'architecture' ? 'Architectural'
-                                                : project.project_type === 'interior_execution' ? 'Interior Execution'
-                                                    : project.project_type === 'master_plan' ? 'Master Plan'
-                                                        : project.project_type === 'landscape' ? 'Landscape'
-                                                            : 'Interior'}
+                                        {project.project_type}
                                     </span>
                                 </div>
                             </div>
@@ -697,10 +736,17 @@ const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
                     <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 700 }}>Financial Overview</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
                         <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', marginBottom: '8px' }}>
-                                <Briefcase size={16} /> <span style={{ fontSize: '0.85rem' }}>Project Quote (Budget)</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', marginBottom: '8px', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Briefcase size={16} /> <span style={{ fontSize: '0.85rem' }}>Project Budget</span>
+                                </div>
+                                {isAccountant && (
+                                    <button onClick={() => setShowBudgetModal(true)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                        <Edit2 size={12} /> Edit
+                                    </button>
+                                )}
                             </div>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#253b50' }}>₹{quoteTotal.toLocaleString()}</div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#253b50' }}>₹{displayBudget.toLocaleString()}</div>
                         </div>
                         <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', marginBottom: '8px' }}>
@@ -712,7 +758,7 @@ const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9a3412', marginBottom: '8px' }}>
                                 <CreditCard size={16} /> <span style={{ fontSize: '0.85rem' }}>Remaining</span>
                             </div>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c' }}>₹{(quoteTotal - project.total_paid).toLocaleString()}</div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c' }}>₹{(displayBudget - project.total_paid).toLocaleString()}</div>
                         </div>
                     </div>
                     <div style={{ marginTop: '24px' }}>
@@ -722,6 +768,51 @@ const OverviewTab = ({ project, quoteTotal, isAccountant }: any) => {
                         </div>
                         <div style={{ width: '100%', height: '8px', backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
                             <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.5s ease' }}></div>
+                        </div>
+                    </div>
+
+                    <div style={{ marginTop: '30px', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
+                        <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#253b50', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            💳 Payment-Timeline Milestone Gates
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            {[
+                                { name: 'Designer Timeline', req: 10, label: 'Timeline Start (10%)' },
+                                { name: 'Masking Stage', req: 20, label: 'Masking Works (20%)' },
+                                { name: 'R2P (Ready to Paint)', req: 60, label: 'Production / Paint (60%)' },
+                                { name: 'Delivery Phases', req: 95, label: 'Distribution & Transit (95%)' },
+                                { name: 'Project Handover', req: 100, label: 'Final Handover (100%)' }
+                            ].map((gate) => {
+                                const unlocked = progress >= gate.req;
+                                return (
+                                    <div key={gate.name} style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '12px 16px',
+                                        borderRadius: '10px',
+                                        backgroundColor: unlocked ? '#f0fdf4' : '#fef2f2',
+                                        border: unlocked ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                                        transition: 'all 0.3s ease'
+                                    }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: unlocked ? '#166534' : '#991b1b' }}>{gate.name}</span>
+                                            <span style={{ fontSize: '0.72rem', color: unlocked ? '#15803d' : '#b91c1c', opacity: 0.85 }}>{gate.label}</span>
+                                        </div>
+                                        <span style={{
+                                            padding: '4px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 800,
+                                            backgroundColor: unlocked ? '#dcfce7' : '#fee2e2',
+                                            color: unlocked ? '#15803d' : '#ef4444',
+                                            textTransform: 'uppercase'
+                                        }}>
+                                            {unlocked ? '🔓 Unlocked' : '🔒 Locked'}
+                                        </span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -1393,7 +1484,6 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                             <th style={{ ...th, padding: '10px 8px', width: '110px' }}>Without GST</th>
                                             <th style={{ ...th, padding: '10px 8px', width: '110px' }}>GST (18%)</th>
                                             <th style={{ ...th, padding: '10px 8px', width: '110px' }}>With GST</th>
-                                            <th style={{ ...th, padding: '10px 8px', width: '120px' }}>Payment Date</th>
                                             <th style={{ ...th, padding: '10px 8px', width: '50px' }}></th>
                                         </tr>
                                     </thead>
@@ -1477,14 +1567,6 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                                 </td>
                                                 <td style={{ ...td, padding: '8px', fontWeight: 800, color: '#16a34a', fontSize: '1rem' }}>
                                                     ₹{(item.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </td>
-                                                <td style={{ ...td, padding: '8px' }}>
-                                                    <input
-                                                        style={inputStyle}
-                                                        type="date"
-                                                        value={item.payment_date || ''}
-                                                        onChange={(e) => updateItemField(i, j, 'payment_date', e.target.value)}
-                                                    />
                                                 </td>
                                                 <td style={{ ...td, padding: '8px', textAlign: 'center' }}>
                                                     <button onClick={() => removeItemFromInvoice(i, j)} style={deleteBtn} title="Remove Item">
@@ -1813,7 +1895,9 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
     );
 };;
 
-const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal = 0 }: any) => {
+const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal = 0, fetchTransactions }: any) => {
+    const [editingState, setEditingState] = useState<Record<string, { field: string; value: any }>>({});
+
     const transportTotal = transactions
         .filter((t: any) => t.type === 'debit' && t.category === 'Transport')
         .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
@@ -1824,11 +1908,84 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
 
     const miscTotal = transactions
         .filter((t: any) => t.type === 'debit' && t.category === 'Miscellaneous')
-        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
 
-    const totalSpent = inventoryTotal + transportTotal + laborTotal + miscTotal;
+    const otherExpTotal = transactions
+        .filter((t: any) => t.type === 'debit' && !['Transport', 'Labor', 'Miscellaneous'].includes(t.category))
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+
+    const totalSpent = inventoryTotal + transportTotal + laborTotal + miscTotal + otherExpTotal;
     const profitOrLoss = quoteTotal - totalSpent;
     const remainingBalance = quoteTotal - project.total_paid;
+
+    const isArchitectural = project?.project_type === 'Furniture projects';
+
+    const startEditing = (transactionId: string, field: string, currentValue: any) => {
+        setEditingState(prev => ({
+            ...prev,
+            [transactionId]: { field, value: currentValue }
+        }));
+    };
+
+    const cancelEditing = (transactionId: string) => {
+        setEditingState(prev => {
+            const newState = { ...prev };
+            delete newState[transactionId];
+            return newState;
+        });
+    };
+
+    const updateEditingValue = (transactionId: string, value: any) => {
+        setEditingState(prev => ({
+            ...prev,
+            [transactionId]: { ...prev[transactionId], value }
+        }));
+    };
+
+    const handleSave = async (transactionId: string) => {
+        const editing = editingState[transactionId];
+        if (!editing) return;
+
+        try {
+            const updateData: any = { transaction_id: transactionId };
+            if (editing.field === 'payment_mode') updateData.payment_mode = editing.value;
+            if (editing.field === 'transaction_date') updateData.transaction_date = editing.value;
+            if (editing.field === 'description') updateData.description = editing.value;
+            if (editing.field === 'category') updateData.category = editing.value;
+            if (editing.field === 'amount') updateData.amount = editing.value;
+
+            const response = await axios.put(`${API_BASE_URL}/finance`, updateData);
+            console.log('Update response:', response.data);
+
+            if (response.data.success) {
+                cancelEditing(transactionId);
+                if (fetchTransactions) fetchTransactions();
+            } else {
+                alert('Failed to update transaction: ' + (response.data.message || 'Unknown error'));
+            }
+        } catch (error: any) {
+            console.error('Failed to update:', error);
+            alert('Failed to update transaction: ' + (error?.response?.data?.message || error.message || 'Unknown error'));
+        }
+    };
+
+    const handleDelete = async (transactionId: string) => {
+        if (!confirm('Are you sure you want to delete this transaction?')) return;
+
+        try {
+            const response = await axios.delete(`${API_BASE_URL}/finance/${transactionId}`);
+            console.log('Delete response:', response.data);
+
+            if (response.data.success) {
+                if (fetchTransactions) fetchTransactions();
+            } else {
+                alert('Failed to delete transaction: ' + (response.data.message || 'Unknown error'));
+            }
+        } catch (error: any) {
+            console.error('Failed to delete:', error);
+            alert('Failed to delete transaction: ' + (error?.response?.data?.message || error.message || 'Unknown error'));
+        }
+    };
 
     return (
         <div className="balance-sheet">
@@ -1877,60 +2034,76 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
                     </h3>
                 </div>
             </div>
-
-            {/* ROW 2: EXPENSE BREAKUP (6 COLUMNS) */}
             <div className="grid-6-col" style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(6, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
                 gap: '12px',
-                marginBottom: '40px'
+                marginBottom: '20px'
             }}>
                 {/* 1. PROJECT QUOTE */}
-                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                    <p style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Project Quote</p>
-                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.1rem', margin: 0 }}>
+                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
+                    <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Project Quote</p>
+                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.2rem', margin: 0 }}>
                         ₹{quoteTotal.toLocaleString()}
                     </h4>
                 </div>
 
-                {/* 2. VENDOR QUTA */}
-                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                    <p style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Vendor Bill</p>
-                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.1rem', margin: 0 }}>
+                {/* 2. VENDOR BILL */}
+                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
+                    <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Vendor Bill</p>
+                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.2rem', margin: 0 }}>
                         ₹{inventoryTotal.toLocaleString()}
                     </h4>
                 </div>
 
                 {/* 3. TRANSPORT */}
-                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                    <p style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Transport</p>
-                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.1rem', margin: 0 }}>
+                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
+                    <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Transport</p>
+                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.2rem', margin: 0 }}>
                         ₹{transportTotal.toLocaleString()}
                     </h4>
                 </div>
 
                 {/* 4. LABOR */}
-                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                    <p style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Labor</p>
-                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.1rem', margin: 0 }}>
+                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
+                    <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Labor</p>
+                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.2rem', margin: 0 }}>
                         ₹{laborTotal.toLocaleString()}
                     </h4>
                 </div>
 
                 {/* 5. MISCELLANEOUS */}
-                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                    <p style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Misc</p>
-                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.1rem', margin: 0 }}>
+                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
+                    <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Misc</p>
+                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.2rem', margin: 0 }}>
                         ₹{miscTotal.toLocaleString()}
                     </h4>
                 </div>
 
-                {/* 6. TOTAL SPENT */}
-                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #253b50', backgroundColor: '#f8fafc' }}>
-                    <p style={{ color: '#253b50', fontSize: '0.7rem', fontWeight: 800, marginBottom: '6px', textTransform: 'uppercase' }}>Total Spent</p>
-                    <h4 style={{ fontWeight: 800, color: '#253b50', fontSize: '1.1rem', margin: 0 }}>
+                {/* 6. OTHER EXPENSES (REIMBURSEMENTS & CUSTOM) */}
+                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
+                    <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Other Exp</p>
+                    <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.2rem', margin: 0 }}>
+                        ₹{otherExpTotal.toLocaleString()}
+                    </h4>
+                </div>
+
+                {/* 7. TOTAL SPENT */}
+                <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '2px solid #253b50', backgroundColor: '#f8fafc' }}>
+                    <p style={{ color: '#253b50', fontSize: '0.75rem', fontWeight: 800, marginBottom: '6px', textTransform: 'uppercase' }}>Total Spent</p>
+                    <h4 style={{ fontWeight: 800, color: '#253b50', fontSize: '1.2rem', margin: 0 }}>
                         ₹{totalSpent.toLocaleString()}
                     </h4>
+                </div>
+            </div>
+
+            {/* ROW 3: PROFIT CARD */}
+            <div style={{ marginBottom: '35px', display: 'flex', justifyContent: 'flex-start' }}>
+                <div className="premium-card" style={{ padding: '20px 24px', textAlign: 'center', border: '2px solid #059669', backgroundColor: '#f0fdf4', minWidth: '280px' }}>
+                    <p style={{ color: '#059669', fontSize: '0.85rem', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>Profit (Project Budget - Total Spent)</p>
+                    <h3 style={{ fontWeight: 900, color: profitOrLoss >= 0 ? '#059669' : '#dc2626', fontSize: '2rem', margin: 0 }}>
+                        ₹{(quoteTotal - totalSpent).toLocaleString()}
+                    </h3>
                 </div>
             </div>
             {/* TRANSACTIONS LIST */}
@@ -1949,34 +2122,183 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
                             <th style={{ ...th, color: '#475569' }}>Date</th>
                             <th style={{ ...th, color: '#475569' }}>Description</th>
                             <th style={{ ...th, color: '#475569' }}>Category</th>
+                            <th style={{ ...th, color: '#475569' }}>Mode</th>
                             <th style={{ ...th, color: '#475569', textAlign: 'right' }}>Amount</th>
+                            <th style={{ ...th, color: '#475569', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         {transactions.length > 0 ? (
-                            transactions.map((tr: any) => (
-                                <tr key={tr.transaction_id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
-                                    <td style={td}>{new Date(tr.transaction_date).toLocaleDateString()}</td>
-                                    <td style={td}>{tr.description}</td>
-                                    <td style={td}>
-                                        <span style={{ padding: '4px 10px', backgroundColor: '#f1f5f9', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>
-                                            {tr.category || 'Payment'}
-                                        </span>
-                                    </td>
-                                    <td style={{
-                                        ...td,
-                                        fontWeight: 800,
-                                        textAlign: 'right',
-                                        color: tr.type === 'credit' ? '#10b981' : '#ef4444'
-                                    }}>
-                                        {tr.type === 'credit' ? '+' : '-'} ₹{parseFloat(tr.amount).toLocaleString()}
-                                    </td>
-                                </tr>
-                            ))
+                            transactions.map((tr: any) => {
+                                const editing = editingState[tr.transaction_id];
+                                const isEditingDate = editing?.field === 'transaction_date';
+                                const isEditingDescription = editing?.field === 'description';
+                                const isEditingCategory = editing?.field === 'category';
+                                const isEditingPaymentMode = editing?.field === 'payment_mode';
+                                const isEditingAmount = editing?.field === 'amount';
+
+                                return (
+                                    <tr key={tr.transaction_id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
+                                        <td style={td}>
+                                            {isEditingDate ? (
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <input
+                                                        type="date"
+                                                        value={editing?.value || ''}
+                                                        onChange={(e) => updateEditingValue(tr.transaction_id, e.target.value)}
+                                                        style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem' }}
+                                                    />
+                                                    <button
+                                                        onClick={() => handleSave(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✓</button>
+                                                    <button
+                                                        onClick={() => cancelEditing(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✗</button>
+                                                </div>
+                                            ) : (
+                                                <span
+                                                    onClick={() => startEditing(tr.transaction_id, 'transaction_date', tr.transaction_date || '')}
+                                                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                >
+                                                    {new Date(tr.transaction_date).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={td}>
+                                            {isEditingDescription ? (
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={editing?.value || ''}
+                                                        onChange={(e) => updateEditingValue(tr.transaction_id, e.target.value)}
+                                                        style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '200px' }}
+                                                    />
+                                                    <button
+                                                        onClick={() => handleSave(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✓</button>
+                                                    <button
+                                                        onClick={() => cancelEditing(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✗</button>
+                                                </div>
+                                            ) : (
+                                                <span
+                                                    onClick={() => startEditing(tr.transaction_id, 'description', tr.description || '')}
+                                                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                >
+                                                    {tr.description}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={td}>
+                                            {isEditingCategory ? (
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={editing?.value || ''}
+                                                        onChange={(e) => updateEditingValue(tr.transaction_id, e.target.value)}
+                                                        style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '120px' }}
+                                                    />
+                                                    <button
+                                                        onClick={() => handleSave(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✓</button>
+                                                    <button
+                                                        onClick={() => cancelEditing(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✗</button>
+                                                </div>
+                                            ) : (
+                                                <span
+                                                    onClick={() => startEditing(tr.transaction_id, 'category', tr.category || 'Payment')}
+                                                    style={{ cursor: 'pointer', textDecoration: 'underline', padding: '4px 10px', backgroundColor: '#f1f5f9', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}
+                                                >
+                                                    {tr.category || 'Payment'}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={td}>
+                                            {isEditingPaymentMode ? (
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <select
+                                                        value={editing?.value || 'Cash'}
+                                                        onChange={(e) => updateEditingValue(tr.transaction_id, e.target.value)}
+                                                        style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '120px' }}
+                                                    >
+                                                        <option value="Cash">Cash</option>
+                                                        <option value="Bank Transfer">Bank Transfer</option>
+                                                        <option value="UPI">UPI</option>
+                                                        <option value="Cheque">Cheque</option>
+                                                    </select>
+                                                    <button
+                                                        onClick={() => handleSave(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✓</button>
+                                                    <button
+                                                        onClick={() => cancelEditing(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✗</button>
+                                                </div>
+                                            ) : (
+                                                <span
+                                                    onClick={() => startEditing(tr.transaction_id, 'payment_mode', tr.payment_mode || 'Cash')}
+                                                    style={{ cursor: 'pointer', textDecoration: 'underline', padding: '4px 10px', backgroundColor: '#f1f5f9', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}
+                                                >
+                                                    {tr.payment_mode || 'Cash'}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={{
+                                            ...td,
+                                            fontWeight: 800,
+                                            textAlign: 'right',
+                                            color: tr.type === 'credit' ? '#10b981' : '#ef4444'
+                                        }}>
+                                            {isEditingAmount ? (
+                                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                                    <input
+                                                        type="number"
+                                                        value={editing?.value || 0}
+                                                        onChange={(e) => updateEditingValue(tr.transaction_id, parseFloat(e.target.value))}
+                                                        style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '120px', textAlign: 'right' }}
+                                                    />
+                                                    <button
+                                                        onClick={() => handleSave(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✓</button>
+                                                    <button
+                                                        onClick={() => cancelEditing(tr.transaction_id)}
+                                                        style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                    >✗</button>
+                                                </div>
+                                            ) : (
+                                                <span
+                                                    onClick={() => startEditing(tr.transaction_id, 'amount', parseFloat(tr.amount || 0))}
+                                                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                >
+                                                    {tr.type === 'credit' ? '+' : '-'} ₹{parseFloat(tr.amount).toLocaleString()}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={{ ...td, textAlign: 'center' }}>
+                                            <button
+                                                onClick={() => handleDelete(tr.transaction_id)}
+                                                style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto' }}
+                                                title="Delete transaction"
+                                            >
+                                                <Trash2 size={14} /> Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         ) : (
                             <tr>
-                                <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>No transactions recorded yet.</td>
+                                <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>No transactions recorded yet.</td>
                             </tr>
                         )}
                     </tbody>
@@ -2050,7 +2372,7 @@ const StockCategoryTab = ({ project, user }: any) => {
         fetchAllProjects();
     }, [project.project_id]);
 
-    const handleMarkReceived = async (item: any) => {
+    const handleMLivincartReceived = async (item: any) => {
         try {
             const res = await fetch(`${API_BASE_URL}/inventory`, {
                 method: 'PUT',
@@ -2058,12 +2380,12 @@ const StockCategoryTab = ({ project, user }: any) => {
                 body: JSON.stringify({ id: item.id, stock_status: 'received', transfer_qty: 0 })
             });
             const data = await res.json();
-            console.log('Mark received response:', data);
+            console.log('MLivincart received response:', data);
             if (data.status === 'success') { fetchItems(); }
             else { alert(data.message || 'Failed to update status'); }
         } catch (error) {
-            console.error('Mark received error:', error);
-            alert('Failed to mark as received');
+            console.error('MLivincart received error:', error);
+            alert('Failed to mLivincart as received');
         }
     };
 
@@ -2122,7 +2444,7 @@ const StockCategoryTab = ({ project, user }: any) => {
         }
     };
 
-    const isAdmin = ['admin', 'principal_architect', 'accountant'].includes(user?.role);
+    const isAdmin = ['admin', 'admin', 'accountant'].includes(user?.role);
     const isEngineer = user?.role === 'site_engineer';
     const vendors = [...new Set(allItems.map(i => i.vendor).filter(Boolean))];
     const filtered = filterVendor ? allItems.filter(i => i.vendor === filterVendor) : allItems;
@@ -2239,7 +2561,7 @@ const StockCategoryTab = ({ project, user }: any) => {
                                     <td style={{ ...tdS, textAlign: 'center' }}>
                                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                                             {(item.stock_status || item.status) === 'pending' && (isAdmin || isEngineer) && (
-                                                <button onClick={() => handleMarkReceived(item)}
+                                                <button onClick={() => handleMLivincartReceived(item)}
                                                     style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}>
                                                     Received
                                                 </button>
@@ -2558,7 +2880,7 @@ const StockItemsTable = ({ project, categories, user }: any) => {
         }
     };
 
-    const isAdmin = ['admin', 'principal_architect', 'accountant'].includes(user?.role);
+    const isAdmin = ['admin', 'admin', 'accountant'].includes(user?.role);
     const isEngineer = user?.role === 'site_engineer';
 
     const filtered = filterCat ? items.filter(i => i.category_name === filterCat) : items;
@@ -2761,6 +3083,11 @@ const PaymentModal = ({ payment, setPayment, submitting, handleRecordPayment, se
                         <option value="UPI">UPI</option>
                         <option value="Cash">Cash</option>
                         <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="NEFT">NEFT</option>
+                        <option value="RTGS">RTGS</option>
+                        <option value="IMPS">IMPS</option>
+                        <option value="Card">Card</option>
                     </select>
                 </div>
                 <button type="submit" disabled={submitting} className="btn-primary" style={{ width: '100%' }}>
@@ -2770,17 +3097,346 @@ const PaymentModal = ({ payment, setPayment, submitting, handleRecordPayment, se
         </div>
     </div>
 );
-const TimelineTab = ({ project, user }: any) => {
-    const isAdmin = user?.role === 'admin' || user?.role === 'principal_architect' || user?.role === 'project_head';
+export const StageNotesTab = ({ project, user, filterType = 'pm' }: any) => {
+    const API_BASE_URL = (window as any).__API_BASE_URL__ || (import.meta as any).env?.VITE_API_BASE_URL || '';
+    const isReadOnly = !['admin', 'project_head', 'project_manager', 'manager'].includes(String(user?.role || '').toLowerCase());
+
+    const [designerTasks, setDesignerTasks] = useState<any[]>([]);
+    const [pmTasks, setPmTasks] = useState<any[]>([]);
+    const [stageNotes, setStageNotes] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    useEffect(() => {
+        if (project?.project_id) loadAll();
+    }, [project?.project_id]);
+
+    const loadAll = async () => {
+        setLoading(true);
+        try {
+            const [dRes, pmRes, notesRes] = await Promise.all([
+                axios.get(`${API_BASE_URL}/controllers/timeline/state.php?project_id=${project.project_id}&type=designer`),
+                axios.get(`${API_BASE_URL}/controllers/timeline/state.php?project_id=${project.project_id}&type=pm`),
+                axios.get(`${API_BASE_URL}/controllers/timeline/stage-notes.php?project_id=${project.project_id}`)
+            ]);
+
+            const dTasks: any[] = dRes.data?.tasks || [];
+            const pTasks: any[] = pmRes.data?.tasks || [];
+            setDesignerTasks(dTasks);
+            setPmTasks(pTasks);
+
+            const savedNotes: any[] = notesRes.data?.data || [];
+
+            // Build rows from PM categories
+            const DESIGNER_ORDER = ['DD', '3D Approval', '2D', 'QC1', 'Masking', 'Signoff', 'Final 2D', 'QC2', 'Final Quote', 'R2P'];
+            const PM_ORDER = ['Product Distribution', 'Ready to Dispatch', 'In Transit', 'Delivery', 'Kickoff_M', 'HDS', 'Material Segregation', 'QC', 'Installation', 'Final QC', 'Handover'];
+
+            // Get unique categories in order
+            const dCats = dRes.data?.categoryOrder?.length ? dRes.data.categoryOrder : DESIGNER_ORDER;
+            const pCats = pmRes.data?.categoryOrder?.length ? pmRes.data.categoryOrder : PM_ORDER;
+
+            // Filter categories based on filterType prop (defaults to 'pm')
+            let allCats: string[];
+            if (filterType === 'designer') {
+                allCats = dCats;
+            } else if (filterType === 'all') {
+                allCats = [...dCats, ...pCats.filter((c: string) => !dCats.includes(c))];
+            } else {
+                allCats = pCats; // Default: Only PM categories
+            }
+
+            const rows = allCats.map((cat: string) => {
+                // Find earliest start and latest end across tasks in this category
+                const relevantTasks = filterType === 'pm' ? pTasks : (filterType === 'designer' ? dTasks : [...dTasks, ...pTasks]);
+                const catTasks = relevantTasks.filter((t: any) => t.category === cat);
+                let startDate = '';
+                let endDate = '';
+                if (catTasks.length > 0) {
+                    const starts = catTasks.map((t: any) => t.startDate).filter(Boolean).sort();
+                    const ends = catTasks.map((t: any) => t.endDate).filter(Boolean).sort();
+                    startDate = starts[0] || '';
+                    endDate = ends[ends.length - 1] || '';
+                }
+
+                // Merge with saved note if exists
+                const saved = savedNotes.find((n: any) => n.category === cat);
+                return {
+                    category: cat,
+                    startDate: saved?.startDate || startDate,
+                    endDate: saved?.endDate || endDate,
+                    note: saved?.note || '',
+                    source: dCats.includes(cat) ? 'designer' : 'pm'
+                };
+            });
+
+            setStageNotes(rows);
+        } catch (e) {
+            console.error('Failed to load stage notes', e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleFieldChange = (idx: number, field: string, value: string) => {
+        setStageNotes(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+        setSaved(false);
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await axios.post(`${API_BASE_URL}/controllers/timeline/stage-notes.php`, {
+                project_id: project.project_id,
+                notes: stageNotes
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
+        } catch (e) {
+            alert('Failed to save stage notes');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) return (
+        <div style={{ textAlign: 'center', padding: '60px' }}>
+            <Loader2 className="animate-spin" style={{ margin: '0 auto', color: '#253b50' }} size={36} />
+        </div>
+    );
+
+    return (
+        <div style={{ padding: '0', fontFamily: 'inherit' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                        📋 Stage Notes
+                    </h2>
+                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '4px 0 0 0' }}>
+                        Work descriptions, scheduled dates & remarks for each project stage
+                    </p>
+                </div>
+                {!isReadOnly && (
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '10px 22px',
+                            backgroundColor: saved ? '#16a34a' : '#253b50',
+                            color: '#ffffff',
+                            border: 'none', borderRadius: '10px',
+                            fontWeight: 700, fontSize: '0.9rem',
+                            cursor: saving ? 'not-allowed' : 'pointer',
+                            boxShadow: '0 2px 8px rgba(37,59,80,0.2)',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <Save size={16} />
+                        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Notes'}
+                    </button>
+                )}
+            </div>
+
+            {/* Table */}
+            <div style={{ overflowX: 'auto', borderRadius: '14px', border: '1.5px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                    <thead>
+                        <tr style={{ backgroundColor: '#253b50', color: '#ffffff' }}>
+                            <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: 700, width: '50px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>#</th>
+                            <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 700, minWidth: '160px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Work Description</th>
+                            <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 700, width: '160px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Start Date</th>
+                            <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 700, width: '160px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>End Date</th>
+                            <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 700 }}>Note / Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {stageNotes.map((row, idx) => (
+                            <tr
+                                key={row.category}
+                                style={{
+                                    backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc',
+                                    borderBottom: '1px solid #e2e8f0',
+                                    transition: 'background 0.1s'
+                                }}
+                            >
+                                {/* # */}
+                                <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 700, color: '#94a3b8', borderRight: '1px solid #e2e8f0' }}>
+                                    {idx + 1}
+                                </td>
+
+                                {/* Work Description */}
+                                <td style={{ padding: '12px 16px', borderRight: '1px solid #e2e8f0' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{
+                                            width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                                            backgroundColor: row.source === 'designer' ? '#3b82f6' : '#8b5cf6'
+                                        }} />
+                                        <span style={{ fontWeight: 700, color: '#0f172a' }}>{row.category}</span>
+                                        {!filterType && (
+                                            <span style={{
+                                                fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px',
+                                                borderRadius: '8px', textTransform: 'uppercase',
+                                                backgroundColor: row.source === 'designer' ? '#dbeafe' : '#ede9fe',
+                                                color: row.source === 'designer' ? '#1d4ed8' : '#6d28d9'
+                                            }}>
+                                                {row.source === 'designer' ? 'Designer' : 'PM'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </td>
+
+                                {/* Start Date */}
+                                <td style={{ padding: '10px 16px', borderRight: '1px solid #e2e8f0' }}>
+                                    <input
+                                        type="date"
+                                        value={row.startDate || ''}
+                                        onChange={e => handleFieldChange(idx, 'startDate', e.target.value)}
+                                        disabled={isReadOnly}
+                                        style={{
+                                            width: '100%', padding: '7px 10px',
+                                            border: '1.5px solid #e2e8f0', borderRadius: '8px',
+                                            fontSize: '0.85rem', color: '#0f172a',
+                                            backgroundColor: isReadOnly ? '#f8fafc' : '#ffffff',
+                                            cursor: isReadOnly ? 'default' : 'pointer',
+                                            outline: 'none'
+                                        }}
+                                    />
+                                </td>
+
+                                {/* End Date */}
+                                <td style={{ padding: '10px 16px', borderRight: '1px solid #e2e8f0' }}>
+                                    <input
+                                        type="date"
+                                        value={row.endDate || ''}
+                                        onChange={e => handleFieldChange(idx, 'endDate', e.target.value)}
+                                        disabled={isReadOnly}
+                                        style={{
+                                            width: '100%', padding: '7px 10px',
+                                            border: '1.5px solid #e2e8f0', borderRadius: '8px',
+                                            fontSize: '0.85rem', color: '#0f172a',
+                                            backgroundColor: isReadOnly ? '#f8fafc' : '#ffffff',
+                                            cursor: isReadOnly ? 'default' : 'pointer',
+                                            outline: 'none'
+                                        }}
+                                    />
+                                </td>
+
+                                {/* Note / Remarks */}
+                                <td style={{ padding: '10px 16px' }}>
+                                    <input
+                                        type="text"
+                                        placeholder={isReadOnly ? '—' : 'Enter remarks…'}
+                                        value={row.note || ''}
+                                        onChange={e => handleFieldChange(idx, 'note', e.target.value)}
+                                        disabled={isReadOnly}
+                                        style={{
+                                            width: '100%', padding: '7px 10px',
+                                            border: '1.5px solid #e2e8f0', borderRadius: '8px',
+                                            fontSize: '0.85rem', color: '#0f172a',
+                                            backgroundColor: isReadOnly ? '#f8fafc' : '#ffffff',
+                                            outline: 'none',
+                                            minWidth: '200px'
+                                        }}
+                                    />
+                                </td>
+                            </tr>
+                        ))}
+
+                        {stageNotes.length === 0 && (
+                            <tr>
+                                <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
+                                    No timeline stages found. Add tasks to the Designer or PM Timeline first.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Legend */}
+            {!filterType && (
+                <div style={{ display: 'flex', gap: '16px', marginTop: '16px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#64748b' }}>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#3b82f6', display: 'inline-block' }} />
+                        Designer Timeline Stage
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#64748b' }}>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'inline-block' }} />
+                        Project Manager Timeline Stage
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDetails, totalPaid = 0 }: any) => {
+
+    const isAdmin = ['admin', 'd1', 'd2', 'graphic_designer', 'gd', 'project_head', 'project_manager', 'site_engineer'].includes(user?.role);
     const todayStr = new Date().toISOString().split('T')[0];
-    const BORDER = "1px solid #000";
+    const BORDER = "1.5px solid #000";
 
     const [tasks, setTasks] = useState<any[]>([]);
     const [completions, setCompletions] = useState<any>({});
     const [loading, setLoading] = useState(true);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [editingTask, setEditingTask] = useState<any>(null);
-    const [newTask, setNewTask] = useState({ category: '', name: '', startDate: '', endDate: '' });
+
+    // Project date range states
+    const [projectStartDate, setProjectStartDate] = useState(project?.start_date ? project.start_date.split('T')[0] : '');
+    const [projectEndDate, setProjectEndDate] = useState(project?.expected_end_date ? project.expected_end_date.split('T')[0] : '');
+    const [updatingDates, setUpdatingDates] = useState(false);
+    const [newTask, setNewTask] = useState({ category: '', customCategory: '', name: '', customName: '', startDate: '', endDate: '' });
+
+    const [showAddCatInput, setShowAddCatInput] = useState(false);
+    const [newCatInput, setNewCatInput] = useState('');
+    const [showReorderPanel, setShowReorderPanel] = useState(false);
+    const [collapsedCategories, setCollapsedCategories] = useState<{ [cat: string]: boolean }>({});
+    const [showTimelineRange, setShowTimelineRange] = useState(true);
+    const [approvalModal, setApprovalModal] = useState<{ open: boolean; mode: 'warning' | 'admin_action'; taskId?: any; date?: string; taskName?: string }>({ open: false, mode: 'warning' });
+    // PM Timeline lock: stays locked until Designer sets Masking to ONGOING or beyond
+    const [maskingUnlocked, setMaskingUnlocked] = useState(type !== 'pm'); // designer/execution always unlocked
+    const [pmLockedModal, setPmLockedModal] = useState(false);
+    const [paymentModal, setPaymentModal] = useState<{ open: boolean; requiredPercent: number; stageName: string } | null>(null);
+
+    const toggleCategoryCollapse = (cat: string) => {
+        setCollapsedCategories(prev => ({
+            ...prev,
+            [cat]: !prev[cat]
+        }));
+    };
+
+    const toggleExpandAll = () => {
+        const allCollapsed = categoryOrder.length > 0 && categoryOrder.every(c => collapsedCategories[c]);
+        if (allCollapsed) {
+            setCollapsedCategories({});
+        } else {
+            const next: { [cat: string]: boolean } = {};
+            categoryOrder.forEach(c => { next[c] = true; });
+            setCollapsedCategories(next);
+        }
+    };
+
+    const handleAddNewCategoryInline = () => {
+        if (!newCatInput.trim()) return;
+        let catName = newCatInput.trim();
+        if (!/^\d+\./.test(catName)) {
+            catName = `${categoryOrder.length + 1}. ${catName.toUpperCase()}`;
+        }
+        if (!categoryOrder.includes(catName)) {
+            const newOrder = [...categoryOrder, catName];
+            const newCustom = [...customCategories, catName];
+            setCategoryOrder(newOrder);
+            setCustomCategories(newCustom);
+            // Auto-persist so it survives refresh
+            persistState(tasks, completions, newOrder, newCustom);
+        }
+        // Just close — no need to fill the Assign form
+        setNewCatInput('');
+        setShowAddCatInput(false);
+    };
 
     // ── Build 3-day-interval columns ──────────────────────────────────────
     let projStart = new Date(project.start_date);
@@ -2836,14 +3492,14 @@ const TimelineTab = ({ project, user }: any) => {
         else monthGroups.push({ label: lbl, count: 1 });
     });
 
-    const CATEGORIES = [
+    const EXECUTION_CATEGORIES = [
         "1. INITIAL WORKS", "2. FALSE CEILING", "3. ELECTRICAL CHIPPING",
         "4. PLUMBING/SANITARY", "5. PAINTING", "6. CARPENTRY",
         "7. GRANITE & TILES", "8. GLASS/MIRROR", "9. SANITARY & BATH",
         "10. ELECTRICAL FITMENTS", "11. FURNITURE", "12. DEEP CLEANING",
         "13.CURTAIN RODS AND CURTAINS", "14. HANDOVER"
     ];
-    const SUB_TASKS: any = {
+    const EXECUTION_SUB_TASKS: any = {
         "1. INITIAL WORKS": ["Spreading floor mats", "Demolition", "Cleaning", "New civil works", "Flooring repair works"],
         "2. FALSE CEILING": ["Channelling", "AC piping, Ceiling Wiring", "Sheeting", "light cutting, light fixing"],
         "3. ELECTRICAL CHIPPING": ["Electrical chipping"],
@@ -2860,38 +3516,225 @@ const TimelineTab = ({ project, user }: any) => {
         "14. HANDOVER": ["Handover"]
     };
 
+    const DESIGNER_CATEGORIES = [
+        "DD", "3D Approval", "2D", "QC1", "Masking",
+        "Signoff", "Final 2D", "QC2", "Final Quote", "R2P"
+    ];
+    const DESIGNER_SUB_TASKS: any = {
+        "DD": ["DD Design Phase"],
+        "3D Approval": ["Get 3D Approval"],
+        "2D": ["2D Drafting"],
+        "QC1": ["Quality Control 1"],
+        "Masking": ["Masking works"],
+        "Signoff": ["Client Signoff"],
+        "Final 2D": ["Final 2D Delivery"],
+        "QC2": ["Quality Control 2"],
+        "Final Quote": ["Prepare Final Quote"],
+        "R2P": ["Ready to Production (R2P)"]
+    };
+
+    const PM_CATEGORIES = [
+        "Product Distribution", "Ready to Dispatch", "In Transit", "Delivery",
+        "Kickoff_M", "HDS", "Material Segregation", "QC", "Installation", "Final QC", "Handover"
+    ];
+    const PM_SUB_TASKS: any = {
+        "Product Distribution": ["Product Distribution"],
+        "Ready to Dispatch": ["Ready to Dispatch"],
+        "In Transit": ["In Transit"],
+        "Delivery": ["Delivery"],
+        "Kickoff_M": ["Kickoff_M"],
+        "HDS": ["HDS"],
+        "Material Segregation": ["Material Segregation"],
+        "QC": ["QC"],
+        "Installation": ["Installation"],
+        "Final QC": ["Final QC"],
+        "Handover": ["Handover"]
+    };
+
+    const defaultCategories = type === 'pm' ? PM_CATEGORIES : (type === 'execution' ? EXECUTION_CATEGORIES : DESIGNER_CATEGORIES);
+    const SUB_TASKS = type === 'pm' ? PM_SUB_TASKS : DESIGNER_SUB_TASKS;
+
+    const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+    const [originalCategoryOrder, setOriginalCategoryOrder] = useState<string[]>([]);
+    const [customCategories, setCustomCategories] = useState<string[]>([]);
+    // Flag: true once fetchTimeline has restored server-saved category order
+    const serverCategoryLoaded = useRef(false);
+
+    useEffect(() => {
+        // If server already restored the category order, don't overwrite it
+        if (serverCategoryLoaded.current) return;
+        const taskCats = tasks.map(t => t.category).filter(Boolean);
+        const combined = Array.from(new Set([...defaultCategories, ...taskCats, ...customCategories]));
+        setCategoryOrder(prev => {
+            if (prev.length === 0) {
+                setOriginalCategoryOrder(combined);
+                return combined;
+            }
+            const newlyAdded = combined.filter(c => !prev.includes(c));
+            const updated = [...prev, ...newlyAdded];
+            setOriginalCategoryOrder(updated);
+            return updated;
+        });
+    }, [tasks, type, customCategories]);
+
+    const moveCategoryUp = (index: number) => {
+        if (index <= 0) return;
+        const newOrder = [...categoryOrder];
+        const temp = newOrder[index];
+        newOrder[index] = newOrder[index - 1];
+        newOrder[index - 1] = temp;
+        setCategoryOrder(newOrder);
+    };
+
+    const moveCategoryDown = (index: number) => {
+        if (index >= categoryOrder.length - 1) return;
+        const newOrder = [...categoryOrder];
+        const temp = newOrder[index];
+        newOrder[index] = newOrder[index + 1];
+        newOrder[index + 1] = temp;
+        setCategoryOrder(newOrder);
+    };
+
+    const handleRemoveCategory = (catToRemove: string) => {
+        if (!window.confirm(`Are you sure you want to remove category "${catToRemove}"?`)) return;
+        const updatedOrder = categoryOrder.filter(c => c !== catToRemove);
+        const updatedCustom = customCategories.filter(c => c !== catToRemove);
+        const updatedTasks = tasks.filter(t => t.category !== catToRemove);
+
+        setCategoryOrder(updatedOrder);
+        setCustomCategories(updatedCustom);
+        setTasks(updatedTasks);
+
+        persistState(updatedTasks, completions, updatedOrder, updatedCustom);
+    };
+
     useEffect(() => { if (project?.project_id) fetchTimeline(); }, [project?.project_id]);
+    // For PM timeline: check if designer has started Masking
+    useEffect(() => {
+        if (type === 'pm' && project?.project_id) {
+            checkDesignerMaskingStatus();
+        }
+    }, [project?.project_id, type]);
+
+    const checkDesignerMaskingStatus = async () => {
+        try {
+            const res = await axios.get(`${API_BASE_URL}/controllers/timeline/state.php?project_id=${project.project_id}&type=designer`);
+            if (res.data?.success) {
+                const dTasks: any[] = res.data.tasks || [];
+                const dCompletions: any = res.data.completions || {};
+                const UNLOCKED_STATUSES = ['ongoing', 'pending_approval', 'done'];
+                const maskingTasks = dTasks.filter((t: any) => t.category === 'Masking');
+                let unlocked = false;
+                if (maskingTasks.length === 0) {
+                    // No masking tasks defined yet — check if any completion has masking-related ongoing
+                    unlocked = false;
+                } else {
+                    unlocked = maskingTasks.some((t: any) => {
+                        const dateMap = dCompletions[t.id] || {};
+                        return Object.values(dateMap).some((s: any) => UNLOCKED_STATUSES.includes(s));
+                    });
+                }
+                setMaskingUnlocked(unlocked);
+            }
+        } catch (e) {
+            console.error('Failed to check designer masking status', e);
+        }
+    };
 
     const fetchTimeline = async () => {
         try {
-            const res = await axios.get(`${API_BASE_URL}/controllers/timeline/state.php?project_id=${project.project_id}`);
+            const res = await axios.get(`${API_BASE_URL}/controllers/timeline/state.php?project_id=${project.project_id}&type=${type}`);
             if (res.data.success) {
                 setTasks(res.data.tasks || []);
                 setCompletions(res.data.completions || {});
+                // Restore saved category order and custom categories
+                if (res.data.categoryOrder && res.data.categoryOrder.length > 0) {
+                    serverCategoryLoaded.current = true;  // prevent useEffect from overwriting
+                    setCategoryOrder(res.data.categoryOrder);
+                    setOriginalCategoryOrder(res.data.categoryOrder);
+                }
+                if (res.data.customCategories && res.data.customCategories.length > 0) {
+                    setCustomCategories(res.data.customCategories);
+                }
             }
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
     };
 
-    const persistState = async (t: any[], c: any) => {
+    const persistState = async (t: any[], c: any, catOrder?: string[], customCats?: string[]) => {
         setSaveStatus('saving');
         try {
             await fetch(`${API_BASE_URL}/controllers/timeline/save-state.php`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ project_id: project.project_id, tasks: t, completions: c, created_by: user.user_id })
+                body: JSON.stringify({
+                    project_id: project.project_id,
+                    tasks: t,
+                    completions: c,
+                    created_by: user.user_id,
+                    type,
+                    categoryOrder: catOrder ?? categoryOrder,
+                    customCategories: customCats ?? customCategories
+                })
             });
             setSaveStatus('saved');
             setTimeout(() => setSaveStatus('idle'), 2000);
         } catch (e) { setSaveStatus('idle'); }
     };
 
+    const handleUpdateProjectDates = async () => {
+        setUpdatingDates(true);
+        try {
+            const headMember = project?.team?.find((t: any) => t.assignment_role === 'project_head');
+            const engineerMember = project?.team?.find((t: any) => t.assignment_role === 'site_engineer');
+            const response = await axios.put(`${API_BASE_URL}/projects`, {
+                project_id: project.project_id,
+                project_name: project?.project_name || '',
+                site_address: project?.site_address || '',
+                start_date: projectStartDate,
+                expected_end_date: projectEndDate,
+                project_head_id: headMember?.user_id || project?.project_head_id || null,
+                site_engineer_id: engineerMember?.user_id || null,
+                status: project?.status || 'Pending',
+                project_type: project?.project_type || 'Furniture projects'
+            });
+            if (response.data.success) {
+                if (fetchProjectDetails) fetchProjectDetails();
+                alert('Project timeline range updated successfully!');
+            } else {
+                alert(response.data.message);
+            }
+        } catch (err) {
+            alert('Failed to update project dates');
+        } finally {
+            setUpdatingDates(false);
+        }
+    };
+
     const handleAddTask = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTask.category || !newTask.name || !newTask.startDate || !newTask.endDate) return;
-        const updated = [...tasks, { id: Date.now(), ...newTask }];
+        const rawCat = newTask.category === 'OTHER' ? newTask.customCategory.trim() : newTask.category;
+        const finalName = newTask.name === 'OTHER' ? newTask.customName.trim() : newTask.name;
+
+        if (!rawCat) return;
+
+        // Auto-number custom categories if not numbered
+        let finalCategory = rawCat;
+        if (newTask.category === 'OTHER' && !/^\d+\./.test(rawCat)) {
+            finalCategory = `${categoryOrder.length + 1}. ${rawCat.toUpperCase()}`;
+        }
+
+        const resolvedName = finalName || finalCategory;
+
+        if (!finalCategory || !resolvedName || !newTask.startDate || !newTask.endDate) return;
+
+        if (newTask.category === 'OTHER' && !customCategories.includes(finalCategory)) {
+            setCustomCategories(prev => [...prev, finalCategory]);
+        }
+
+        const updated = [...tasks, { id: Date.now(), category: finalCategory, name: resolvedName, startDate: newTask.startDate, endDate: newTask.endDate }];
         setTasks(updated);
-        setNewTask({ category: '', name: '', startDate: '', endDate: '' });
+        setNewTask({ category: '', customCategory: '', name: '', customName: '', startDate: '', endDate: '' });
         persistState(updated, completions);
     };
 
@@ -2912,19 +3755,153 @@ const TimelineTab = ({ project, user }: any) => {
         persistState(updated, newC);
     };
 
-    const toggleStatus = (taskId: any, date: string) => {
-        const cur = completions[taskId]?.[date];
-        if (cur === 'done' && date < todayStr) return;
-        const newC = { ...completions, [taskId]: { ...(completions[taskId] || {}), [date]: cur === 'done' ? 'pending' : 'done' } };
+    const toggleStatus = (taskId: any, date: string, taskObj?: any) => {
+        const targetTask = taskObj || tasks.find(t => String(t.id) === String(taskId));
+        const taskName = targetTask?.name || 'Timeline Task';
+        const isRealAdmin = ['admin', 'project_head', 'project_manager', 'manager'].includes(String(user?.role || '').toLowerCase());
+
+        const totalBudget = project?.total_budget || 0;
+        const paidPercent = totalBudget > 0 ? (totalPaid / totalBudget) * 100 : 0;
+
+        const catNorm = String(targetTask?.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const nameNorm = String(targetTask?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const isMasking    = catNorm.includes('masking')  || nameNorm.includes('masking');
+        const isR2P        = catNorm.includes('r2p')      || nameNorm.includes('r2p') || catNorm.includes('readytopaint') || nameNorm.includes('readytopaint');
+        const isDeliveryStage = ['productdistribution', 'readytodispatch', 'intransit', 'delivery', 'dispatch', 'transit'].some(k => catNorm.includes(k) || nameNorm.includes(k));
+        const isHandover   = catNorm.includes('handover') || nameNorm.includes('handover');
+
+        // ─── Payment Gate Rules (cumulative %) ───────────────────────────
+        // 10% → Designer Timeline starts
+        if (paidPercent < 10) {
+            setPaymentModal({ open: true, requiredPercent: 10, stageName: 'Project Timeline' });
+            return;
+        }
+        // 30% → Masking stage unlocks  (10% advance + next 20%)
+        if (isMasking && paidPercent < 30) {
+            setPaymentModal({ open: true, requiredPercent: 30, stageName: 'Masking Stage' });
+            return;
+        }
+        // 60% → R2P stage unlocks  (next 30% after Masking)
+        if (isR2P && paidPercent < 60) {
+            setPaymentModal({ open: true, requiredPercent: 60, stageName: 'R2P (Ready to Paint) Stage' });
+            return;
+        }
+        // 95% → Product Distribution / Delivery stages unlock  (next 35% after R2P)
+        if (isDeliveryStage && paidPercent < 95) {
+            setPaymentModal({ open: true, requiredPercent: 95, stageName: 'Product Distribution / Delivery Stage' });
+            return;
+        }
+        // 100% → Handover unlocks  (final 5%)
+        if (isHandover && paidPercent < 100) {
+            setPaymentModal({ open: true, requiredPercent: 100, stageName: 'Handover Stage' });
+            return;
+        }
+
+        // PM TIMELINE LOCK: Block all clicks until Designer starts Masking stage
+        if (type === 'pm' && !maskingUnlocked) {
+            setPmLockedModal(true);
+            return;
+        }
+
+        // Determine current overall block status for this task
+        const taskCompletions = completions[taskId] || {};
+        const statuses = Object.values(taskCompletions) as string[];
+        let cur = taskCompletions[date] || 'pending';
+        if (statuses.includes('done')) cur = 'done';
+        else if (statuses.includes('pending_approval')) cur = 'pending_approval';
+        else if (statuses.includes('ongoing')) cur = 'ongoing';
+
+        // IF TASK IS IN PENDING APPROVAL (Yellow):
+        if (cur === 'pending_approval') {
+            setApprovalModal({
+                open: true,
+                mode: 'warning',
+                taskName
+            });
+            return;
+        }
+
+        // IF TASK IS DONE (Green) and user is not admin
+        if (cur === 'done' && !isRealAdmin) {
+            setApprovalModal({
+                open: true,
+                mode: 'warning',
+                taskName
+            });
+            return;
+        }
+
+        let nextStatus = cur;
+        if (cur === 'pending') {
+            nextStatus = 'ongoing';
+        } else if (cur === 'ongoing') {
+            nextStatus = 'pending_approval';
+        } else if (cur === 'done') {
+            nextStatus = 'pending';
+        }
+
+        if (nextStatus === cur) return;
+
+        const updatedTaskCompletions = { ...taskCompletions };
+
+        // Single Block Update: Apply nextStatus across all dates in this task's date range
+        if (targetTask && targetTask.startDate && targetTask.endDate) {
+            const tStart = new Date(targetTask.startDate).getTime();
+            const tEnd = new Date(targetTask.endDate).getTime();
+            ALL_COLS.forEach(c => {
+                const cTime = new Date(c.date).getTime();
+                if (cTime >= tStart && cTime <= tEnd) {
+                    updatedTaskCompletions[c.date] = nextStatus;
+                }
+            });
+        }
+        updatedTaskCompletions[date] = nextStatus;
+
+        const newC = { ...completions, [taskId]: updatedTaskCompletions };
         setCompletions(newC);
-        // Don't auto-save on click — user must press Save
+
+        // AUTO-SAVE IMMEDIATELY to server so backend and Dashboard receive update
+        persistState(tasks, newC);
+
+        // If status transitioned to pending_approval, notify Admin and show popup modal
+        if (nextStatus === 'pending_approval') {
+            axios.post(`${API_BASE_URL}/notifications/notify-admin`, {
+                title: 'Designer Timeline Task Approval Request',
+                message: `Task '${taskName}' in project '${project?.project_name || 'Project'}' was submitted for approval.`
+            }).catch(e => console.error(e));
+
+            setApprovalModal({
+                open: true,
+                mode: 'warning',
+                taskName
+            });
+        }
+    };
+
+    const handleAdminAcceptTask = (taskId: any, date: string) => {
+        const targetTask = tasks.find(t => String(t.id) === String(taskId));
+        const updatedTaskCompletions = { ...(completions[taskId] || {}) };
+        
+        if (targetTask && targetTask.startDate && targetTask.endDate) {
+            const tStart = new Date(targetTask.startDate).getTime();
+            const tEnd = new Date(targetTask.endDate).getTime();
+            ALL_COLS.forEach(c => {
+                const cTime = new Date(c.date).getTime();
+                if (cTime >= tStart && cTime <= tEnd) {
+                    updatedTaskCompletions[c.date] = 'done';
+                }
+            });
+        }
+        updatedTaskCompletions[date] = 'done';
+
+        const newC = { ...completions, [taskId]: updatedTaskCompletions };
+        setCompletions(newC);
+        setApprovalModal({ open: false, mode: 'warning' });
+        persistState(tasks, newC);
     };
 
     const getCellColor = (taskId: any, colDate: string, nextColDate: string | null, startDate: string, endDate: string) => {
-        if (completions[taskId]?.[colDate] === 'done') return "#70AD47";
-
         const cStart = new Date(colDate).getTime();
-        // Spans until the day BEFORE the next column (or +2 days if it's the last column)
         const cEnd = nextColDate
             ? new Date(new Date(nextColDate).getTime() - 86400000).getTime()
             : new Date(new Date(colDate).getTime() + 2 * 86400000).getTime();
@@ -2933,59 +3910,580 @@ const TimelineTab = ({ project, user }: any) => {
         const tEnd = new Date(endDate).getTime();
 
         const overlaps = cStart <= tEnd && cEnd >= tStart;
-        if (overlaps) return colDate < todayStr ? "#FF0000" : "#A6A6A6";
-        return "transparent";
+        if (!overlaps) return "transparent";
+
+        const taskCompletions = completions[taskId] || {};
+        const cellStatus = taskCompletions[colDate];
+        const statuses = Object.values(taskCompletions) as string[];
+
+        if (cellStatus === 'done' || statuses.includes('done')) return "#70AD47"; // Green
+        if (cellStatus === 'pending_approval' || statuses.includes('pending_approval')) return "#EAB308"; // Yellow
+        if (cellStatus === 'ongoing' || statuses.includes('ongoing')) return "#F97316"; // Orange
+
+        return colDate < todayStr ? "#EF4444" : "#A6A6A6";
     };
 
     if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></div>;
 
+    const totalBudget = project?.total_budget || 0;
+    const paidPercent = totalBudget > 0 ? (totalPaid / totalBudget) * 100 : 0;
+
     return (
         <div className="timeline-container" style={{ backgroundColor: "white", padding: "40px", width: "100%", border: "1px solid #000", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", position: 'relative' }}>
 
+            {/* ── Payment Schedule Status Banners ─────────────────── */}
+
+            {/* Fully locked: < 10% */}
+            {paidPercent < 10 && (
+                <div style={{ background: 'linear-gradient(135deg,#7f1d1d,#991b1b)', color:'#fff', borderRadius:'12px', padding:'18px 24px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'16px', border:'1.5px solid #b91c1c', boxShadow:'0 4px 14px rgba(0,0,0,.2)' }}>
+                    <span style={{ fontSize:'28px', flexShrink:0 }}>💳</span>
+                    <div>
+                        <div style={{ fontWeight:900, fontSize:'1rem', marginBottom:'4px', textTransform:'uppercase' }}>Timeline Locked — PAYMENT NOT PAID</div>
+                        <div style={{ fontSize:'0.85rem', opacity:.85, lineHeight:1.5 }}>
+                            At least <strong>10%</strong> of the project budget must be paid to start the timeline.
+                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Masking locked: 10–29% */}
+            {paidPercent >= 10 && paidPercent < 30 && (
+                <div style={{ background:'linear-gradient(135deg,#78350f,#92400e)', color:'#fff', borderRadius:'12px', padding:'14px 20px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'14px', border:'1.5px solid #b45309', boxShadow:'0 4px 12px rgba(0,0,0,.15)' }}>
+                    <span style={{ fontSize:'22px', flexShrink:0 }}>⚠️</span>
+                    <div>
+                        <div style={{ fontWeight:800, fontSize:'0.9rem', marginBottom:'2px' }}>MASKING STAGE LOCKED</div>
+                        <div style={{ fontSize:'0.8rem', opacity:.9, lineHeight:1.4 }}>
+                            <strong>30%</strong> total payment unlocks Masking (next installment: 20%). 
+                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* R2P locked: 30–59% */}
+            {paidPercent >= 30 && paidPercent < 60 && (
+                <div style={{ background:'linear-gradient(135deg,#4c1d95,#5b21b6)', color:'#fff', borderRadius:'12px', padding:'14px 20px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'14px', border:'1.5px solid #7c3aed', boxShadow:'0 4px 12px rgba(0,0,0,.15)' }}>
+                    <span style={{ fontSize:'22px', flexShrink:0 }}>🎨</span>
+                    <div>
+                        <div style={{ fontWeight:800, fontSize:'0.9rem', marginBottom:'2px' }}>R2P STAGE LOCKED</div>
+                        <div style={{ fontSize:'0.8rem', opacity:.9, lineHeight:1.4 }}>
+                            <strong>60%</strong> total payment unlocks R2P (next installment: 30%). 
+                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delivery stages locked: 60–94% */}
+            {paidPercent >= 60 && paidPercent < 95 && (
+                <div style={{ background:'linear-gradient(135deg,#065f46,#047857)', color:'#fff', borderRadius:'12px', padding:'14px 20px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'14px', border:'1.5px solid #059669', boxShadow:'0 4px 12px rgba(0,0,0,.15)' }}>
+                    <span style={{ fontSize:'22px', flexShrink:0 }}>🚚</span>
+                    <div>
+                        <div style={{ fontWeight:800, fontSize:'0.9rem', marginBottom:'2px' }}>DELIVERY STAGES LOCKED</div>
+                        <div style={{ fontSize:'0.8rem', opacity:.9, lineHeight:1.4 }}>
+                            <strong>95%</strong> total payment unlocks Product Distribution / Delivery (next installment: 35%). 
+                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Handover locked: 95–99% */}
+            {paidPercent >= 95 && paidPercent < 100 && (
+                <div style={{ background:'linear-gradient(135deg,#0c4a6e,#0369a1)', color:'#fff', borderRadius:'12px', padding:'14px 20px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'14px', border:'1.5px solid #0284c7', boxShadow:'0 4px 12px rgba(0,0,0,.15)' }}>
+                    <span style={{ fontSize:'22px', flexShrink:0 }}>🏠</span>
+                    <div>
+                        <div style={{ fontWeight:800, fontSize:'0.9rem', marginBottom:'2px' }}>HANDOVER STAGE LOCKED</div>
+                        <div style={{ fontSize:'0.8rem', opacity:.9, lineHeight:1.4 }}>
+                            <strong>100%</strong> (final 5%) payment required to unlock Handover. 
+                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* PM Timeline Locked Banner (Masking not started by Designer yet) */}
+            {type === 'pm' && !maskingUnlocked && (
+                <div style={{ background:'linear-gradient(135deg,#1e3a5f,#253b50)', color:'#fff', borderRadius:'12px', padding:'18px 24px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'16px', border:'1.5px solid #3b5a7a', boxShadow:'0 4px 14px rgba(0,0,0,.2)' }}>
+                    <span style={{ fontSize:'28px', flexShrink:0 }}>🔒</span>
+                    <div>
+                        <div style={{ fontWeight:900, fontSize:'1rem', marginBottom:'4px' }}>PM Timeline is LOCKED</div>
+                        <div style={{ fontSize:'0.85rem', opacity:.85, lineHeight:1.5 }}>
+                            Unlocks automatically once the <strong>Designer</strong> starts the <strong>Masking</strong> stage (<strong>ONGOING</strong>).
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Payment Gate Modal Popup */}
+            {paymentModal?.open && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 9999
+                }}>
+                    <div style={{
+                        background: '#fff',
+                        borderRadius: '16px',
+                        padding: '36px 40px',
+                        maxWidth: '440px',
+                        width: '90%',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>💳</div>
+                        <h2 style={{ margin: '0 0 8px', fontSize: '1.3rem', fontWeight: 900, color: '#991b1b' }}>
+                            PAYMENT NOT PAID
+                        </h2>
+                        <p style={{ margin: '0 0 6px', color: '#64748b', fontSize: '0.9rem' }}>
+                            <strong>{paymentModal.stageName}</strong> requires at least
+                        </p>
+                        <div style={{
+                            background: '#fef2f2',
+                            border: '2px solid #fca5a5',
+                            borderRadius: '10px',
+                            padding: '16px',
+                            margin: '16px 0'
+                        }}>
+                            <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#dc2626', lineHeight: 1 }}>
+                                {paymentModal.requiredPercent}%
+                            </div>
+                            <div style={{ fontSize: '0.82rem', color: '#b91c1c', marginTop: '4px' }}>
+                                of total project budget to be paid
+                            </div>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '20px', lineHeight: 1.6 }}>
+                            Current payment: <strong style={{ color: '#dc2626' }}>{paidPercent.toFixed(1)}%</strong> ({' '}
+                            ₹{totalPaid.toLocaleString()} of ₹{(totalBudget || 0).toLocaleString()}).<br />
+                            Please record the payment in the <strong>Balance Sheet</strong> tab first.
+                        </div>
+                        <button
+                            onClick={() => setPaymentModal(null)}
+                            style={{
+                                padding: '12px 32px',
+                                background: 'linear-gradient(135deg, #dc2626, #991b1b)',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                fontSize: '0.95rem',
+                                cursor: 'pointer',
+                                width: '100%'
+                            }}
+                        >
+                            OK, Got It
+                        </button>
+                    </div>
+                </div>
+            )}
+
+
             {/* Top action bar */}
-            <div className="no-print" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginBottom: '10px' }}>
+
+            <div className="no-print" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginBottom: '20px' }}>
                 <button
                     onClick={() => persistState(tasks, completions)}
                     disabled={saveStatus === 'saving'}
-                    style={{ padding: '10px 22px', backgroundColor: saveStatus === 'saved' ? '#16a34a' : '#253b50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
+                    style={{
+                        padding: '9px 20px',
+                        background: saveStatus === 'saved' ? '#f1f5f9' : '#ffffff',
+                        color: '#1e293b',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '7px',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                        transition: 'all 0.15s'
+                    }}
                 >
                     <Save size={16} />
-                    {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved!' : 'Save Timeline'}
+                    {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : 'Save Timeline'}
                 </button>
-                <button onClick={() => window.print()} style={{ padding: '10px 20px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                    onClick={() => window.print()}
+                    style={{
+                        padding: '9px 20px',
+                        background: '#ffffff',
+                        color: '#1e293b',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '7px',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+                    }}
+                >
                     <Printer size={16} /> Print
+                </button>
+                <button
+                    onClick={toggleExpandAll}
+                    style={{
+                        padding: '9px 20px',
+                        background: '#ffffff',
+                        color: '#1e293b',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '7px',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+                    }}
+                >
+                    {categoryOrder.length > 0 && categoryOrder.every(c => collapsedCategories[c])
+                        ? <><ChevronDown size={16} /> Expand All</>
+                        : <><ChevronRight size={16} /> Collapse All</>
+                    }
                 </button>
             </div>
 
-            {/* Assign Work Form */}
+            {/* Admin Controls */}
             {isAdmin && (
-                <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }} className="no-print">
-                    <h3 style={{ marginBottom: '15px', fontSize: '1rem', fontWeight: 700 }}>Assign Work Schedule</h3>
-                    <form onSubmit={handleAddTask} className="work-schedule-form">
-                        <div>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Category</label>
-                            <select value={newTask.category} onChange={e => setNewTask({ ...newTask, category: e.target.value, name: '' })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                <option value="">Select Category</option>
-                                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                <div style={{ display: 'flex', gap: '24px', marginBottom: '36px' }} className="no-print">
+
+                    {/* Assign Work Form Card */}
+                    <div style={{
+                        flex: 1,
+                        padding: '24px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '14px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ padding: '8px', borderRadius: '8px', background: '#f1f5f9', color: '#0f172a' }}>
+                                    <Layers size={20} />
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Assign Work Schedule</h3>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b' }}>Configure categories, works, and timeline dates</p>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                {!showAddCatInput && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAddCatInput(true)}
+                                        style={{
+                                            border: '1px solid #e2e8f0',
+                                            background: '#f8fafc',
+                                            color: '#374151',
+                                            fontSize: '0.78rem',
+                                            fontWeight: 600,
+                                            borderRadius: '7px',
+                                            cursor: 'pointer',
+                                            padding: '6px 12px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px'
+                                        }}
+                                    >
+                                        <Plus size={13} /> Add Category
+                                    </button>
+                                )}
+                                {!showReorderPanel && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowReorderPanel(true)}
+                                        style={{
+                                            border: '1px solid #e2e8f0',
+                                            background: '#f8fafc',
+                                            color: '#374151',
+                                            fontSize: '0.78rem',
+                                            fontWeight: 600,
+                                            borderRadius: '7px',
+                                            cursor: 'pointer',
+                                            padding: '6px 12px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px'
+                                        }}
+                                    >
+                                        <ArrowUpDown size={13} /> Re-order
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                        <div>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Work Name</label>
-                            <select value={newTask.name} onChange={e => setNewTask({ ...newTask, name: e.target.value })} disabled={!newTask.category} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: !newTask.category ? '#f3f4f6' : 'white' }}>
-                                <option value="">Select Work</option>
-                                {newTask.category && SUB_TASKS[newTask.category]?.map((s: string) => <option key={s} value={s}>{s}</option>)}
-                            </select>
+
+                        {showAddCatInput && (
+                            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Category Name (e.g. 11. EXTRA CARPENTRY)..."
+                                    value={newCatInput}
+                                    onChange={(e) => setNewCatInput(e.target.value)}
+                                    style={{ flex: 1, padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '0.88rem', outline: 'none', accentColor: '#374151', color: '#1e293b' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddNewCategoryInline}
+                                    style={{ backgroundColor: '#374151', color: 'white', border: 'none', borderRadius: '6px', padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+                                >
+                                    Save
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowAddCatInput(false); setNewCatInput(''); }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontWeight: 700, fontSize: '1rem', padding: '0 4px' }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        )}
+
+                        {showReorderPanel && (
+                            <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', marginBottom: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 800, marginBottom: '10px', color: '#0f172a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ArrowUpDown size={16} /> Re-order Dropdown & Timeline Categories</span>
+                                    <button type="button" onClick={() => setShowReorderPanel(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#64748b' }}>✕</button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }}>
+                                    {categoryOrder.map((cat, idx) => (
+                                        <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 14px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>{idx + 1}. {cat.replace(/^\d+\.\s*/, '')}</span>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => moveCategoryUp(idx)}
+                                                    disabled={idx === 0}
+                                                    style={{ padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#0f172a', cursor: idx === 0 ? 'not-allowed' : 'pointer', opacity: idx === 0 ? 0.3 : 1, display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                >
+                                                    <ArrowUp size={12} /> Move Up
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => moveCategoryDown(idx)}
+                                                    disabled={idx === categoryOrder.length - 1}
+                                                    style={{ padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#0f172a', cursor: idx === categoryOrder.length - 1 ? 'not-allowed' : 'pointer', opacity: idx === categoryOrder.length - 1 ? 0.3 : 1, display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                >
+                                                    <ArrowDown size={12} /> Move Down
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveCategory(cat)}
+                                                    title="Remove Category"
+                                                    style={{ padding: '4px 8px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '6px', border: '1px solid #fca5a5', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                >
+                                                    <Trash2 size={12} /> Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '12px', justifyContent: 'flex-end' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setCategoryOrder(originalCategoryOrder);
+                                            alert('Category order reset to previous saved state.');
+                                        }}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #cbd5e1',
+                                            backgroundColor: '#ffffff',
+                                            color: '#475569',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Reset Order
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            await persistState(tasks, completions, categoryOrder, customCategories);
+                                            setOriginalCategoryOrder(categoryOrder);
+                                            alert('Category order saved successfully!');
+                                        }}
+                                        style={{
+                                            padding: '6px 14px',
+                                            borderRadius: '6px',
+                                            border: 'none',
+                                            backgroundColor: '#10b981',
+                                            color: '#ffffff',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Save Order
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleAddTask} className="work-schedule-form">
+                            <div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '5px' }}>Select Category</label>
+                                <select
+                                    value={newTask.category}
+                                    onChange={e => setNewTask({ ...newTask, category: e.target.value, name: e.target.value === 'OTHER' ? 'OTHER' : '' })}
+                                    style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: '#ffffff', fontWeight: 500, fontSize: '0.88rem', outline: 'none', color: '#1e293b', accentColor: '#374151' }}
+                                >
+                                    <option value="">-- Choose Category --</option>
+                                    {categoryOrder.map(c => <option key={c} value={c}>{c}</option>)}
+                                    <option value="OTHER">+ Other (Add Custom)</option>
+                                </select>
+                                {newTask.category === 'OTHER' && (
+                                    <input
+                                        type="text"
+                                        value={newTask.customCategory}
+                                        onChange={e => setNewTask({ ...newTask, customCategory: e.target.value })}
+                                        placeholder="Enter custom category name..."
+                                        style={{ width: '100%', marginTop: '6px', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', fontSize: '0.88rem', color: '#1e293b' }}
+                                    />
+                                )}
+                            </div>
+
+                            {newTask.category !== 'OTHER' && (
+                                <div>
+                                    <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '5px' }}>Work Name (Optional)</label>
+                                    <select
+                                        value={newTask.name}
+                                        onChange={e => setNewTask({ ...newTask, name: e.target.value })}
+                                        disabled={!newTask.category}
+                                        style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: !newTask.category ? '#f9fafb' : '#ffffff', fontWeight: 500, fontSize: '0.88rem', outline: 'none', color: '#1e293b', accentColor: '#374151' }}
+                                    >
+                                        <option value="">-- Sub-Work (Optional) --</option>
+                                        {newTask.category && newTask.category !== 'OTHER' && SUB_TASKS[newTask.category]?.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                                        {newTask.category && <option value="OTHER">+ Other (Custom)</option>}
+                                    </select>
+                                    {newTask.name === 'OTHER' && (
+                                        <input
+                                            type="text"
+                                            value={newTask.customName}
+                                            onChange={e => setNewTask({ ...newTask, customName: e.target.value })}
+                                            placeholder="Enter custom work description..."
+                                            style={{ width: '100%', marginTop: '6px', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', fontSize: '0.88rem', color: '#1e293b' }}
+                                        />
+                                    )}
+                                </div>
+                            )}
+
+                            <div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '5px' }}>From Date</label>
+                                <input type="date" value={newTask.startDate} onChange={e => setNewTask({ ...newTask, startDate: e.target.value })} style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', fontWeight: 500, color: '#1e293b', accentColor: '#374151' }} />
+                            </div>
+
+                            <div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '5px' }}>To Date</label>
+                                <input type="date" value={newTask.endDate} onChange={e => setNewTask({ ...newTask, endDate: e.target.value })} style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', fontWeight: 500, color: '#1e293b', accentColor: '#374151' }} />
+                            </div>
+
+                            <button
+                                type="submit"
+                                style={{
+                                    padding: '9px 18px',
+                                    background: '#1e293b',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '7px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontSize: '0.85rem'
+                                }}
+                            >
+                                <Plus size={15} /> Assign Schedule
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Project Date Range Form Card - Accordion */}
+                    <div style={{
+                        width: '300px',
+                        background: '#ffffff',
+                        color: '#1e293b',
+                        borderRadius: '12px',
+                        border: '1.5px solid #e2e8f0',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.05)',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Clickable Header */}
+                        <div
+                            onClick={() => setShowTimelineRange(p => !p)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '16px 20px',
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                                borderBottom: showTimelineRange ? '1px solid #f1f5f9' : 'none',
+                                background: '#f8fafc'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ padding: '7px', borderRadius: '7px', background: '#e2e8f0', color: '#475569' }}>
+                                    <Calendar size={18} />
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>Timeline Range</h3>
+                                    {!showTimelineRange && projectStartDate ? (
+                                        <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#64748b' }}>
+                                            {projectStartDate} → {projectEndDate || '—'}
+                                        </p>
+                                    ) : (
+                                        <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: '#64748b' }}>Project Duration</p>
+                                    )}
+                                </div>
+                            </div>
+                            <div style={{ color: '#94a3b8' }}>
+                                {showTimelineRange ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                            </div>
                         </div>
-                        <div>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>From</label>
-                            <input type="date" value={newTask.startDate} onChange={e => setNewTask({ ...newTask, startDate: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
-                        </div>
-                        <div>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>To</label>
-                            <input type="date" value={newTask.endDate} onChange={e => setNewTask({ ...newTask, endDate: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
-                        </div>
-                        <button type="submit" className="btn-primary" style={{ padding: '10px' }}>+ Assign</button>
-                    </form>
+
+                        {/* Collapsible Body */}
+                        {showTimelineRange && (
+                            <div style={{ padding: '16px 20px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '5px' }}>Start Date</label>
+                                        <input type="date" value={projectStartDate} onChange={e => setProjectStartDate(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: '7px', border: '1px solid #cbd5e1', color: '#1e293b', fontWeight: 700, outline: 'none', fontSize: '0.88rem' }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '5px' }}>Expected End Date</label>
+                                        <input type="date" value={projectEndDate} onChange={e => setProjectEndDate(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: '7px', border: '1px solid #cbd5e1', color: '#1e293b', fontWeight: 700, outline: 'none', fontSize: '0.88rem' }} />
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleUpdateProjectDates}
+                                    disabled={updatingDates}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        marginTop: '14px',
+                                        backgroundColor: '#1e293b',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '7px',
+                                        fontWeight: 700,
+                                        fontSize: '0.85rem',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {updatingDates ? 'Updating...' : 'Update Project Dates'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             )}
 
@@ -2994,8 +4492,9 @@ const TimelineTab = ({ project, user }: any) => {
                 <h1 style={{ fontSize: "1.5rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", margin: 0 }}>
                     TIMELINE — {project.project_name.toUpperCase()}
                 </h1>
-                <p style={{ fontSize: "0.7rem", color: "#666", marginTop: "5px" }}>ARK ARCHITECTS AND INTERIOR DESIGNERS &nbsp;|&nbsp; Columns = 3-day intervals</p>
+                <p style={{ fontSize: "0.7rem", color: "#666", marginTop: "5px" }}>Livincart ARCHITECTS AND INTERIOR DESIGNERS &nbsp;|&nbsp; Columns = 3-day intervals</p>
             </div>
+
 
             <div className="timeline-table-wrapper" style={{ overflowX: "auto", paddingBottom: "15px" }}>
                 <table style={{ borderCollapse: "collapse", width: Math.max(1000, 255 + ALL_COLS.length * 28) + "px", border: "2px solid #000", tableLayout: "fixed" }}>
@@ -3009,48 +4508,79 @@ const TimelineTab = ({ project, user }: any) => {
                             {isAdmin && <th style={{ width: "60px", border: BORDER, fontSize: "0.6rem" }} className="no-print">Edit</th>}
                         </tr>
                         <tr style={{ backgroundColor: "#FFF" }}>
-                            <th style={{ border: BORDER }}></th>
-                            <th style={{ border: BORDER, textAlign: "left", paddingLeft: "8px", fontSize: "0.6rem", color: "#666" }}>Dates →</th>
+                            <th style={{ border: BORDER, borderBottom: "2px solid #000" }}></th>
+                            <th style={{ border: BORDER, borderBottom: "2px solid #000", textAlign: "left", paddingLeft: "8px", fontSize: "0.6rem", color: "#666" }}>Dates →</th>
                             {ALL_COLS.map((c, i) => (
-                                <th key={i} style={{ border: BORDER, padding: "2px", fontSize: "0.6rem", minWidth: "28px", fontWeight: 700, backgroundColor: c.date === todayStr ? '#fef3c7' : 'transparent' }}>
+                                <th key={i} style={{ border: BORDER, borderRight: "1.5px solid #000", borderLeft: "1.5px solid #000", borderBottom: "2px solid #000", padding: "2px", fontSize: "0.6rem", minWidth: "28px", fontWeight: 700, backgroundColor: c.date === todayStr ? '#fef3c7' : 'transparent' }}>
                                     {c.day}
                                 </th>
                             ))}
-                            {isAdmin && <th style={{ border: BORDER }} className="no-print"></th>}
+                            {isAdmin && <th style={{ border: BORDER, borderBottom: "2px solid #000" }} className="no-print"></th>}
                         </tr>
                     </thead>
                     <tbody>
-                        {CATEGORIES.map((cat, catIdx) => {
+                        {categoryOrder.map((cat, catIdx) => {
                             const catTasks = tasks.filter(t => t.category === cat);
-                            if (catTasks.length === 0 && !isAdmin) return null;
+                            const hasSubtasks = catTasks.some(t => t.name !== cat);
+                            const isCollapsed = !!collapsedCategories[cat];
+
                             return (
                                 <React.Fragment key={cat}>
-                                    <tr style={{ backgroundColor: "#D9D9D9" }}>
-                                        <td style={{ border: BORDER, textAlign: "center", fontWeight: 900, fontSize: "0.7rem" }}>{catIdx + 1}</td>
-                                        <td colSpan={1 + ALL_COLS.length + (isAdmin ? 1 : 0)} style={{ border: BORDER, padding: "4px 8px", fontWeight: 900, fontSize: "0.75rem", textTransform: "uppercase" }}>{cat}</td>
-                                    </tr>
-                                    {catTasks.map((task, ti) => (
-                                        <tr key={task.id} style={{ height: "30px" }}>
-                                            <td style={{ border: BORDER, textAlign: "center", fontSize: "0.65rem", color: "#666" }}>{catIdx + 1}.{ti + 1}</td>
-                                            <td style={{ border: BORDER, padding: "4px 8px", fontSize: "0.75rem", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{task.name}</td>
-                                            {ALL_COLS.map((col, i) => {
-                                                const nextColDate = ALL_COLS[i + 1]?.date || null;
-                                                return (
-                                                    <td key={i} onClick={() => toggleStatus(task.id, col.date)}
-                                                        style={{ border: BORDER, backgroundColor: getCellColor(task.id, col.date, nextColDate, task.startDate, task.endDate), cursor: "pointer", transition: "background 0.1s" }}
-                                                    />
-                                                );
-                                            })}
-                                            {isAdmin && (
-                                                <td style={{ border: BORDER, textAlign: "center", padding: "2px" }} className="no-print">
-                                                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                                        <button onClick={() => setEditingTask({ ...task })} title="Edit dates" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '2px' }}><Edit2 size={13} /></button>
-                                                        <button onClick={() => handleDeleteTask(task.id)} title="Delete" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px' }}><X size={13} /></button>
-                                                    </div>
-                                                </td>
-                                            )}
+                                    {(hasSubtasks || catTasks.length === 0) && (
+                                        <tr style={{ backgroundColor: "#ffffff" }}>
+                                            <td
+                                                style={{ border: BORDER, borderBottom: "1.5px solid #000", textAlign: "center", fontWeight: 900, fontSize: "0.7rem", cursor: 'pointer', userSelect: 'none' }}
+                                                onClick={() => toggleCategoryCollapse(cat)}
+                                                title={isCollapsed ? 'Expand' : 'Collapse'}
+                                            >
+                                                {isCollapsed ? <ChevronRight size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> : <ChevronDown size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />}
+                                            </td>
+                                            <td style={{ border: BORDER, borderRight: "1.5px solid #000", borderBottom: "1.5px solid #000", padding: "4px 8px", fontWeight: 900, fontSize: "0.75rem", textTransform: "uppercase", cursor: 'pointer' }} onClick={() => toggleCategoryCollapse(cat)}>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                                                    {cat}
+                                                    {isCollapsed && catTasks.length > 0 && (
+                                                        <span style={{ fontSize: '0.65rem', fontWeight: 500, backgroundColor: '#94a3b8', color: '#fff', padding: '1px 7px', borderRadius: '20px', marginLeft: '6px' }}>
+                                                            {catTasks.length} item{catTasks.length !== 1 ? 's' : ''} hidden
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </td>
+                                            {ALL_COLS.map((_, i) => (
+                                                <td key={i} style={{ border: BORDER, borderRight: "1.5px solid #000", borderLeft: "1.5px solid #000", borderBottom: "1.5px solid #000" }} />
+                                            ))}
+                                            {isAdmin && <td style={{ border: BORDER, borderBottom: "1.5px solid #000" }} className="no-print" />}
                                         </tr>
-                                    ))}
+                                    )}
+                                    {!isCollapsed && catTasks.map((task, ti) => {
+                                        const isMainCatTask = task.name === cat && !hasSubtasks;
+                                        return (
+                                            <tr key={task.id} style={{ height: "30px", backgroundColor: "#ffffff" }}>
+                                                <td style={{ border: BORDER, borderRight: "1.5px solid #000", borderBottom: "1.5px solid #000", textAlign: "center", fontSize: isMainCatTask ? "0.7rem" : "0.65rem", fontWeight: isMainCatTask ? 900 : "normal", color: isMainCatTask ? "#000" : "#666" }}>
+                                                    {isMainCatTask ? `${catIdx + 1}` : `${catIdx + 1}.${ti + 1}`}
+                                                </td>
+                                                <td style={{ border: BORDER, borderRight: "1.5px solid #000", borderBottom: "1.5px solid #000", padding: "4px 8px", fontSize: "0.75rem", fontWeight: isMainCatTask ? 900 : 500, textTransform: isMainCatTask ? "uppercase" : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                    {task.name}
+                                                </td>
+                                                {ALL_COLS.map((col, i) => {
+                                                    const nextColDate = ALL_COLS[i + 1]?.date || null;
+                                                    return (
+                                                        <td key={i} onClick={() => toggleStatus(task.id, col.date, task)}
+                                                            style={{ border: BORDER, borderRight: "1.5px solid #000", borderBottom: "1.5px solid #000", backgroundColor: getCellColor(task.id, col.date, nextColDate, task.startDate, task.endDate), cursor: "pointer", transition: "background 0.1s" }}
+                                                        />
+                                                    );
+                                                })}
+                                                {isAdmin && (
+                                                    <td style={{ border: BORDER, borderBottom: "1.5px solid #000", textAlign: "center", padding: "2px" }} className="no-print">
+                                                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                                            <button onClick={() => setEditingTask({ ...task })} title="Edit dates" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '2px' }}><Edit2 size={13} /></button>
+                                                            <button onClick={() => handleDeleteTask(task.id)} title="Delete" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px' }}><X size={13} /></button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        );
+                                    })}
                                 </React.Fragment>
                             );
                         })}
@@ -3065,14 +4595,28 @@ const TimelineTab = ({ project, user }: any) => {
             </div>
 
             {/* Legend */}
-            <div style={{ marginTop: "30px", display: "flex", gap: "25px" }}>
-                {[["#70AD47", "COMPLETED"], ["#FF0000", "OVERDUE"], ["#A6A6A6", "PLANNED"]].map(([color, label]) => (
+            <div style={{ marginTop: "30px", display: "flex", gap: "25px", flexWrap: "wrap" }}>
+                {[
+                    ["#70AD47", "COMPLETED"],
+                    ["#F97316", "ONGOING"],
+                    ["#EAB308", "PENDING APPROVAL"],
+                    ["#EF4444", "OVERDUE"],
+                    ["#A6A6A6", "PLANNED"]
+                ].map(([color, label]) => (
                     <div key={label} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <div style={{ width: 18, height: 18, backgroundColor: color, border: BORDER }} />
                         <span style={{ fontSize: "0.75rem", fontWeight: 700 }}>{label}</span>
                     </div>
                 ))}
             </div>
+
+            {/* Stage Notes Table — below Gantt chart and legend for PM Timeline */}
+            {type === 'pm' && (
+                <div style={{ marginTop: '36px' }} className="no-print">
+                    <hr style={{ border: 'none', borderTop: '2px solid #e2e8f0', marginBottom: '28px' }} />
+                    <StageNotesTab project={project} user={user} filterType="pm" />
+                </div>
+            )}
 
             {/* Edit Task Modal */}
             {editingTask && (
@@ -3096,9 +4640,171 @@ const TimelineTab = ({ project, user }: any) => {
                 </div>
             )}
 
+            {/* Pending Approval Modal Popup */}
+            {approvalModal.open && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 99999,
+                    padding: '20px'
+                }}>
+                    <div style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '16px',
+                        maxWidth: '450px',
+                        width: '100%',
+                        padding: '28px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        border: '1px solid #e2e8f0',
+                        textAlign: 'center'
+                    }}>
+                        {approvalModal.mode === 'warning' ? (
+                            <>
+                                <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#fef9c3', color: '#ca8a04', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                                    <span style={{ fontSize: '28px' }}>⚠️</span>
+                                </div>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 10px 0' }}>
+                                    Pending Admin Approval
+                                </h3>
+                                <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.5, margin: '0 0 24px 0' }}>
+                                     Task <strong>"{approvalModal.taskName}"</strong> is currently in <strong>PENDING APPROVAL</strong> status (Yellow color).
+                                     <br /><br />
+                                     It will remain in <strong>Pending Approval</strong> state until the Admin reviews and accepts it on the <strong>Dashboard</strong>.
+                                     <br /><br />
+                                     To approve and change the cell color to <strong>GREEN</strong>, go to <strong>Dashboard</strong> (<code>http://localhost:5174/overview</code>) &rarr; <strong>Timeline Approvals</strong> (after <i>My Monthly Targets</i>) and click <strong>Accept</strong>.
+                                 </p>
+                                <button
+                                    onClick={() => setApprovalModal({ open: false, mode: 'warning' })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 20px',
+                                        backgroundColor: '#253b50',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '10px',
+                                        fontWeight: 700,
+                                        fontSize: '0.95rem',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                    }}
+                                >
+                                    Understood
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                                    <span style={{ fontSize: '28px' }}>📋</span>
+                                </div>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 10px 0' }}>
+                                    Admin Approval Required
+                                </h3>
+                                <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.5, margin: '0 0 24px 0' }}>
+                                    Would you like to accept and approve task <strong>"{approvalModal.taskName}"</strong>?
+                                    <br /><br />
+                                    Accepting will change the status to <strong>COMPLETED</strong> and update the cell color to <strong>GREEN</strong>.
+                                </p>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <button
+                                        onClick={() => setApprovalModal({ open: false, mode: 'warning' })}
+                                        style={{
+                                            flex: 1,
+                                            padding: '12px',
+                                            backgroundColor: '#f1f5f9',
+                                            color: '#475569',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '10px',
+                                            fontWeight: 700,
+                                            fontSize: '0.9rem',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => handleAdminAcceptTask(approvalModal.taskId, approvalModal.date!)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '12px',
+                                            backgroundColor: '#16a34a',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            borderRadius: '10px',
+                                            fontWeight: 700,
+                                            fontSize: '0.9rem',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 4px 6px -1px rgba(22, 163, 74, 0.2)'
+                                        }}
+                                    >
+                                        ✓ Accept & Turn Green
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* PM Timeline Locked Popup Modal */}
+            {pmLockedModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.65)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 99999, padding: '20px'
+                }}>
+                    <div style={{
+                        backgroundColor: '#ffffff', borderRadius: '18px',
+                        maxWidth: '440px', width: '100%', padding: '32px 28px',
+                        boxShadow: '0 25px 40px rgba(0,0,0,0.25)',
+                        border: '2px solid #93c5fd', textAlign: 'center'
+                    }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px auto', fontSize: '32px' }}>
+                            🔒
+                        </div>
+                        <h3 style={{ fontSize: '1.3rem', fontWeight: 900, color: '#1e3a5f', margin: '0 0 8px 0' }}>
+                            PM Timeline — LOCKED
+                        </h3>
+                        <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.7, margin: '0 0 12px 0' }}>
+                            The <strong>Project Manager Timeline</strong> is currently <strong style={{ color: '#1e3a5f' }}>LOCKED</strong>.
+                        </p>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: 1.6, padding: '12px 16px', backgroundColor: '#eff6ff', borderRadius: '10px', border: '1px solid #93c5fd', marginBottom: '24px', textAlign: 'left' }}>
+                            <div>🎨 <strong>Designer</strong> must first set the <strong>Masking</strong> stage to <strong>ONGOING</strong> (Blue)</div>
+                            <div style={{ marginTop: '6px' }}>🔓 Once Masking is <strong>ONGOING</strong>, this PM Timeline will <strong>automatically unlock</strong> and you can start working.</div>
+                        </div>
+                        <button
+                            onClick={() => setPmLockedModal(false)}
+                            style={{
+                                width: '100%', padding: '13px 20px',
+                                backgroundColor: '#1e3a5f', color: '#ffffff',
+                                border: 'none', borderRadius: '10px',
+                                fontWeight: 800, fontSize: '0.95rem',
+                                cursor: 'pointer', boxShadow: '0 4px 10px rgba(30,58,95,0.3)'
+                            }}
+                        >
+                            OK, Got It
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <style>{`
                 .work-schedule-form { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; align-items:end; }
                 @media (max-width:768px) { .work-schedule-form { grid-template-columns:1fr !important; } }
+                .timeline-container input:focus,
+                .timeline-container select:focus,
+                .timeline-container textarea:focus {
+                    outline: 1.5px solid #9ca3af !important;
+                    box-shadow: none !important;
+                    border-color: #9ca3af !important;
+                }
                 @media print {
                     @page { size: landscape; margin: 5mm; }
                     .print-only { display:flex !important; }

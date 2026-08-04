@@ -89,30 +89,47 @@ class FinanceController
 
     public function updateTransaction($id, $data)
     {
-        $query = "UPDATE finance_transactions 
-                  SET amount = :amount, 
-                      payment_mode = :payment_mode, 
-                      person_name = :person_name, 
-                      description = :description, 
-                      transaction_date = :date
-                  WHERE transaction_id = :id";
+        // Build dynamic SET clause based on provided fields
+        $setParts = [];
+        $params = [];
+        
+        if (isset($data['amount'])) {
+            $setParts[] = "amount = :amount";
+            $params[':amount'] = $data['amount'];
+        }
+        if (isset($data['payment_mode'])) {
+            $setParts[] = "payment_mode = :payment_mode";
+            $params[':payment_mode'] = $data['payment_mode'];
+        }
+        if (isset($data['person_name'])) {
+            $setParts[] = "person_name = :person_name";
+            $params[':person_name'] = $data['person_name'];
+        }
+        if (isset($data['description'])) {
+            $setParts[] = "description = :description";
+            $params[':description'] = $data['description'];
+        }
+        if (isset($data['date']) || isset($data['transaction_date'])) {
+            $setParts[] = "transaction_date = :date";
+            $params[':date'] = $data['date'] ?? $data['transaction_date'] ?? date('Y-m-d');
+        }
+        if (isset($data['category'])) {
+            $setParts[] = "category = :category";
+            $params[':category'] = $data['category'];
+        }
+        
+        if (empty($setParts)) {
+            return ["success" => false, "message" => "No fields to update"];
+        }
+        
+        $query = "UPDATE finance_transactions SET " . implode(', ', $setParts) . " WHERE transaction_id = :id";
+        $params[':id'] = $id;
 
         $stmt = $this->conn->prepare($query);
 
-        $stmt->bindParam(':id', $id);
-        $stmt->bindParam(':amount', $data['amount']);
-        
-        $payment_mode = $data['payment_mode'] ?? null;
-        $stmt->bindParam(':payment_mode', $payment_mode);
-        
-        $person_name = $data['person_name'] ?? null;
-        $stmt->bindParam(':person_name', $person_name);
-        
-        $description = $data['description'] ?? null;
-        $stmt->bindParam(':description', $description);
-        
-        $date = $data['date'] ?? date('Y-m-d');
-        $stmt->bindParam(':date', $date);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
 
         try {
             if ($stmt->execute()) {

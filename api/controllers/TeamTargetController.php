@@ -18,6 +18,9 @@ class TeamTargetController {
             task2 VARCHAR(500) DEFAULT '',
             task1_status ENUM('pending','in_progress','done') DEFAULT 'pending',
             task2_status ENUM('pending','in_progress','done') DEFAULT 'pending',
+            tasks_json TEXT DEFAULT NULL,
+            remarks VARCHAR(1000) DEFAULT '',
+            deadline VARCHAR(50) DEFAULT '',
             sort_order INT DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -29,19 +32,33 @@ class TeamTargetController {
         try {
             $this->conn->exec("ALTER TABLE team_targets ADD COLUMN task1_status ENUM('pending','in_progress','done') DEFAULT 'pending' AFTER task2");
         } catch (Exception $e) {
-            // Column might already exist
-        }
+        } catch (Exception $e) {}
         try {
             $this->conn->exec("ALTER TABLE team_targets ADD COLUMN task2_status ENUM('pending','in_progress','done') DEFAULT 'pending' AFTER task1_status");
-        } catch (Exception $e) {
-            // Column might already exist
-        }
+        } catch (Exception $e) {}
+        try {
+            $this->conn->exec("ALTER TABLE team_targets ADD COLUMN tasks_json TEXT DEFAULT NULL AFTER task2_status");
+        } catch (Exception $e) {}
+        try {
+            $this->conn->exec("ALTER TABLE team_targets ADD COLUMN remarks VARCHAR(1000) DEFAULT '' AFTER tasks_json");
+        } catch (Exception $e) {}
+        try {
+            $this->conn->exec("ALTER TABLE team_targets ADD COLUMN deadline VARCHAR(50) DEFAULT '' AFTER remarks");
+        } catch (Exception $e) {}
     }
 
     public function getByMonth($month) {
         $stmt = $this->conn->prepare("SELECT * FROM team_targets WHERE month = :month ORDER BY sort_order ASC, id ASC");
         $stmt->execute([':month' => $month]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row) {
+            if (!empty($row['tasks_json'])) {
+                $row['dynamic_tasks'] = json_decode($row['tasks_json'], true);
+            } else {
+                $row['dynamic_tasks'] = [];
+            }
+        }
+        return $rows;
     }
 
     public function save($month, $rows) {
@@ -54,8 +71,8 @@ class TeamTargetController {
             // Re-insert all rows
             if (!empty($rows)) {
                 $stmt = $this->conn->prepare(
-                    "INSERT INTO team_targets (month, project_id, project_name, team_member, task1, task2, task1_status, task2_status, sort_order)
-                     VALUES (:month, :project_id, :project_name, :team_member, :task1, :task2, :task1_status, :task2_status, :sort_order)"
+                    "INSERT INTO team_targets (month, project_id, project_name, team_member, task1, task2, task1_status, task2_status, tasks_json, remarks, deadline, sort_order)
+                     VALUES (:month, :project_id, :project_name, :team_member, :task1, :task2, :task1_status, :task2_status, :tasks_json, :remarks, :deadline, :sort_order)"
                 );
                 foreach ($rows as $idx => $row) {
                     $stmt->execute([
@@ -67,6 +84,9 @@ class TeamTargetController {
                         ':task2'        => $row['task2'] ?? '',
                         ':task1_status' => $row['task1_status'] ?? 'pending',
                         ':task2_status' => $row['task2_status'] ?? 'pending',
+                        ':tasks_json'   => isset($row['dynamic_tasks']) ? json_encode($row['dynamic_tasks']) : null,
+                        ':remarks'      => $row['remarks'] ?? '',
+                        ':deadline'     => $row['deadline'] ?? '',
                         ':sort_order'   => $idx,
                     ]);
                 }

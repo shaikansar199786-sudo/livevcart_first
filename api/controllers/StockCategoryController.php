@@ -134,7 +134,7 @@ class StockCategoryController
             $updStmt->bindParam(':id', $data['item_id']);
             $updStmt->execute();
 
-            // 3. Add item to new project (Mark as transferred)
+            // 3. Add item to new project (MLivincart as transferred)
             $insQuery = "INSERT INTO project_stock_items 
                         (project_id, name, category_name, unit, quantity, worth_in_rupees, status, is_transferred, from_project_id) 
                       VALUES 

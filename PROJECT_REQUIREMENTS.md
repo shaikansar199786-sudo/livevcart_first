@@ -1,4 +1,4 @@
-# Project Requirements: ARK Interior Design & Architecture Project Management System
+# Project Requirements: Livincart Interior Design & Architecture Project Management System
 
 ## 1. Project Overview
 A comprehensive web-based project management system tailored for interior design and architecture firms. It covers the entire project lifecycle from lead generation to final handover, integrating financial tracking, team management, and real-time site monitoring.
@@ -32,9 +32,9 @@ A comprehensive web-based project management system tailored for interior design
 - Role-specific dashboards with real-time KPIs (Total Revenue, Active Projects, Delayed Tasks, etc.).
 
 ## 3. Visual & Theme Requirements
-- **Primary Color**: `#253b50` (Dark Navy Blue)
+- **Primary Color**: `#253b50` (DLivincart Navy Blue)
 - **Secondary Color**: `White`
-- **Logo**: `D:\ARK\Logo.png`
+- **Logo**: `D:\Livincart\Logo.png`
 - **Aesthetic**: Modern, premium, clean, and highly professional.
 
 ## 4. Technical Stack

@@ -3,8 +3,8 @@
 $_GET['project_id'] = 1; // Assuming project ID 1 exists
 $_GET['is_used'] = 'false';
 
-require_once 'c:\xampp\htdocs\ARK\api\config\database.php';
-require_once 'c:\xampp\htdocs\ARK\api\controllers\QuoteController.php';
+require_once 'c:\xampp\htdocs\Livincart\api\config\database.php';
+require_once 'c:\xampp\htdocs\Livincart\api\controllers\QuoteController.php';
 
 $db = new Database();
 $conn = $db->getConnection();

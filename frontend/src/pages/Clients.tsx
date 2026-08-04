@@ -13,7 +13,6 @@ import {
     Trash2
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-
 interface Client {
     client_id: string;
     client_code: string;
@@ -50,7 +49,7 @@ export const Clients: React.FC = () => {
     }>({
         name: '',
         projectname: '',
-        consultation_type: 'Interior Design Consultation',
+        consultation_type: 'Furniture projects',
         email: '',
         phone: '',
         address: ''
@@ -66,7 +65,7 @@ export const Clients: React.FC = () => {
         expected_end_date: string;
     }>({
         project_name: '',
-        consultation_type: 'Interior Design Consultation',
+        consultation_type: 'Furniture projects',
         project_heads: [],
         site_engineers: [],
         total_budget: '',
@@ -113,7 +112,7 @@ export const Clients: React.FC = () => {
                 });
                 if (response.data.success) {
                     setShowAddModal(false);
-                    setClientForm({ name: '', projectname: '', consultation_type: 'Interior Design Consultation', email: '', phone: '', address: '' });
+                    setClientForm({ name: '', projectname: '', consultation_type: 'Furniture projects', email: '', phone: '', address: '' });
                     setIsEditing(false);
                     fetchClients();
                 } else {
@@ -126,7 +125,7 @@ export const Clients: React.FC = () => {
                 });
                 if (response.data.success) {
                     setShowAddModal(false);
-                    setClientForm({ name: '', projectname: '', consultation_type: 'Interior Design Consultation', email: '', phone: '', address: '' });
+                    setClientForm({ name: '', projectname: '', consultation_type: 'Furniture projects', email: '', phone: '', address: '' });
                     fetchClients();
                 } else {
                     alert('Failed to add client');
@@ -159,7 +158,7 @@ export const Clients: React.FC = () => {
             client_id: client.client_id,
             name: client.name,
             projectname: client.projectname || '',
-            consultation_type: client.consultation_type || 'Interior Design Consultation',
+            consultation_type: client.consultation_type || 'Furniture projects',
             email: client.email,
             phone: client.phone,
             address: client.address
@@ -172,7 +171,7 @@ export const Clients: React.FC = () => {
         setProjectForm({
             ...projectForm,
             project_name: client.projectname || (client.name + ' Project'),
-            consultation_type: client.consultation_type || 'Interior Design Consultation'
+            consultation_type: client.consultation_type || 'Furniture projects'
         });
         setShowProjectModal(true);
     };
@@ -207,18 +206,6 @@ export const Clients: React.FC = () => {
                     <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#253b50' }}>Registry</h2>
                     <p style={{ color: '#6b7280' }}>All registered clients and their project status</p>
                 </div>
-                <button
-                    onClick={() => {
-                        setIsEditing(false);
-                        setClientForm({ name: '', projectname: '', consultation_type: 'Interior Design Consultation', email: '', phone: '', address: '' });
-                        setShowAddModal(true);
-                    }}
-                    className="btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                    <Plus size={18} />
-                    Add New Project
-                </button>
             </div>
 
             <div className="premium-card">
@@ -241,16 +228,16 @@ export const Clients: React.FC = () => {
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Project / Client</th>
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Contact</th>
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Assign Team</th>
-                                {(user?.role === 'admin' || user?.role === 'principal_architect') && (
+                                {(user?.role === 'admin' || user?.role === 'd1' || user?.role === 'project_head') && (
                                     <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500, textAlign: 'center' }}>Actions</th>
                                 )}
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
+                                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
                             ) : clients.length === 0 ? (
-                                <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>No entries found. Click "Add Registry" to create one.</td></tr>
+                                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>No entries found. Click "Add Registry" to create one.</td></tr>
                             ) : clients.map((client, idx) => (
                                 <tr key={`${client.client_id}-${idx}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                     <td style={{ padding: '16px' }}>
@@ -274,7 +261,7 @@ export const Clients: React.FC = () => {
                                         </div>
                                     </td>
                                     <td style={{ padding: '16px' }}>
-                                        {(user?.role === 'principal_architect' || user?.role === 'admin' || user?.role === 'accountant') && (
+                                        {(user?.role === 'admin' || user?.role === 'd1' || user?.role === 'accountant' || user?.role === 'project_head') && (
                                             client.project_id ? (
                                                 <button
                                                     onClick={() => navigate(`/projects/${client.project_id}`)}
@@ -293,7 +280,7 @@ export const Clients: React.FC = () => {
                                             )
                                         )}
                                     </td>
-                                    {(user?.role === 'admin' || user?.role === 'principal_architect') && (
+                                    {(user?.role === 'admin' || user?.role === 'd1') && (
                                         <td style={{ padding: '16px', textAlign: 'center' }}>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                                 <button onClick={() => handleEditClick(client)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '4px' }}>
@@ -328,14 +315,10 @@ export const Clients: React.FC = () => {
                                     <input type="text" required value={clientForm.projectname} onChange={(e) => setClientForm({ ...clientForm, projectname: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} placeholder="Enter the name of the project" />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Consultation Type</label>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Type</label>
                                     <select value={clientForm.consultation_type} onChange={(e) => setClientForm({ ...clientForm, consultation_type: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        <option value="Architectural Design Consultation">Architectural Design Consultation</option>
-                                        <option value="Interior Design Consultation">Interior Design Consultation</option>
-                                        <option value="Arch + Interior">Arch + Interior</option>
-                                        <option value="Interior Execution Project">Interior Execution Project</option>
-                                        {/* <option value="Master Plan">Master Plan</option>
-                                        <option value="Landscape">Landscape</option> */}
+                                        <option value="Furniture projects">Furniture projects</option>
+                                        <option value="Interior Projects">Interior Projects</option>
                                     </select>
                                 </div>
                             </div>
@@ -377,14 +360,10 @@ export const Clients: React.FC = () => {
                                     <input type="text" required value={projectForm.project_name} onChange={(e) => setProjectForm({ ...projectForm, project_name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Consultation Type</label>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Type</label>
                                     <select value={projectForm.consultation_type} onChange={(e) => setProjectForm({ ...projectForm, consultation_type: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}>
-                                        <option value="Architectural Design Consultation">Architectural Design Consultation</option>
-                                        <option value="Interior Design Consultation">Interior Design Consultation</option>
-                                        <option value="Arch + Interior">Arch + Interior</option>
-                                        <option value="Interior Execution Project">Interior Execution Project</option>
-                                        <option value="Master Plan">Master Plan</option>
-                                        <option value="Landscape">Landscape</option>
+                                        <option value="Furniture projects">Furniture projects</option>
+                                        <option value="Interior Projects">Interior Projects</option>
                                     </select>
                                 </div>
                             </div>
@@ -392,7 +371,7 @@ export const Clients: React.FC = () => {
                                 <div style={{ border: '1px solid #d1d5db', borderRadius: '6px', padding: '12px', minHeight: '100px' }}>
                                     <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.9rem', fontWeight: 600 }}>Project Head(s)</label>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                        {team.filter(t => ['principal_architect', 'project_head', 'admin'].includes(t.role)).map(t => {
+                                        {team.filter(t => ['admin', 'project_head', 'admin'].includes(t.role)).map(t => {
                                             const isSelected = projectForm.project_heads.includes(t.user_id);
                                             return (
                                                 <div
@@ -423,7 +402,7 @@ export const Clients: React.FC = () => {
                                                 </div>
                                             );
                                         })}
-                                        {team.filter(t => ['principal_architect', 'project_head', 'admin'].includes(t.role)).length === 0 && (
+                                        {team.filter(t => ['admin', 'project_head', 'admin'].includes(t.role)).length === 0 && (
                                             <p style={{ color: '#9ca3af', fontSize: '0.85rem' }}>No project heads available</p>
                                         )}
                                     </div>
@@ -473,11 +452,11 @@ export const Clients: React.FC = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Start Date</label>
-                                    <input type="date" required value={projectForm.start_date} onChange={(e) => setProjectForm({ ...projectForm, start_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                                    <input type="date" required value={projectForm.start_date} onChange={(e) => setProjectForm({ ...projectForm, start_date: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #cbd5e1', outline: 'none' }} />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>End Date</label>
-                                    <input type="date" required value={projectForm.expected_end_date} onChange={(e) => setProjectForm({ ...projectForm, expected_end_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                                    <input type="date" required value={projectForm.expected_end_date} onChange={(e) => setProjectForm({ ...projectForm, expected_end_date: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #cbd5e1', outline: 'none' }} />
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>

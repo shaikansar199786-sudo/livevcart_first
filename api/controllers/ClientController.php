@@ -5,19 +5,79 @@ class ClientController
 {
     private $conn;
     private $table_name = "clients";
+    private $current_user_id;
+    private $current_user_role;
 
-    public function __construct($db)
+    public function __construct($db, $user_id = null, $role = null)
     {
         $this->conn = $db;
+        $this->current_user_id = $user_id;
+        $this->current_user_role = $role;
     }
 
     public function getAll()
     {
-        $query = "SELECT c.*, p.project_id, COALESCE(p.project_name, c.projectname) as projectname, p.project_name as p_project_name 
+        // 1. Sync missing leads to clients table first to ensure historical leads appear
+        try {
+            $sync_query = "SELECT l.* FROM leads l LEFT JOIN clients c ON l.lead_id = c.converted_from_lead_id WHERE c.client_id IS NULL";
+            $sync_stmt = $this->conn->prepare($sync_query);
+            $sync_stmt->execute();
+            $missing_leads = $sync_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($missing_leads as $lead) {
+                // Generate a client code
+                $type = $lead['project_type'] ?? 'Furniture projects';
+                $client_code = $this->generateClientCode($type);
+
+                // Ensure duplicate code handling
+                $code_check = $this->conn->prepare("SELECT client_id FROM clients WHERE client_code = :code");
+                $code_check->execute(['code' => $client_code]);
+                if ($code_check->fetch()) {
+                    $client_code = $client_code . "_" . $lead['lead_id'];
+                }
+
+                // Check created_by user ID exists
+                $created_by = $lead['created_by'];
+                $u_check = $this->conn->prepare("SELECT user_id FROM users WHERE user_id = :uid");
+                $u_check->execute(['uid' => $created_by]);
+                if (!$u_check->fetch()) {
+                    $created_by = 1;
+                }
+
+                $c_query = "INSERT INTO clients (client_code, name, phone, address, lead_source, converted_from_lead_id, created_by, email, consultation_type, projectname, status) 
+                            VALUES (:code, :name, :phone, :address, :source, :lead_id, :created_by, :email, :consultation_type, :projectname, 'active')";
+                $c_stmt = $this->conn->prepare($c_query);
+                $c_stmt->execute([
+                    'code' => $client_code,
+                    'name' => $lead['client_name'],
+                    'phone' => $lead['contact_number'],
+                    'address' => $lead['client_address'] ?? $lead['location'],
+                    'source' => $lead['lead_source'],
+                    'lead_id' => $lead['lead_id'],
+                    'created_by' => $created_by,
+                    'email' => $lead['email'],
+                    'consultation_type' => $type,
+                    'projectname' => $lead['client_name'] . ' Project'
+                ]);
+            }
+        } catch (Exception $e) {
+            // Log or ignore errors to not block page loading
+        }
+
+        // 2. Database status sanitization
+        try {
+            $this->conn->exec("UPDATE clients SET status = 'active' WHERE status IS NULL OR status = ''");
+        } catch (Exception $e) {
+            // Ignore
+        }
+
+        // 3. Fetch all clients without role restrictions to display everything to all roles
+        $query = "SELECT DISTINCT c.*, p.project_id, COALESCE(p.project_name, c.projectname) as projectname, p.project_name as p_project_name 
                   FROM " . $this->table_name . " c
-                  LEFT JOIN projects p ON c.client_id = p.client_id AND p.status = 'active'
-                  WHERE c.status = 'active' 
+                  LEFT JOIN projects p ON c.client_id = p.client_id
+                  WHERE c.status = 'active'
                   ORDER BY c.created_at DESC";
+
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -34,9 +94,9 @@ class ClientController
 
     public function create($data)
     {
-        $type = $data['consultation_type'] ?? 'Interior Design';
+        $type = $data['consultation_type'] ?? 'Furniture projects';
         $client_code = $this->generateClientCode($type);
-        
+
         $query = "INSERT INTO " . $this->table_name . " 
                 (client_code, name, projectname, consultation_type, email, phone, address, lead_source, created_by, status) 
                 VALUES (:code, :name, :projectname, :type, :email, :phone, :address, :source, :created_by, 'active')";
@@ -63,32 +123,32 @@ class ClientController
     {
         $currentMonth = date('m');
         $currentYear = date('Y');
-        
+
         // Financial Year logic (April to March)
         if ($currentMonth >= 4) {
-            $fy = substr($currentYear, 2) . '-' . substr((int)$currentYear + 1, 2);
+            $fy = substr($currentYear, 2) . '-' . substr((int) $currentYear + 1, 2);
         } else {
-            $fy = substr((int)$currentYear - 1, 2) . '-' . substr($currentYear, 2);
+            $fy = substr((int) $currentYear - 1, 2) . '-' . substr($currentYear, 2);
         }
 
         // Get prefix based on type
-        $prefix = 'ADC'; // Default
-        if ($type === 'Architectural Design Consultation') {
-            $prefix = 'ADC';
-        } elseif ($type === 'Interior Design Consultation') {
-            $prefix = 'IDC';
-        } elseif ($type === 'Arch + Interior') {
-            $prefix = 'IE';
+        $prefix = 'FP'; // Default
+        if ($type === 'Furniture projects') {
+            $prefix = 'FP';
+        } elseif ($type === 'Interior Projects') {
+            $prefix = 'IP';
+        } elseif ($type === 'Site Execution Tracker') {
+            $prefix = 'SET';
         }
 
         // Find the last number for this specific type and financial year to ensure sequential numbering
-        $search = "ARK/" . $prefix . "/" . $fy . "/%";
+        $search = $prefix . "/" . $fy . "/%";
         $query = "SELECT client_code FROM " . $this->table_name . " WHERE client_code LIKE :search ORDER BY client_id DESC LIMIT 1";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':search', $search);
         $stmt->execute();
         $last = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($last) {
             $parts = explode('/', $last['client_code']);
             $last_num = (int) end($parts);
@@ -96,8 +156,8 @@ class ClientController
         } else {
             $next_id = 1;
         }
-        
-        return 'ARK/' . $prefix . '/' . $fy . '/' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
+
+        return $prefix . '/' . $fy . '/' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
     }
 
     public function update($data)

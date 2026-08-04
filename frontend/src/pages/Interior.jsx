@@ -1,9 +1,6 @@
 import React from "react";
-import stamp from "../assets/stamp.png";
-import sig from "../assets/sig.png";
-import loger from "../assets/logo.png";
 /* ═══════════════════════════════════════════════════════════════════════════
-   ARK Architects – Interior Design Contract
+   Livincart Architects – Interior Design Contract
    Exact replica of Contract_interior_3_.docx
    Fixed: 2.01–2.14 numbering + proper indent alignment (matches images)
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -11,15 +8,14 @@ import loger from "../assets/logo.png";
 export default function InteriorConsultation({
   clientName = "Ms Mahalakshmi",
   salutation = "Mam",
-  refId      = "PR_01/06-01-26/01",
-  date       = "",
-  feeAmount  = "Rs 4,50,000.00 (Four Lakhs Fifty Thousand only)",
+  refId = "PR_01/06-01-26/01",
+  date = "",
+  feeAmount = "Rs 4,50,000.00 (Four Lakhs Fifty Thousand only)",
   address = "",
-  place="",
+  place = "",
   paymentStages = [],
   totalPercentage = "100%",
-})
- {
+}) {
   return (
     <div style={S.root}>
 
@@ -180,9 +176,9 @@ export default function InteriorConsultation({
         </NR>
 
         <NR n="4.2.1">
-        No deductions shall be made from the Architectural fee on account of penalty,
-            liquidated damages, part rates or other sums withheld from payment or recovered
-            from contractors/ suppliers.
+          No deductions shall be made from the Architectural fee on account of penalty,
+          liquidated damages, part rates or other sums withheld from payment or recovered
+          from contractors/ suppliers.
         </NR>
         {/* <ul style={S.bul}>
           <li style={S.bli}>
@@ -215,19 +211,19 @@ export default function InteriorConsultation({
 
         <p style={S.secHead}>6.&nbsp;&nbsp;REIMBURSABLE EXPENSES:</p>
 
-    
+
         <p style={S.justify}>
           The Client will reimburse the following expenses incurred by him for discharge of
           his obligations:
         </p>
         <NR n="6.1">
-        Cost of presentation models or walkthrough prepared at the instance of the Client.
+          Cost of presentation models or walkthrough prepared at the instance of the Client.
         </NR>
         <NR n="6.2">
-        All Out of the pocket expenses like, travel boarding &amp; lodging outside Visakhapatnam if required shall be paid as per actual, subject to prior approval by client and Rs 1500/- per day as outstation charges.
+          All Out of the pocket expenses like, travel boarding &amp; lodging outside Visakhapatnam if required shall be paid as per actual, subject to prior approval by client and Rs 1500/- per day as outstation charges.
         </NR>
 
-   
+
 
         <p style={S.secHead}>7.&nbsp;&nbsp;ARCHITECT'S ROLE AND RESPONSIBILITIES:</p>
         <ul style={S.bul}>
@@ -262,67 +258,67 @@ export default function InteriorConsultation({
 
         <div style={S.thankWrap}>
           <p style={{ margin: "0 0 20px 0" }}>Thanking you,</p>
-          <img src={sig} alt="" width="10%" />
+          {/* <img src={sig} alt="" width="10%" /> */}
           <p style={{ margin: "0 0 10px 0" }}>Yours faithfully,</p>
         </div>
 
         <div style={{ marginTop: 28 }}>
-        <div style={S.signRow}>
-  <span style={S.sLabel}>Name of the Architect</span>
-  <span style={S.sColon}>:</span>
-  <span><strong>ARK Architects and Interior Designers</strong></span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.sLabel}>Name of the Architect</span>
+            <span style={S.sColon}>:</span>
+            <span><strong>Livincart Architects and Interior Designers</strong></span>
+          </div>
 
-<div style={S.signRow}>
-  <span style={S.sLabel}>Date</span>
-  <span style={S.sColon}>:</span>
-  <span>{date}</span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.sLabel}>Date</span>
+            <span style={S.sColon}>:</span>
+            <span>{date}</span>
+          </div>
 
-<div style={S.signRow}>
-  <span style={S.sLabel}>Place</span>
-  <span style={S.sColon}>:</span>
-  <span>{place}</span>
-</div>
+          <div style={S.signRow}>
+            <span style={S.sLabel}>Place</span>
+            <span style={S.sColon}>:</span>
+            <span>{place}</span>
+          </div>
           <div style={{ marginTop: 12 }}>
             <div style={S.signRow}>
               <span style={S.sLabel}>Seal of the Architect</span>
               <span style={S.sColon}>:</span>
-              <span><img src={stamp} alt="" width="20%" /></span>
+              <span></span>
             </div>
           </div>
         </div>
 
         <p style={{ fontWeight: "bold", marginTop: 32, marginBottom: 16 }}>ACCEPTED</p>
         <div style={{ ...S.signRow, marginBottom: 12 }}>
-  <span style={S.sLabel}>Signature of the Client</span>
-  <span style={S.sColon}>:</span>
-  
-  
-</div>
+          <span style={S.sLabel}>Signature of the Client</span>
+          <span style={S.sColon}>:</span>
 
-<div style={{ ...S.signRow, marginBottom: 12 }}>
-  <span style={S.sLabel}>Name of the Client</span>
-  <span style={S.sColon}>:</span>
-  <span>{clientName}</span>
-</div>
 
-<div style={{ ...S.signRow, marginBottom: 12 }}>
-  <span style={S.sLabel}>Address of the Client</span>
-  <span style={S.sColon}>:</span>
-  <span>{address}</span>
-</div>
+        </div>
+
+        <div style={{ ...S.signRow, marginBottom: 12 }}>
+          <span style={S.sLabel}>Name of the Client</span>
+          <span style={S.sColon}>:</span>
+          <span>{clientName}</span>
+        </div>
+
+        <div style={{ ...S.signRow, marginBottom: 12 }}>
+          <span style={S.sLabel}>Address of the Client</span>
+          <span style={S.sColon}>:</span>
+          <span>{address}</span>
+        </div>
 
         <div style={S.bankBox}>
           <p style={{ fontWeight: "bold", margin: "0 0 2px 0" }}>Bank Details:</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>Abhikalpana Rachna Kendra</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>A/c No.: 126905500081</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>IFSC: ICIC0001269</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>LIVINCART ARCHITECTS AND INTERIOR DESIGNERS</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>A/c No.: 000000000</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>IFSC: ICIC0000000</p>
           <p style={{ fontWeight: "bold", margin: 0 }}>HSL Complex Branch</p>
         </div>
-      </Page>
+      </Page >
 
-    </div>
+    </div >
   );
 }
 
@@ -362,25 +358,25 @@ function Letterhead({ refId }) {
           <circle cx="106" cy="17" r="4" fill="none" stroke="#111" strokeWidth="2"/>
           <text x="130" y="56"
             fontFamily="'Palatino Linotype','Palatino','Book Antiqua',Georgia,serif"
-            fontSize="44" fontWeight="400" letterSpacing="2" fill="#111">ark</text>
+            fontSize="44" fontWeight="400" letterSpacing="2" fill="#111">Livincart</text>
         </svg> */}
-        <img src={loger} alt="" width="50%" />
-        <p style={S.firmName}>AbhikalpanaRachna Kendra</p>
+
+        <p style={S.firmName}>Livincart</p>
         <p style={S.firmTag}>Architecture .Planning .Landscape . Interiors</p>
-        <p style={S.contact}>E mail: infoatark@gmail.com</p>
-        <p style={S.contact}>Ph; 91 – 9908041365</p>
-        <p style={S.contact}>10-385/1/13, Sri SiridiSaiVeternary Colony, Visalakshinagar</p>
-        <p style={S.contact}>Near HanumanthwakaJn, Visakhapatnam – 530 040</p>
-        <p style={{ ...S.contact, fontStyle: "italic" }}>www.arkarchitects.co.in</p>
-        <p style={{ ...S.contact, fontStyle: "italic" }}>www.facebook.com/arkarchitect</p>
+        <p style={S.contact}>E mail: infoatLivincart@gmail.com</p>
+        <p style={S.contact}>Ph; 91 – 1234567890</p>
+        <p style={S.contact}>Sai  Colony, vsphinagar</p>
+        <p style={S.contact}>Visakhapatnam  530 040</p>
+        <p style={{ ...S.contact, fontStyle: "italic" }}>www.Livincartarchitects.co.in</p>
+        <p style={{ ...S.contact, fontStyle: "italic" }}>www.facebook.com/Livincartarchitect</p>
       </div>
     </div>
   );
 }
 
 /* ─── Styles ──────────────────────────────────────────────────────────────── */
-const F   = "'Times New Roman', Times, Georgia, serif";
-const FD  = "'Palatino Linotype','Palatino','Book Antiqua',Georgia,serif";
+const F = "'Times New Roman', Times, Georgia, serif";
+const FD = "'Palatino Linotype','Palatino','Book Antiqua',Georgia,serif";
 
 const S = {
   root: { padding: "32px 0", minHeight: "100vh" },
@@ -390,7 +386,7 @@ const S = {
     margin: "0 auto 10px auto",
     padding: "0mm 20mm 10mm 20mm",
     background: "#fff",
-   
+
     fontFamily: F, fontSize: "11pt", lineHeight: 1.65,
     color: "#111", boxSizing: "border-box",
   },
@@ -399,13 +395,13 @@ const S = {
   hdrRow: { display: "flex", alignItems: "flex-start", marginBottom: 10 },
   hdrLeft: {
     flex: "0 0 30%", paddingLeft: 4,
-     minHeight: 110, paddingTop: 4,
+    minHeight: 110, paddingTop: 4,
   },
-  hdrRight:  { flex: 1, textAlign: "right" },
-  firmName:  { fontFamily: FD, fontSize: "17pt", fontStyle: "italic", margin: "0 0 1px 0", lineHeight: 1.2 },
-  firmTag:   { fontFamily: F, fontSize: "9pt", fontWeight: "bold", letterSpacing: "0.8px", margin: "2px 0 8px 0" },
-  contact:   { fontFamily: F, fontSize: "9pt", margin: 0, lineHeight: 1.5 },
-  ref:       { fontFamily: F, fontSize: "11pt", fontWeight: "bold", margin: 0 },
+  hdrRight: { flex: 1, textAlign: "right" },
+  firmName: { fontFamily: FD, fontSize: "17pt", fontStyle: "italic", margin: "0 0 1px 0", lineHeight: 1.2 },
+  firmTag: { fontFamily: F, fontSize: "9pt", fontWeight: "bold", letterSpacing: "0.8px", margin: "2px 0 8px 0" },
+  contact: { fontFamily: F, fontSize: "9pt", margin: 0, lineHeight: 1.5 },
+  ref: { fontFamily: F, fontSize: "11pt", fontWeight: "bold", margin: 0 },
 
   /* Text */
   title: {
@@ -413,15 +409,15 @@ const S = {
     textAlign: "center", textTransform: "uppercase",
     letterSpacing: "0.5px", margin: "14px 0 16px 0", lineHeight: 1.55,
   },
-  body:    { fontFamily: F, fontSize: "11pt", margin: "0 0 4px 0" },
+  body: { fontFamily: F, fontSize: "11pt", margin: "0 0 4px 0" },
   justify: { fontFamily: F, fontSize: "11pt", textAlign: "justify", margin: "0 0 8px 0" },
 
   /* Section heading row "1.  SCOPE …" */
-  secRow:      { display: "flex", alignItems: "baseline", margin: "14px 0 6px 0" },
-  secNum:      { fontFamily: F, fontSize: "11pt", fontWeight: "bold", minWidth: 28, flexShrink: 0 },
+  secRow: { display: "flex", alignItems: "baseline", margin: "14px 0 6px 0" },
+  secNum: { fontFamily: F, fontSize: "11pt", fontWeight: "bold", minWidth: 28, flexShrink: 0 },
   secHeadText: { fontFamily: F, fontSize: "11pt", fontWeight: "bold" },
 
-  secHead:   { fontFamily: F, fontSize: "11pt", fontWeight: "bold", margin: "14px 0 4px 0" },
+  secHead: { fontFamily: F, fontSize: "11pt", fontWeight: "bold", margin: "14px 0 4px 0" },
   stageHead: { fontFamily: F, fontSize: "11pt", fontWeight: "bold", margin: "12px 0 4px 0" },
 
   /* Numbered rows 2.01…  — matching image 1 */
@@ -447,9 +443,9 @@ const S = {
 
   /* Sign-off */
   thankWrap: { textAlign: "right", fontFamily: F, fontSize: "11pt", marginTop: 24 },
-  signRow:   { display: "flex", alignItems: "baseline", marginBottom: 4, fontFamily: F, fontSize: "11pt" },
-  sLabel:    { minWidth: 180, display: "inline-block" },
-  sColon:    { minWidth: 24,  display: "inline-block" },
+  signRow: { display: "flex", alignItems: "baseline", marginBottom: 4, fontFamily: F, fontSize: "11pt" },
+  sLabel: { minWidth: 180, display: "inline-block" },
+  sColon: { minWidth: 24, display: "inline-block" },
 
   bankBox: { marginTop: 28, fontFamily: F, fontSize: "11pt", lineHeight: 1.7 },
 };

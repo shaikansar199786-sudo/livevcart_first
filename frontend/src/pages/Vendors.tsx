@@ -31,7 +31,7 @@ export const Vendors: React.FC = () => {
     return (
         <div className="vendors-container" style={{ padding: '20px', width: '100%' }}>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#253b50', marginBottom: '20px' }}>List of Contractors</h1>
-            
+
             <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', borderBottom: '2px solid #e2e8f0' }}>
                 <button
                     onClick={() => setActiveTab('labor')}
@@ -69,7 +69,7 @@ export const Vendors: React.FC = () => {
                                             <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Site</th>
                                             <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'center' }}>Payment date</th>
                                             <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Payment Amount</th>
-                                            <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Remarks</th>
+                                            <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>RemLivincarts</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -82,7 +82,7 @@ export const Vendors: React.FC = () => {
                                                 <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 600, color: '#059669' }}>
                                                     ₹{parseFloat(t.payment_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </td>
-                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{t.remarks || '-'}</td>
+                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{t.remLivincarts || '-'}</td>
                                             </tr>
                                         ))}
                                         <tr style={{ backgroundColor: '#e2e8f0' }}>

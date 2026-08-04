@@ -473,11 +473,11 @@ CREATE TABLE attendance (
     check_in_time TIME,
     check_out_time TIME,
     notes TEXT,
-    marked_by INT,
+    mLivincarted_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE SET NULL,
-    FOREIGN KEY (marked_by) REFERENCES users(user_id),
+    FOREIGN KEY (mLivincarted_by) REFERENCES users(user_id),
     UNIQUE KEY unique_user_date (user_id, date),
     INDEX idx_user_date (user_id, date),
     INDEX idx_project_date (project_id, date)
@@ -624,13 +624,13 @@ CREATE TABLE system_settings (
         ↓
 [Site Engineer Assigned]
         ↓
-[Site Engineer Marks: In Progress]
+[Site Engineer MLivincarts: In Progress]
         ↓
 [Daily Updates: Completion %]
         ↓
 [Upload Progress Photos]
         ↓
-[Site Engineer Marks: Completed]
+[Site Engineer MLivincarts: Completed]
         ↓
 [Timeline Task Status: Completed]
         ↓
@@ -684,7 +684,7 @@ CREATE TABLE system_settings (
 | Generate Invoices        | ✓           | ✓     | ✓          | ✗            | ✗             |
 | Create Timeline          | ✓           | ✓     | ✗          | ✓            | ✗             |
 | Update Timeline Tasks    | ✓           | ✓     | ✗          | ✓            | ✓             |
-| Mark Attendance          | ✓           | ✓     | ✓          | ✓            | Self          |
+| MLivincart Attendance          | ✓           | ✓     | ✓          | ✓            | Self          |
 | View Financial Reports   | ✓           | ✓     | ✓          | Project-wise | ✗             |
 | System Settings          | ✓           | ✗     | ✗          | ✗            | ✗             |
 

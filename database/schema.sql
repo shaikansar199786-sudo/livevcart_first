@@ -1,7 +1,7 @@
--- ARK Interior Project Management System Database Schema
+-- Livincart Interior Project Management System Database Schema
 
-CREATE DATABASE IF NOT EXISTS ark_pm_system;
-USE ark_pm_system;
+CREATE DATABASE IF NOT EXISTS Livincart_pm_system;
+USE Livincart_pm_system;
 
 -- TABLE: users
 CREATE TABLE IF NOT EXISTS users (
@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS project_timeline_updates (
     project_id INT NOT NULL,
     updated_by INT NOT NULL,
     update_type ENUM('started', 'progress', 'completed', 'note_added', 'photo_uploaded', 
-                     'marked_overdue', 'status_changed') NOT NULL,
+                     'mLivincarted_overdue', 'status_changed') NOT NULL,
     old_status VARCHAR(50),
     new_status VARCHAR(50),
     completion_percentage INT,
@@ -437,11 +437,11 @@ CREATE TABLE IF NOT EXISTS attendance (
     check_in_time TIME,
     check_out_time TIME,
     notes TEXT,
-    marked_by INT,
+    mLivincarted_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE SET NULL,
-    FOREIGN KEY (marked_by) REFERENCES users(user_id),
+    FOREIGN KEY (mLivincarted_by) REFERENCES users(user_id),
     UNIQUE KEY unique_user_date (user_id, date),
     INDEX idx_user_date (user_id, date),
     INDEX idx_project_date (project_id, date)
@@ -544,7 +544,7 @@ CREATE TABLE IF NOT EXISTS finance_transactions (
 CREATE TABLE IF NOT EXISTS monthly_income (
     id INT AUTO_INCREMENT PRIMARY KEY,
     month_year VARCHAR(10) NOT NULL,
-    category ENUM('elegance', 'ark', 'new_projects', 'major_expenditures') NOT NULL,
+    category ENUM('elegance', 'Livincart', 'new_projects', 'major_expenditures') NOT NULL,
     description TEXT,
     amount DECIMAL(15, 2) DEFAULT 0,
     transaction_date DATE DEFAULT NULL,

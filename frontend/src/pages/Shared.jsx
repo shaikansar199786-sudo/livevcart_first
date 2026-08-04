@@ -33,7 +33,7 @@ export default function Letterhead() {
         Architecture · Planning · Landscape · Interiors
       </Typography>
       <Typography>
-        Email: infoatark@gmail.com | Ph: 9908041365
+        Email: infoatLivincart@gmail.com | Ph: 1234567890
       </Typography>
       <Typography>
         Visakhapatnam – 530040

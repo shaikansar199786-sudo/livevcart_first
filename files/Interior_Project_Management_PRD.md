@@ -81,13 +81,13 @@ The application is an **all-in-one integrated system** that includes:
 **Capabilities:**
 - View assigned projects
 - Update daily site progress
-- Mark timeline tasks as complete
+- MLivincart timeline tasks as complete
 - Record inventory usage
 - Add site expenses (requires approval)
 - Upload site photos/documents
 - Track attendance at site
 - Submit daily/weekly reports
-- Mark milestone completion
+- MLivincart milestone completion
 
 ---
 
@@ -273,7 +273,7 @@ Timeline should show detailed interior works schedule similar to the template pr
 - Tasks include:
   - **Site Preparation**
     - Site cleaning
-    - Measurements and marking
+    - Measurements and mLivincarting
   - **Electrical Works**
     - Wiring layout
     - Switch board installation
@@ -311,7 +311,7 @@ Timeline should show detailed interior works schedule similar to the template pr
 - Dependencies (which tasks must complete before this starts)
 - Status: Not Started, In Progress, Completed, Delayed
 - Completion %
-- Can be marked complete by Site Engineer
+- Can be mLivincarted complete by Site Engineer
 
 **Timeline Visualization:**
 - Horizontal bar chart with dates on X-axis
@@ -321,15 +321,15 @@ Timeline should show detailed interior works schedule similar to the template pr
   - Yellow: In Progress
   - Green: Completed
   - Red: Delayed (past end date but not complete)
-- Milestone markers
+- Milestone mLivincarters
 - Today's date indicator line
 - Drag to adjust dates (Admin/Project Head only)
 
 **Site Engineer Timeline Interaction:**
 - View timeline for assigned projects
-- Mark tasks as started
+- MLivincart tasks as started
 - Update completion percentage
-- Mark tasks as completed
+- MLivincart tasks as completed
 - Add notes/comments to tasks
 - Upload progress photos
 
@@ -381,7 +381,7 @@ Timeline should show detailed interior works schedule similar to the template pr
 
 #### 3.4.3 Attendance + Leave Tracking
 **Attendance System:**
-- Daily attendance marking (Present/Absent/Half-day/Leave)
+- Daily attendance mLivincarting (Present/Absent/Half-day/Leave)
 - Attendance by project site for Site Engineers
 - Monthly attendance report
 - Attendance percentage
@@ -756,7 +756,7 @@ Site Engineer records daily usage:
 - Due date
 - Priority
 - Project name
-- Mark complete button
+- MLivincart complete button
 
 **Project Timeline Overview:**
 - Gantt chart of all assigned projects
@@ -786,7 +786,7 @@ Site Engineer records daily usage:
 - Tasks due today
 - Tasks in progress
 - Completed tasks
-- Mark complete functionality
+- MLivincart complete functionality
 
 **Inventory Usage Entry:**
 - Quick entry form
@@ -1133,7 +1133,7 @@ Site Engineer records daily usage:
 - check_in_time
 - check_out_time
 - notes
-- marked_by (FK to users)
+- mLivincarted_by (FK to users)
 - created_at
 
 **leaves**
@@ -1413,7 +1413,7 @@ Site Engineer records daily usage:
 - Footer
 
 ### 5.3 Color Scheme (Suggestion)
-- Primary: #2C3E50 (Dark Blue-Gray)
+- Primary: #2C3E50 (DLivincart Blue-Gray)
 - Secondary: #3498DB (Blue)
 - Success: #27AE60 (Green)
 - Warning: #F39C12 (Orange)
@@ -1566,13 +1566,13 @@ Site Engineer records daily usage:
 **Step 11: Project Execution (Site Engineer)**
 1. Site Engineer logs in
 2. Views assigned projects and tasks
-3. Marks "Site cleaning" as In Progress
+3. MLivincarts "Site cleaning" as In Progress
 4. Updates daily progress
 5. Records inventory usage:
    - Used 50m of wire today
    - System reduces inventory automatically
 6. Uploads site progress photos
-7. Marks task complete when done
+7. MLivincarts task complete when done
 8. Timeline auto-updates
 
 **Step 12: Expense Recording**
@@ -1603,10 +1603,10 @@ Site Engineer records daily usage:
 4. Reviews financial summary - profit on track
 
 **Step 15: Project Completion**
-1. All timeline tasks marked complete
+1. All timeline tasks mLivincarted complete
 2. Site Engineer submits final report
 3. Project Head reviews and confirms
-4. Admin marks project status as "Completed"
+4. Admin mLivincarts project status as "Completed"
 5. Accountant sends final invoice
 6. Collects final payment
 7. Generates final project balance sheet
@@ -1622,7 +1622,7 @@ Site Engineer records daily usage:
 5. Note material requirements
 
 **At Site (10 AM):**
-1. Mark attendance for the project site
+1. MLivincart attendance for the project site
 2. Review timeline for the day
 3. Check which phase is active (e.g., Electrical work)
 4. Coordinate with contractors
@@ -1650,14 +1650,14 @@ Site Engineer records daily usage:
 
 **Evening (6 PM):**
 1. Final inventory usage entry
-2. Mark tasks completed for the day
+2. MLivincart tasks completed for the day
 3. Submit daily site report:
    - Work completed today
    - Materials used
    - Issues faced
    - Next day plan
 4. Upload site photos
-5. Mark attendance out
+5. MLivincart attendance out
 6. Logout
 
 ### 6.3 Monthly Accountant Workflow
@@ -1862,7 +1862,7 @@ Site Engineer records daily usage:
 - Team performance tracking
 
 **Testing:**
-- Attendance marking
+- Attendance mLivincarting
 - Leave workflow
 - Workload calculations
 
@@ -1943,7 +1943,7 @@ Site Engineer records daily usage:
 - Login and navigation
 - Adding a new project
 - Recording payments
-- Marking timeline tasks
+- MLivincarting timeline tasks
 - Generating invoices
 - Common troubleshooting
 
@@ -2149,7 +2149,7 @@ The phased implementation approach ensures manageable development cycles with re
 
 **Key Differentiators:**
 - Project-wise separate inventory (not shared pool)
-- Detailed timeline with site engineer marking capability
+- Detailed timeline with site engineer mLivincarting capability
 - Complete financial tracking from advance to final payment
 - Role-based dashboards with relevant KPIs
 - Vendor management integrated with expenses

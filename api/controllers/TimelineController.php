@@ -217,7 +217,7 @@ class TimelineController {
     // Cron/Automated: Daily Overdue Check
     public function runDailyCheck() {
         $today = date('Y-m-d');
-        // Mark as overdue if end_date has passed and not completed
+        // MLivincart as overdue if end_date has passed and not completed
         $query = "UPDATE project_timeline_tasks 
                   SET status = 'overdue', is_overdue = TRUE, overdue_since = end_date 
                   WHERE end_date < :today AND status NOT IN ('completed', 'completed_late', 'overdue')";

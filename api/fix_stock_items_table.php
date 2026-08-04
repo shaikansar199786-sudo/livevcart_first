@@ -3,7 +3,7 @@
 // Run this once to create the project_stock_items table
 
 $host = 'localhost';
-$dbname = 'ark_pm_system';
+$dbname = 'Livincart_pm_system';
 $username = 'root';
 $password = '';
 

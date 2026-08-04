@@ -1,9 +1,6 @@
 import React from "react";
-import stamp from "../assets/stamp.png";
-import sig from "../assets/sig.png";
-import loger from "../assets/logo.png";
 /*
-  ARK Architects – Exact replica of contract_arch-int__4_.docx
+  Livincart Architects – Exact replica of contract_arch-int__4_.docx
   Numbering matches docx exactly:
     Section 1  → numbered list 1–13
     Section 2  → numbered 2.01, 2.02 ... with stage headings
@@ -223,12 +220,12 @@ export default function ArchInterior({
 
         <div style={S.thankWrap}>
           <p style={{ margin: "0 0 10px 0" }}>Thanking you,</p>
-          <img src={sig} alt="" width="20%" />
+
           <p style={{ margin: "0 0 4px 0" }}>Yours faithfully,</p>
         </div>
 
         <div style={{ marginTop: 12, textAlign: "right", fontFamily: FONT, fontSize: "11pt" }}>
-          <p style={{ margin: 0 }}>Rohit Kannagatha</p>
+
           <p style={{ margin: "0 0 16px 0" }}>Managing Partner</p>
         </div>
 
@@ -236,7 +233,7 @@ export default function ArchInterior({
           <div style={S.signRow}>
             <span style={S.signLabel}>Name of the Architect</span>
             <span style={S.signColon}>:</span>
-            <span style={S.signVal}><strong>ARK Architects and Interior Designers</strong></span>
+            <span style={S.signVal}><strong>Livincart Architects and Interior Designers</strong></span>
           </div>
 
           <div style={S.signRow}>
@@ -254,7 +251,7 @@ export default function ArchInterior({
             <div style={S.signRow}>
               <span style={S.signLabel}>Seal of the Architect</span>
               <span style={S.signColon}>:</span>
-              <span style={S.signVal}><img src={stamp} alt="" width="20%" /></span>
+              <span style={S.signVal}></span>
             </div>
           </div>
         </div>
@@ -270,28 +267,28 @@ export default function ArchInterior({
           ))} */}
 
           <div style={S.signRow}>
-  <span style={S.signLabel}>Name of the Client</span>
-  <span style={S.signColon}>:</span>
-  <span style={S.signVal}>{clientName}</span>
-</div>
-        <div style={S.signRow}>
-          <span style={S.signLabel}>Date</span>
-          <span style={S.signColon}>:</span>
-          <span style={S.signVal}>{date}</span>
-        </div>
+            <span style={S.signLabel}>Name of the Client</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}>{clientName}</span>
+          </div>
+          <div style={S.signRow}>
+            <span style={S.signLabel}>Date</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}>{date}</span>
+          </div>
 
-        <div style={S.signRow}>
-          <span style={S.signLabel}>Place</span>
-          <span style={S.signColon}>:</span>
-          <span style={S.signVal}>{place}</span>
-        </div>
+          <div style={S.signRow}>
+            <span style={S.signLabel}>Place</span>
+            <span style={S.signColon}>:</span>
+            <span style={S.signVal}>{place}</span>
+          </div>
         </div>
 
         <div style={S.bankBox}>
           <p style={{ fontWeight: "bold", margin: "0 0 2px 0" }}>Bank Details:</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>Abhikalpana Rachna Kendra</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>A/c No.: 126905500081</p>
-          <p style={{ fontWeight: "bold", margin: 0 }}>IFSC: ICIC0001269</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>LIVINCART ARCHITECTS AND INTERIOR DESIGNERS</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>A/c No.: 000000000</p>
+          <p style={{ fontWeight: "bold", margin: 0 }}>IFSC: ICIC0000000</p>
           <p style={{ fontWeight: "bold", margin: 0 }}>HSL Complex Branch</p>
         </div>
       </Page>
@@ -369,17 +366,17 @@ function Letterhead({ refId }) {
             <circle cx="106" cy="18" r="4" fill="none" stroke="#111" strokeWidth="2" />
             <text x="130" y="58"
               fontFamily="'Palatino Linotype','Palatino','Book Antiqua',Georgia,serif"
-              fontSize="46" fontWeight="400" letterSpacing="2" fill="#111">ark</text>
+              fontSize="46" fontWeight="400" letterSpacing="2" fill="#111">Livincart</text>
           </svg> */}
-          <img src={loger} alt="" width="50%" />
-          <p style={S.firmName}>AbhikalpanaRachna Kendra</p>
+          {/* <img src={loger} alt="" width="50%" /> */}
+          <p style={S.firmName}>Livincart</p>
           <p style={S.firmTag}>Architecture . Planning . Landscape . Interiors</p>
-          <p style={S.contact}>E mail: infoatark@gmail.com</p>
-          <p style={S.contact}>Ph: 91 – 9908041365</p>
-          <p style={S.contact}>10-385/1/13, Sri Siridi Sai Veternary Colony, Visalakshinagar</p>
+          <p style={S.contact}>E mail: infoatLivincart@gmail.com</p>
+          <p style={S.contact}>Ph: 91 – 1234567890</p>
+          <p style={S.contact}>Sai  Colony, vspr</p>
           <p style={S.contact}>Near Hanumanthwaka Jn, Visakhapatnam – 530 040</p>
-          <p style={{ ...S.contact, fontStyle: "italic" }}>www.arkarchitects.co.in</p>
-          <p style={{ ...S.contact, fontStyle: "italic" }}>www.facebook.com/arkarchitect</p>
+          <p style={{ ...S.contact, fontStyle: "italic" }}>www.Livincartarchitects.co.in</p>
+          <p style={{ ...S.contact, fontStyle: "italic" }}>www.facebook.com/Livincartarchitect</p>
         </div>
       </div>
       <hr style={{ borderTop: "1px solid #555", margin: "6px 0 10px 0" }} />

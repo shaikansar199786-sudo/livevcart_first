@@ -10,7 +10,7 @@ if ($res) {
     if ($row) {
         $id = $row['id'];
         
-        $ch = curl_init('http://localhost/ARK/api/controllers/Inventoryproject.php');
+        $ch = curl_init('http://localhost/Livincart/api/controllers/Inventoryproject.php');
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'id' => $id,

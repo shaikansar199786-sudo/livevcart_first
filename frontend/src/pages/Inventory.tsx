@@ -97,7 +97,7 @@ export const Inventory: React.FC = () => {
         }
     };
 
-    const isAdmin = user?.role === 'principal_architect' || user?.role === 'admin' || user?.role === 'project_head';
+    const isAdmin = user?.role === 'admin' || user?.role === 'project_head';
 
     return (
         <div className="inventory-page">

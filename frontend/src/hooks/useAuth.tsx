@@ -4,7 +4,7 @@ interface User {
     user_id: string;
     name: string;
     username: string;
-    role: 'principal_architect' | 'admin' | 'accountant' | 'project_head' | 'site_engineer';
+    role: 'admin' | 'accountant' | 'project_head' | 'site_engineer' | 'sales' | 'd1' | 'd2' | 'mmt' | 'site_inspection' | 'site_inspector' | 'project_manager' | 'manager' | 'graphic_designer' | 'gd' | 'business_associate';
     token: string;
 }
 
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(() => {
-        const savedUser = localStorage.getItem('ark_user');
+        const savedUser = localStorage.getItem('Livincart_user') || localStorage.getItem('user');
         if (savedUser) {
             try {
                 return JSON.parse(savedUser);
@@ -32,12 +32,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const login = (userData: User) => {
         setUser(userData);
-        localStorage.setItem("ark_user", JSON.stringify(userData));
+        localStorage.setItem("Livincart_user", JSON.stringify(userData));
+        localStorage.setItem("user", JSON.stringify(userData));
     };
 
     const logout = () => {
         setUser(null);
-        localStorage.removeItem('ark_user');
+        localStorage.removeItem('Livincart_user');
+        localStorage.removeItem('user');
     };
 
     return (

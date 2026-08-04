@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `ark_pm_system`
+-- Database: `Livincart_pm_system`
 --
 
 -- --------------------------------------------------------
@@ -53,7 +53,7 @@ CREATE TABLE `attendance` (
   `check_in_time` time DEFAULT NULL,
   `check_out_time` time DEFAULT NULL,
   `notes` text DEFAULT NULL,
-  `marked_by` int(11) DEFAULT NULL,
+  `mLivincarted_by` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -87,13 +87,13 @@ CREATE TABLE `clients` (
 --
 
 INSERT INTO `clients` (`client_id`, `client_code`, `name`, `email`, `phone`, `address`, `city`, `state`, `pincode`, `gst_number`, `lead_source`, `converted_from_lead_id`, `status`, `created_by`, `created_at`, `updated_at`) VALUES
-(13, 'ARK-CL-001', 'Preetham Ram', 'preethamram.avala2004@gmail.com', '08374062188', 'P & T Colony (Vm)', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-20 11:07:45', '2026-04-20 11:07:45'),
-(14, 'ARK-CL-014', 'test', 'test@gmai.lcom', '909090', 'assd', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-22 07:11:33', '2026-04-22 07:11:33'),
-(15, 'ARK-CL-015', 'product', 'test@gmal.co', '900990090', 'sd', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 1, '2026-04-22 12:48:58', '2026-04-22 12:48:58'),
-(16, 'ARK-CL-016', 'ARK Project ', 'gh@gmail.com', '040044440', 'Visakhapatanam\n', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-24 06:16:19', '2026-04-24 06:16:19'),
-(17, 'ARK-CL-017', 'Qwe', 'gh@gmail.com', '5645646', ' hgqwuw', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-24 09:34:21', '2026-04-24 09:34:21'),
-(18, 'ARK-CL-018', 'Bizools', 'bizools@gmail.com', '489457', 'P & T Colony (Vm)', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-25 05:21:11', '2026-04-25 05:21:11'),
-(19, 'ARK-CL-019', 'Salman', '', '546879213', 'RK Beach', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-28 05:47:20', '2026-04-28 05:47:20');
+(13, 'Livincart-CL-001', 'Preetham Ram', 'preethamram.avala2004@gmail.com', '08374062188', 'P & T Colony (Vm)', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-20 11:07:45', '2026-04-20 11:07:45'),
+(14, 'Livincart-CL-014', 'test', 'test@gmai.lcom', '909090', 'assd', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-22 07:11:33', '2026-04-22 07:11:33'),
+(15, 'Livincart-CL-015', 'product', 'test@gmal.co', '900990090', 'sd', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 1, '2026-04-22 12:48:58', '2026-04-22 12:48:58'),
+(16, 'Livincart-CL-016', 'Livincart Project ', 'gh@gmail.com', '040044440', 'Visakhapatanam\n', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-24 06:16:19', '2026-04-24 06:16:19'),
+(17, 'Livincart-CL-017', 'Qwe', 'gh@gmail.com', '5645646', ' hgqwuw', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-24 09:34:21', '2026-04-24 09:34:21'),
+(18, 'Livincart-CL-018', 'Livincart ', 'Livincart @gmail.com', '489457', 'P & T Colony (Vm)', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-25 05:21:11', '2026-04-25 05:21:11'),
+(19, 'Livincart-CL-019', 'Salman', '', '546879213', 'RK Beach', NULL, NULL, NULL, NULL, 'walk_in', NULL, 'active', 3, '2026-04-28 05:47:20', '2026-04-28 05:47:20');
 
 -- --------------------------------------------------------
 
@@ -369,14 +369,14 @@ CREATE TABLE `projects` (
 --
 
 INSERT INTO `projects` (`project_id`, `project_code`, `project_name`, `client_id`, `project_type`, `site_address`, `start_date`, `expected_end_date`, `actual_end_date`, `total_budget`, `advance_received`, `current_stage`, `status`, `priority`, `completion_percentage`, `project_head_id`, `created_by`, `created_at`, `updated_at`) VALUES
-(2, 'ARK-PR-1776684146', 'Preetham Ram Project', 13, NULL, NULL, '2026-04-20', '2026-10-20', NULL, 5000000.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-20 11:22:26', '2026-04-20 11:26:37'),
-(3, 'ARK-PR-1776842057', 'test Project', 14, NULL, NULL, '2026-04-22', '2026-10-22', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 4, '2026-04-22 07:14:17', '2026-04-22 07:14:17'),
-(4, 'ARK-PR-1777011418', 'ARK Project  Project', 16, NULL, NULL, '2026-04-24', '2026-09-30', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-24 06:16:58', '2026-04-24 06:16:58'),
-(5, 'ARK-PR-1777011465', 'ARK Project  Project', 16, NULL, NULL, '2026-04-24', '2026-11-30', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-24 06:17:45', '2026-04-24 06:17:45'),
-(6, 'ARK-PR-1777011507', 'ARK Project  Project', 16, NULL, NULL, '2026-04-24', '2026-10-30', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-24 06:18:27', '2026-04-24 06:18:27'),
-(7, 'ARK-PR-1777023328', 'Qwe Project', 17, NULL, NULL, '2026-04-24', '2026-12-30', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-24 09:35:28', '2026-04-24 09:35:28'),
-(8, 'ARK-PR-1777094547', 'Bizools Project', 18, NULL, NULL, '2026-04-25', '2026-10-05', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-25 05:22:27', '2026-04-25 05:26:17'),
-(9, 'ARK-PR-1777355401', 'Salman Project', 19, NULL, NULL, '2026-04-28', '2026-09-23', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 6, 1, '2026-04-28 05:50:01', '2026-04-28 05:50:01');
+(2, 'Livincart-PR-1776684146', 'Preetham Ram Project', 13, NULL, NULL, '2026-04-20', '2026-10-20', NULL, 5000000.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-20 11:22:26', '2026-04-20 11:26:37'),
+(3, 'Livincart-PR-1776842057', 'test Project', 14, NULL, NULL, '2026-04-22', '2026-10-22', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 4, '2026-04-22 07:14:17', '2026-04-22 07:14:17'),
+(4, 'Livincart-PR-1777011418', 'Livincart Project  Project', 16, NULL, NULL, '2026-04-24', '2026-09-30', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-24 06:16:58', '2026-04-24 06:16:58'),
+(5, 'Livincart-PR-1777011465', 'Livincart Project  Project', 16, NULL, NULL, '2026-04-24', '2026-11-30', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-24 06:17:45', '2026-04-24 06:17:45'),
+(6, 'Livincart-PR-1777011507', 'Livincart Project  Project', 16, NULL, NULL, '2026-04-24', '2026-10-30', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-24 06:18:27', '2026-04-24 06:18:27'),
+(7, 'Livincart-PR-1777023328', 'Qwe Project', 17, NULL, NULL, '2026-04-24', '2026-12-30', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-24 09:35:28', '2026-04-24 09:35:28'),
+(8, 'Livincart-PR-1777094547', 'Livincart  Project', 18, NULL, NULL, '2026-04-25', '2026-10-05', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 7, 1, '2026-04-25 05:22:27', '2026-04-25 05:26:17'),
+(9, 'Livincart-PR-1777355401', 'Salman Project', 19, NULL, NULL, '2026-04-28', '2026-09-23', NULL, 0.00, 0.00, 'concept', 'active', 'medium', 0, 6, 1, '2026-04-28 05:50:01', '2026-04-28 05:50:01');
 
 -- --------------------------------------------------------
 
@@ -630,7 +630,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `name`, `username`, `password`, `role`, `phone`, `employee_id`, `profile_photo`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'Super Admin', 'admin', '$2y$10$AkBCmzz2SwvX9IqPxYC1A.BF6jNk54sgJlPjfElk0f3feE47eHYfK', 'principal_architect', NULL, 'ARK001', NULL, 'active', '2026-04-18 07:27:08', '2026-04-18 10:16:48'),
+(1, 'Super Admin', 'admin', '$2y$10$AkBCmzz2SwvX9IqPxYC1A.BF6jNk54sgJlPjfElk0f3feE47eHYfK', 'principal_architect', NULL, 'Livincart001', NULL, 'active', '2026-04-18 07:27:08', '2026-04-18 10:16:48'),
 (3, 'Rani', 'Rani', '$2y$10$myMIpH7bmxvK9FI.h.g4GOPsYWiZFPjI.2P.LN1KIbKFmtnwYV73e', 'accountant', '123456789', '1000', NULL, 'active', '2026-04-18 07:29:51', '2026-04-18 07:33:43'),
 (4, 'Ravi', 'Ravi', '$2y$10$beFrNlhpCFRZoIrUP3AzGuLVzltYwJ2/zmtM9gdYuXvYxcwxw46HO', 'admin', '987654321', '2000', NULL, 'active', '2026-04-18 07:33:06', '2026-04-18 07:33:06'),
 (5, 'Ramesh', 'Ramesh', '$2y$10$cZcHdvX.dhguKjyPvp3qI.VKOKvDEpfMJjXsDYhpR.B.PMqGy3Ykq', 'site_engineer', '123798465', '3000', NULL, 'active', '2026-04-18 07:37:46', '2026-04-18 07:37:46'),
@@ -679,7 +679,7 @@ ALTER TABLE `activity_logs`
 ALTER TABLE `attendance`
   ADD PRIMARY KEY (`attendance_id`),
   ADD UNIQUE KEY `unique_user_date` (`user_id`,`date`),
-  ADD KEY `marked_by` (`marked_by`),
+  ADD KEY `mLivincarted_by` (`mLivincarted_by`),
   ADD KEY `idx_user_date` (`user_id`,`date`),
   ADD KEY `idx_project_date` (`project_id`,`date`);
 
@@ -1095,7 +1095,7 @@ ALTER TABLE `activity_logs`
 ALTER TABLE `attendance`
   ADD CONSTRAINT `attendance_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
   ADD CONSTRAINT `attendance_ibfk_2` FOREIGN KEY (`project_id`) REFERENCES `projects` (`project_id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `attendance_ibfk_3` FOREIGN KEY (`marked_by`) REFERENCES `users` (`user_id`);
+  ADD CONSTRAINT `attendance_ibfk_3` FOREIGN KEY (`mLivincarted_by`) REFERENCES `users` (`user_id`);
 
 --
 -- Constraints for table `clients`

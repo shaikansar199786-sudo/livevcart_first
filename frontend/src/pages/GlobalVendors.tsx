@@ -54,7 +54,7 @@ export const GlobalVendors: React.FC = () => {
             const updateData: any = { id: itemId };
             if (editing.field === 'payment_date') updateData.payment_date = editing.value;
             if (editing.field === 'payment_amount') updateData.payment_amount = editing.value;
-            if (editing.field === 'remark') updateData.remark = editing.value;
+            if (editing.field === 'remLivincart') updateData.remLivincart = editing.value;
             if (editing.field === 'payment_mode') updateData.payment_mode = editing.value;
 
             await axios.put(`${API_BASE_URL}/vendors/update-payment`, updateData);
@@ -148,157 +148,163 @@ export const GlobalVendors: React.FC = () => {
                                                 <tr style={{ backgroundColor: '#f1f5f9' }}>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'center', width: '50px' }}>S.No</th>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Project / Site</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Item</th>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Bill Date</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Payment Date</th>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Payment Amount</th>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Bill Amount (Invoice Total)</th>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Mode</th>
-                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>Remark</th>
+                                                    <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>RemLivincart</th>
                                                     <th style={{ padding: '12px', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569', textAlign: 'center', width: '60px' }}>Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {vendor.items.map((item: any, idx: number) => {
-                                                    const editing = editingState[item.id];
-                                                    const isEditingPaymentDate = editing?.field === 'payment_date';
-                                                    const isEditingPaymentAmount = editing?.field === 'payment_amount';
-                                                    const isEditingPaymentMode = editing?.field === 'payment_mode';
-                                                    const isEditingRemark = editing?.field === 'remark';
+                                                {(() => {
+                                                    // Group items by Bill Date and Invoice Total
+                                                    const grouped = vendor.items.reduce((acc: any, item: any) => {
+                                                        const billDate = item.invoice_date || '';
+                                                        const invoiceTotal = parseFloat(item.invoice_total || item.total || 0);
+                                                        const site = item.site || '-';
+                                                        const key = `${billDate}-${invoiceTotal}-${site}`;
 
-                                                    return (
-                                                        <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f8fafc', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'white' : '#f8fafc'}>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#1e293b', fontWeight: 600, textAlign: 'center' }}>{idx + 1}</td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#1e293b', fontWeight: 600 }}>{item.site || '-'}</td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{item.item_name || item.description || '-'}</td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
-                                                                {item.invoice_date ? new Date(item.invoice_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
-                                                                {isEditingPaymentDate ? (
-                                                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                                                        <input
-                                                                            type="date"
-                                                                            value={editing?.value || ''}
-                                                                            onChange={(e) => updateEditingValue(item.id, e.target.value)}
-                                                                            style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem' }}
-                                                                        />
-                                                                        <button
-                                                                            onClick={() => handleSave(item.id)}
-                                                                            style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >✓</button>
-                                                                        <button
-                                                                            onClick={() => cancelEditing(item.id)}
-                                                                            style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >✗</button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span
-                                                                        onClick={() => startEditing(item.id, 'payment_date', item.payment_date || '')}
-                                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                                                    >
-                                                                        {item.payment_date ? new Date(item.payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right', fontWeight: 600 }}>
-                                                                {isEditingPaymentAmount ? (
-                                                                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                                                                        <input
-                                                                            type="number"
-                                                                            value={editing?.value || 0}
-                                                                            onChange={(e) => updateEditingValue(item.id, parseFloat(e.target.value))}
-                                                                            style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '100px', textAlign: 'right' }}
-                                                                        />
-                                                                        <button
-                                                                            onClick={() => handleSave(item.id)}
-                                                                            style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >✓</button>
-                                                                        <button
-                                                                            onClick={() => cancelEditing(item.id)}
-                                                                            style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >✗</button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span
-                                                                        onClick={() => startEditing(item.id, 'payment_amount', item.paid || 0)}
-                                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                                                    >
-                                                                        ₹{parseFloat(item.paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right', fontWeight: 600 }}>₹{parseFloat(item.invoice_total || item.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
-                                                                {isEditingPaymentMode ? (
-                                                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                                                        <select
-                                                                            value={editing?.value || 'Cash'}
-                                                                            onChange={(e) => updateEditingValue(item.id, e.target.value)}
-                                                                            style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '100px' }}
+                                                        if (!acc[key]) {
+                                                            acc[key] = {
+                                                                site: site,
+                                                                billDate: billDate,
+                                                                invoiceTotal: invoiceTotal,
+                                                                items: [],
+                                                                paymentAmount: 0,
+                                                                paymentMode: item.payment_mode || 'Cash',
+                                                                remLivincart: item.remLivincart || '-',
+                                                                paymentDate: item.payment_date || '-',
+                                                                ids: []
+                                                            };
+                                                        }
+
+                                                        acc[key].items.push(item);
+                                                        acc[key].paymentAmount += parseFloat(item.paid || 0);
+                                                        acc[key].ids.push(item.id);
+
+                                                        return acc;
+                                                    }, {});
+
+                                                    const groupedItems = Object.values(grouped);
+
+                                                    return groupedItems.map((group: any, idx: number) => {
+                                                        const editingId = group.ids[0];
+                                                        const editing = editingState[editingId];
+                                                        const isEditingPaymentAmount = editing?.field === 'payment_amount';
+                                                        const isEditingPaymentMode = editing?.field === 'payment_mode';
+                                                        const isEditingRemLivincart = editing?.field === 'remLivincart';
+
+                                                        return (
+                                                            <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? 'white' : '#f8fafc', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'white' : '#f8fafc'}>
+                                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#1e293b', fontWeight: 600, textAlign: 'center' }}>{idx + 1}</td>
+                                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#1e293b', fontWeight: 600 }}>{group.site}</td>
+                                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                                                                    {group.billDate ? new Date(group.billDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                                                                </td>
+                                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right', fontWeight: 600 }}>
+                                                                    {isEditingPaymentAmount ? (
+                                                                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                                                            <input
+                                                                                type="number"
+                                                                                value={editing?.value || 0}
+                                                                                onChange={(e) => updateEditingValue(editingId, parseFloat(e.target.value))}
+                                                                                style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '100px', textAlign: 'right' }}
+                                                                            />
+                                                                            <button
+                                                                                onClick={() => handleSave(editingId)}
+                                                                                style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                            >✓</button>
+                                                                            <button
+                                                                                onClick={() => cancelEditing(editingId)}
+                                                                                style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                            >✗</button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span
+                                                                            onClick={() => startEditing(editingId, 'payment_amount', group.paymentAmount || 0)}
+                                                                            style={{ cursor: 'pointer', textDecoration: 'underline' }}
                                                                         >
-                                                                            <option value="Cash">Cash</option>
-                                                                            <option value="Bank Transfer">Bank Transfer</option>
-                                                                            <option value="UPI">UPI</option>
-                                                                            <option value="Cheque">Cheque</option>
-                                                                        </select>
-                                                                        <button
-                                                                            onClick={() => handleSave(item.id)}
-                                                                            style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >✓</button>
-                                                                        <button
-                                                                            onClick={() => cancelEditing(item.id)}
-                                                                            style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >✗</button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span
-                                                                        onClick={() => startEditing(item.id, 'payment_mode', item.payment_mode || 'Cash')}
-                                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                                            ₹{group.paymentAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'right', fontWeight: 600 }}>₹{group.invoiceTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                                                                    {isEditingPaymentMode ? (
+                                                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                                                            <select
+                                                                                value={editing?.value || 'Cash'}
+                                                                                onChange={(e) => updateEditingValue(editingId, e.target.value)}
+                                                                                style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '100px' }}
+                                                                            >
+                                                                                <option value="Cash">Cash</option>
+                                                                                <option value="Bank Transfer">Bank Transfer</option>
+                                                                                <option value="UPI">UPI</option>
+                                                                                <option value="Cheque">Cheque</option>
+                                                                            </select>
+                                                                            <button
+                                                                                onClick={() => handleSave(editingId)}
+                                                                                style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                            >✓</button>
+                                                                            <button
+                                                                                onClick={() => cancelEditing(editingId)}
+                                                                                style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                            >✗</button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span
+                                                                            onClick={() => startEditing(editingId, 'payment_mode', group.paymentMode || 'Cash')}
+                                                                            style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                                        >
+                                                                            {group.paymentMode || '-'}
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                                                                    {isEditingRemLivincart ? (
+                                                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={editing?.value || ''}
+                                                                                onChange={(e) => updateEditingValue(editingId, e.target.value)}
+                                                                                style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '150px' }}
+                                                                            />
+                                                                            <button
+                                                                                onClick={() => handleSave(editingId)}
+                                                                                style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                            >✓</button>
+                                                                            <button
+                                                                                onClick={() => cancelEditing(editingId)}
+                                                                                style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                            >✗</button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span
+                                                                            onClick={() => startEditing(editingId, 'remLivincart', group.remLivincart || '')}
+                                                                            style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                                        >
+                                                                            {group.remLivincart || '-'}
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'center' }}>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            if (confirm(`Are you sure you want to delete this group of ${group.items.length} items?`)) {
+                                                                                group.ids.forEach((id: string) => handleDelete(id));
+                                                                            }
+                                                                        }}
+                                                                        style={{ padding: '6px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                                        title="Delete item"
                                                                     >
-                                                                        {item.payment_mode || '-'}
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
-                                                                {isEditingRemark ? (
-                                                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                                                        <input
-                                                                            type="text"
-                                                                            value={editing?.value || ''}
-                                                                            onChange={(e) => updateEditingValue(item.id, e.target.value)}
-                                                                            style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', width: '150px' }}
-                                                                        />
-                                                                        <button
-                                                                            onClick={() => handleSave(item.id)}
-                                                                            style={{ padding: '4px 8px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >✓</button>
-                                                                        <button
-                                                                            onClick={() => cancelEditing(item.id)}
-                                                                            style={{ padding: '4px 8px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                        >✗</button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span
-                                                                        onClick={() => startEditing(item.id, 'remark', item.remark || '')}
-                                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                                                    >
-                                                                        {item.remark || '-'}
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'center' }}>
-                                                                <button
-                                                                    onClick={() => handleDelete(item.id)}
-                                                                    style={{ padding: '6px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
-                                                                    title="Delete item"
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    });
+                                                })()}
                                                 {(() => {
                                                     // Calculate total bill amount by summing all item totals
                                                     const totalBillAmount = vendor.items.reduce((sum: number, item: any) => sum + parseFloat(item.total || 0), 0);

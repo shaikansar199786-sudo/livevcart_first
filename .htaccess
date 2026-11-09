@@ -14,3 +14,11 @@ LimitRequestBody 0
     php_value max_execution_time 1800
     php_value max_input_time 1800
 </IfModule>
+
+# Allow CORS headers on static files (PDFs, images, documents), except acknowledge.php which manages dynamic AMP CORS
+<IfModule mod_headers.c>
+    SetEnvIf Request_URI "acknowledge\.php" IS_ACKNOWLEDGE
+    Header set Access-Control-Allow-Origin "*" env=!IS_ACKNOWLEDGE
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS" env=!IS_ACKNOWLEDGE
+    Header set Access-Control-Allow-Headers "*" env=!IS_ACKNOWLEDGE
+</IfModule>

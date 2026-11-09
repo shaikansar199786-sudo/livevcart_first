@@ -13,16 +13,50 @@ class ClientController
         $this->conn = $db;
         $this->current_user_id = $user_id;
         $this->current_user_role = $role;
+        $this->ensureSchema();
+    }
+
+    private function ensureSchema()
+    {
+        try {
+            if (!$this->conn) return;
+            $this->conn->exec("CREATE TABLE IF NOT EXISTS clients (
+                client_id INT AUTO_INCREMENT PRIMARY KEY,
+                client_code VARCHAR(100) NULL,
+                name VARCHAR(255) NOT NULL,
+                phone VARCHAR(50) NULL,
+                email VARCHAR(255) NULL,
+                address TEXT NULL,
+                lead_source VARCHAR(100) NULL,
+                converted_from_lead_id INT NULL,
+                created_by INT NULL,
+                consultation_type VARCHAR(100) DEFAULT 'interior',
+                projectname VARCHAR(255) NULL,
+                status VARCHAR(50) DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_converted_lead (converted_from_lead_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // Ensure columns exist on projects
+            try { $this->conn->exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_stage VARCHAR(100) DEFAULT NULL"); } catch (Throwable $pe) {}
+            try { $this->conn->exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_name VARCHAR(255) DEFAULT NULL"); } catch (Throwable $pe) {}
+            try { $this->conn->exec("ALTER TABLE clients ADD COLUMN IF NOT EXISTS projectname VARCHAR(255) DEFAULT NULL"); } catch (Throwable $pe) {}
+            try { $this->conn->exec("ALTER TABLE clients ADD COLUMN IF NOT EXISTS consultation_type VARCHAR(100) DEFAULT 'interior'"); } catch (Throwable $pe) {}
+            try { $this->conn->exec("ALTER TABLE clients ADD COLUMN IF NOT EXISTS converted_from_lead_id INT DEFAULT NULL"); } catch (Throwable $pe) {}
+            try { $this->conn->exec("ALTER TABLE clients ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'"); } catch (Throwable $pe) {}
+        } catch (Throwable $e) {}
     }
 
     public function getAll()
     {
+        $this->ensureSchema();
+
         // 1. Sync missing leads to clients table first to ensure historical leads appear
         try {
             $sync_query = "SELECT l.* FROM leads l LEFT JOIN clients c ON l.lead_id = c.converted_from_lead_id WHERE c.client_id IS NULL";
             $sync_stmt = $this->conn->prepare($sync_query);
             $sync_stmt->execute();
-            $missing_leads = $sync_stmt->fetchAll(PDO::FETCH_ASSOC);
+            $missing_leads = $sync_stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
             foreach ($missing_leads as $lead) {
                 // Generate a client code
@@ -37,7 +71,7 @@ class ClientController
                 }
 
                 // Check created_by user ID exists
-                $created_by = $lead['created_by'];
+                $created_by = $lead['created_by'] ?? 1;
                 $u_check = $this->conn->prepare("SELECT user_id FROM users WHERE user_id = :uid");
                 $u_check->execute(['uid' => $created_by]);
                 if (!$u_check->fetch()) {
@@ -49,38 +83,50 @@ class ClientController
                 $c_stmt = $this->conn->prepare($c_query);
                 $c_stmt->execute([
                     'code' => $client_code,
-                    'name' => $lead['client_name'],
-                    'phone' => $lead['contact_number'],
-                    'address' => $lead['client_address'] ?? $lead['location'],
-                    'source' => $lead['lead_source'],
-                    'lead_id' => $lead['lead_id'],
+                    'name' => $lead['client_name'] ?? 'Client',
+                    'phone' => $lead['contact_number'] ?? '',
+                    'address' => $lead['client_address'] ?? $lead['location'] ?? '',
+                    'source' => $lead['lead_source'] ?? 'Direct',
+                    'lead_id' => $lead['lead_id'] ?? null,
                     'created_by' => $created_by,
-                    'email' => $lead['email'],
+                    'email' => $lead['email'] ?? '',
                     'consultation_type' => $type,
-                    'projectname' => $lead['client_name'] . ' Project'
+                    'projectname' => ($lead['client_name'] ?? 'Client') . ' Project'
                 ]);
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             // Log or ignore errors to not block page loading
         }
 
         // 2. Database status sanitization
         try {
             $this->conn->exec("UPDATE clients SET status = 'active' WHERE status IS NULL OR status = ''");
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             // Ignore
         }
 
         // 3. Fetch all clients without role restrictions to display everything to all roles
-        $query = "SELECT DISTINCT c.*, p.project_id, COALESCE(p.project_name, c.projectname) as projectname, p.project_name as p_project_name 
-                  FROM " . $this->table_name . " c
-                  LEFT JOIN projects p ON c.client_id = p.client_id
-                  WHERE c.status = 'active'
-                  ORDER BY c.created_at DESC";
+        try {
+            $query = "SELECT c.*, p.project_id, p.status as project_status, p.project_stage,
+                      COALESCE(p.project_name, c.projectname) as projectname, p.project_name as p_project_name 
+                      FROM " . $this->table_name . " c
+                      LEFT JOIN projects p ON c.client_id = p.client_id
+                      WHERE c.status = 'active' OR c.status IS NULL OR c.status = ''
+                      ORDER BY c.client_id DESC";
 
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable $e) {
+            // Safe fallback query that works with any database schema
+            try {
+                $stmt = $this->conn->prepare("SELECT * FROM " . $this->table_name . " ORDER BY client_id DESC");
+                $stmt->execute();
+                return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            } catch (Throwable $e2) {
+                return [];
+            }
+        }
     }
 
     public function getDetails($client_id)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
@@ -10,9 +10,25 @@ import {
     Loader2,
     ExternalLink,
     Edit2,
-    Trash2
+    Trash2,
+    Users,
+    CheckCircle2,
+    Filter,
+    RotateCcw,
+    Briefcase
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { 
+    isSiteEngineerRole, 
+    isProjectHeadRole, 
+    isDesignerRole, 
+    isAssociateDesignerRole, 
+    isQcRole, 
+    isCommonRole,
+    formatRoleDisplay,
+    TeamMultiSelector 
+} from './Projects';
+
 interface Client {
     client_id: string;
     client_code: string;
@@ -24,6 +40,8 @@ interface Client {
     project_id?: string;
     projectname?: string;
     consultation_type?: string;
+    project_status?: string;
+    project_stage?: string;
 }
 
 export const Clients: React.FC = () => {
@@ -37,6 +55,9 @@ export const Clients: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [team, setTeam] = useState<any[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const [clientForm, setClientForm] = useState<{
         client_id?: string;
@@ -56,21 +77,29 @@ export const Clients: React.FC = () => {
     });
 
     const [projectForm, setProjectForm] = useState<{
+        project_code: string;
         project_name: string;
         consultation_type: string;
         project_heads: string[];
         site_engineers: string[];
+        designers: string[];
+        associate_designers: string[];
+        qc_inspectors: string[];
         total_budget: string;
         start_date: string;
         expected_end_date: string;
     }>({
+        project_code: '',
         project_name: '',
         consultation_type: 'Furniture projects',
         project_heads: [],
         site_engineers: [],
+        designers: [],
+        associate_designers: [],
+        qc_inspectors: [],
         total_budget: '',
         start_date: new Date().toISOString().split('T')[0],
-        expected_end_date: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]
+        expected_end_date: new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString().split('T')[0]
     });
 
     useEffect(() => {
@@ -91,12 +120,36 @@ export const Clients: React.FC = () => {
         }
     };
 
+    const availableHeads = useMemo(() => {
+        const heads = team.filter(t => isProjectHeadRole(t.role) || isCommonRole(t.role));
+        return heads.length > 0 ? heads : team;
+    }, [team]);
+
+    const availableEngineers = useMemo(() => {
+        const eng = team.filter(t => isSiteEngineerRole(t.role) || isCommonRole(t.role));
+        return eng.length > 0 ? eng : team;
+    }, [team]);
+
+    const availableDesigners = useMemo(() => {
+        const d = team.filter(t => isDesignerRole(t.role) || isCommonRole(t.role));
+        return d.length > 0 ? d : team;
+    }, [team]);
+
+    const availableADs = useMemo(() => {
+        const ad = team.filter(t => isAssociateDesignerRole(t.role) || isDesignerRole(t.role) || isCommonRole(t.role));
+        return ad.length > 0 ? ad : team;
+    }, [team]);
+
+    const availableQcs = useMemo(() => {
+        const qc = team.filter(t => isQcRole(t.role) || isCommonRole(t.role));
+        return qc.length > 0 ? qc : team;
+    }, [team]);
+
     const fetchTeam = async () => {
         try {
             const response = await axios.get(`${API_BASE_URL}/users`);
-            if (response.data.success) {
-                setTeam(response.data.data);
-            }
+            const userList = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+            setTeam(userList);
         } catch (err) {
             console.error('Failed to fetch team');
         }
@@ -170,6 +223,7 @@ export const Clients: React.FC = () => {
         setSelectedClient(client);
         setProjectForm({
             ...projectForm,
+            project_code: '',
             project_name: client.projectname || (client.name + ' Project'),
             consultation_type: client.consultation_type || 'Furniture projects'
         });
@@ -199,25 +253,129 @@ export const Clients: React.FC = () => {
         }
     };
 
+    const filteredClients = clients.filter(c => {
+        const query = searchTerm.trim().toLowerCase();
+        const matchesSearch = !query ||
+            (c.name || '').toLowerCase().includes(query) ||
+            (c.client_code || '').toLowerCase().includes(query) ||
+            (c.phone || '').toLowerCase().includes(query) ||
+            (c.projectname || '').toLowerCase().includes(query) ||
+            (c.email || '').toLowerCase().includes(query);
+
+        const matchesType = typeFilter === 'all' || (c.consultation_type && c.consultation_type.toLowerCase().includes(typeFilter.toLowerCase()));
+        const targetStatus = statusFilter.toLowerCase();
+        const matchesStatus = statusFilter === 'all' ||
+            (c.status && c.status.toLowerCase() === targetStatus) ||
+            (c.project_stage && c.project_stage.toLowerCase() === targetStatus) ||
+            (c.project_stage && c.project_stage.toLowerCase().includes(targetStatus));
+
+        return matchesSearch && matchesType && matchesStatus;
+    });
+
+    const totalClientsCount = filteredClients.length;
+    const activeProjectsCount = filteredClients.filter(c => !!c.project_id || (c.status && c.status.toLowerCase() === 'active')).length;
+    const furnitureCount = filteredClients.filter(c => String(c.consultation_type || '').toLowerCase().includes('furniture')).length;
+    const interiorCount = filteredClients.filter(c => String(c.consultation_type || '').toLowerCase().includes('interior')).length;
+
     return (
         <div className="clients-page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                 <div>
-                    <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: '#253b50' }}>Registry</h2>
-                    <p style={{ color: '#6b7280' }}>All registered clients and their project status</p>
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0c1527' }}>Client Registry</h2>
+                    <p style={{ color: '#64748b', fontWeight: 500 }}>Manage registered clients and their linked project status</p>
+                </div>
+            </div>
+
+            {/* Metric Summary Overview Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Users size={22} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.76rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Total Clients</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a' }}>{totalClientsCount}</div>
+                    </div>
+                </div>
+
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CheckCircle2 size={22} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.76rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Active Projects</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a' }}>{activeProjectsCount}</div>
+                    </div>
+                </div>
+
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fff9f0', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Briefcase size={22} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.76rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Furniture Projects</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a' }}>{furnitureCount}</div>
+                    </div>
+                </div>
+
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f3e8ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Filter size={22} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.76rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Interior Projects</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a' }}>{interiorCount}</div>
+                    </div>
                 </div>
             </div>
 
             <div className="premium-card">
-                <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                    <div style={{ position: 'relative', flex: 1 }}>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
                         <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
                         <input
                             type="text"
-                            placeholder="Search by client name, code or phone..."
+                            placeholder="Search by client name, code, phone or project..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none' }}
                         />
                     </div>
+
+                    <select
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                        style={{ padding: '11px 16px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff', fontWeight: 700, fontSize: '0.88rem', color: '#0f172a', outline: 'none', cursor: 'pointer' }}
+                    >
+                        <option value="all">All Consultation Types</option>
+                        <option value="Furniture projects">Furniture projects</option>
+                        <option value="Interior projects">Interior projects</option>
+                    </select>
+
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        style={{ padding: '11px 16px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff', fontWeight: 700, fontSize: '0.88rem', color: '#0f172a', outline: 'none', cursor: 'pointer' }}
+                    >
+                        <option value="all">All Statuses / Stages</option>
+                        <option value="Order Booked">Order Booked</option>
+                        <option value="Design Phase">Design Phase</option>
+                        <option value="R2P">R2P</option>
+                        <option value="Production Phase">Production Phase</option>
+                        <option value="Execution Phase">Execution Phase</option>
+                        <option value="Handover">Handover</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                    </select>
+
+                    {(searchTerm || typeFilter !== 'all' || statusFilter !== 'all') && (
+                        <button
+                            onClick={() => { setSearchTerm(''); setTypeFilter('all'); setStatusFilter('all'); }}
+                            style={{ padding: '11px 16px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            <RotateCcw size={14} /> Reset
+                        </button>
+                    )}
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -227,7 +385,7 @@ export const Clients: React.FC = () => {
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Code</th>
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Project / Client</th>
                                 <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Contact</th>
-                                <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Assign Team</th>
+                                <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500 }}>Project Status</th>
                                 {(user?.role === 'admin' || user?.role === 'd1' || user?.role === 'project_head') && (
                                     <th style={{ padding: '16px', color: '#6b7280', fontWeight: 500, textAlign: 'center' }}>Actions</th>
                                 )}
@@ -236,9 +394,9 @@ export const Clients: React.FC = () => {
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
-                            ) : clients.length === 0 ? (
-                                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>No entries found. Click "Add Registry" to create one.</td></tr>
-                            ) : clients.map((client, idx) => (
+                            ) : filteredClients.length === 0 ? (
+                                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>No entries found matching your criteria.</td></tr>
+                            ) : filteredClients.map((client, idx) => (
                                 <tr key={`${client.client_id}-${idx}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                     <td style={{ padding: '16px' }}>
                                         <span style={{ fontWeight: 700, color: '#253b50' }}>{client.client_code}</span>
@@ -261,25 +419,25 @@ export const Clients: React.FC = () => {
                                         </div>
                                     </td>
                                     <td style={{ padding: '16px' }}>
-                                        {(user?.role === 'admin' || user?.role === 'd1' || user?.role === 'accountant' || user?.role === 'project_head') && (
-                                            client.project_id ? (
-                                                <button
-                                                    onClick={() => navigate(`/projects/${client.project_id}`)}
-                                                    style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
-                                                >
-                                                    <ExternalLink size={14} /> Manage Project
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleLaunchClick(client)}
-                                                    className="btn-primary"
-                                                    style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                                                >
-                                                    <ExternalLink size={14} /> Assign & Launch
-                                                </button>
-                                            )
+                                        {client.project_id && client.project_stage ? (
+                                            <span style={{
+                                                display: 'inline-block',
+                                                padding: '4px 12px',
+                                                borderRadius: '20px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 700,
+                                                backgroundColor: 'rgb(255, 249, 240)',
+                                                color: '#fca412',
+                                                border: '1.5px solid #fca412',
+                                                letterSpacing: '0.02em'
+                                            }}>
+                                                {client.project_stage}
+                                            </span>
+                                        ) : (
+                                            <span style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>—</span>
                                         )}
                                     </td>
+
                                     {(user?.role === 'admin' || user?.role === 'd1') && (
                                         <td style={{ padding: '16px', textAlign: 'center' }}>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
@@ -354,9 +512,25 @@ export const Clients: React.FC = () => {
                         <h3 style={{ marginBottom: '24px', fontSize: '1.4rem' }}>Assign & Launch: {selectedClient?.name}</h3>
                         <p style={{ marginBottom: '20px', color: '#6b7280', fontSize: '0.9rem' }}>Select the project execution team. (Financial details to be entered by Accountant)</p>
                         <form onSubmit={handleProjectLaunch}>
+                            {/* Project ID Input Field */}
+                            <div style={{ marginBottom: '16px', backgroundColor: '#f0f4ff', padding: '14px', borderRadius: '10px', border: '1.5px solid #c7d2fe' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.88rem', fontWeight: 800, color: '#1e1b4b' }}>
+                                    <span>Enter Project ID *</span>
+                                    <span style={{ fontSize: '0.7rem', backgroundColor: '#4338ca', color: '#ffffff', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>Required</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Enter Project ID (e.g. PR-101, LVC-2026-01)"
+                                    value={projectForm.project_code}
+                                    onChange={(e) => setProjectForm({ ...projectForm, project_code: e.target.value })}
+                                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '2px solid #6366f1', fontSize: '0.95rem', fontWeight: 700, outline: 'none', background: '#ffffff', color: '#1e1b4b' }}
+                                />
+                            </div>
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Name</label>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Project Name *</label>
                                     <input type="text" required value={projectForm.project_name} onChange={(e) => setProjectForm({ ...projectForm, project_name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
                                 </div>
                                 <div>
@@ -367,97 +541,52 @@ export const Clients: React.FC = () => {
                                     </select>
                                 </div>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                                <div style={{ border: '1px solid #d1d5db', borderRadius: '6px', padding: '12px', minHeight: '100px' }}>
-                                    <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.9rem', fontWeight: 600 }}>Project Head(s)</label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                        {team.filter(t => ['admin', 'project_head', 'admin'].includes(t.role)).map(t => {
-                                            const isSelected = projectForm.project_heads.includes(t.user_id);
-                                            return (
-                                                <div
-                                                    key={t.user_id}
-                                                    onClick={() => {
-                                                        const newHeads = isSelected
-                                                            ? projectForm.project_heads.filter(id => id !== t.user_id)
-                                                            : [...projectForm.project_heads, t.user_id];
-                                                        setProjectForm({ ...projectForm, project_heads: newHeads });
-                                                    }}
-                                                    style={{
-                                                        padding: '6px 14px',
-                                                        borderRadius: '20px',
-                                                        fontSize: '0.85rem',
-                                                        cursor: 'pointer',
-                                                        border: `1px solid ${isSelected ? '#253b50' : '#e5e7eb'}`,
-                                                        backgroundColor: isSelected ? '#253b50' : '#f9fafb',
-                                                        color: isSelected ? 'white' : '#374151',
-                                                        fontWeight: isSelected ? 600 : 400,
-                                                        transition: 'all 0.2s ease',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '6px'
-                                                    }}
-                                                >
-                                                    {isSelected && <span style={{ fontSize: '14px', lineHeight: 1 }}>✓</span>}
-                                                    {t.name}
-                                                </div>
-                                            );
-                                        })}
-                                        {team.filter(t => ['admin', 'project_head', 'admin'].includes(t.role)).length === 0 && (
-                                            <p style={{ color: '#9ca3af', fontSize: '0.85rem' }}>No project heads available</p>
-                                        )}
-                                    </div>
-                                    <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '10px' }}>Click to select or unselect team members</p>
+                            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '16px', marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                    <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: 700 }}>Team Allocation</h4>
+                                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Select multiple members for each department</span>
                                 </div>
-                                <div style={{ border: '1px solid #d1d5db', borderRadius: '6px', padding: '12px', minHeight: '100px' }}>
-                                    <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.9rem', fontWeight: 600 }}>Site Engineer(s)</label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                        {team.filter(t => t.role === 'site_engineer').map(t => {
-                                            const isSelected = projectForm.site_engineers.includes(t.user_id);
-                                            return (
-                                                <div
-                                                    key={t.user_id}
-                                                    onClick={() => {
-                                                        const newEngineers = isSelected
-                                                            ? projectForm.site_engineers.filter(id => id !== t.user_id)
-                                                            : [...projectForm.site_engineers, t.user_id];
-                                                        setProjectForm({ ...projectForm, site_engineers: newEngineers });
-                                                    }}
-                                                    style={{
-                                                        padding: '6px 14px',
-                                                        borderRadius: '20px',
-                                                        fontSize: '0.85rem',
-                                                        cursor: 'pointer',
-                                                        border: `1px solid ${isSelected ? '#253b50' : '#e5e7eb'}`,
-                                                        backgroundColor: isSelected ? '#253b50' : '#f9fafb',
-                                                        color: isSelected ? 'white' : '#374151',
-                                                        fontWeight: isSelected ? 600 : 400,
-                                                        transition: 'all 0.2s ease',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '6px'
-                                                    }}
-                                                >
-                                                    {isSelected && <span style={{ fontSize: '14px', lineHeight: 1 }}>✓</span>}
-                                                    {t.name}
-                                                </div>
-                                            );
-                                        })}
-                                        {team.filter(t => t.role === 'site_engineer').length === 0 && (
-                                            <p style={{ color: '#9ca3af', fontSize: '0.85rem' }}>No site engineers available</p>
-                                        )}
-                                    </div>
-                                    <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '10px' }}>Click to select or unselect team members</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                                    <TeamMultiSelector
+                                        label="Project Head(s)"
+                                        items={availableHeads}
+                                        selected={projectForm.project_heads}
+                                        onChange={(vals) => setProjectForm({ ...projectForm, project_heads: vals })}
+                                        emptyText="No project heads found"
+                                    />
+                                    <TeamMultiSelector
+                                        label="Site Engineer(s)"
+                                        items={availableEngineers}
+                                        selected={projectForm.site_engineers}
+                                        onChange={(vals) => setProjectForm({ ...projectForm, site_engineers: vals })}
+                                        emptyText="No site engineers found"
+                                    />
+                                    <TeamMultiSelector
+                                        label="Designer(s) (D1 / D2)"
+                                        items={availableDesigners}
+                                        selected={projectForm.designers}
+                                        onChange={(vals) => setProjectForm({ ...projectForm, designers: vals })}
+                                        emptyText="No designers found"
+                                    />
+                                    <TeamMultiSelector
+                                        label="Associate Designer(s) (AD)"
+                                        items={availableADs}
+                                        selected={projectForm.associate_designers}
+                                        onChange={(vals) => setProjectForm({ ...projectForm, associate_designers: vals })}
+                                        emptyText="No associate designers found"
+                                    />
+                                    <TeamMultiSelector
+                                        label="QC Inspector(s)"
+                                        items={availableQcs}
+                                        selected={projectForm.qc_inspectors}
+                                        onChange={(vals) => setProjectForm({ ...projectForm, qc_inspectors: vals })}
+                                        emptyText="No QC inspectors found"
+                                    />
                                 </div>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Start Date</label>
-                                    <input type="date" required value={projectForm.start_date} onChange={(e) => setProjectForm({ ...projectForm, start_date: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #cbd5e1', outline: 'none' }} />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>End Date</label>
-                                    <input type="date" required value={projectForm.expected_end_date} onChange={(e) => setProjectForm({ ...projectForm, expected_end_date: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #cbd5e1', outline: 'none' }} />
-                                </div>
+                            <div style={{ marginBottom: '24px' }}>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Start Date *</label>
+                                <input type="date" required value={projectForm.start_date} onChange={(e) => setProjectForm({ ...projectForm, start_date: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #cbd5e1', outline: 'none' }} />
                             </div>
                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                                 <button type="button" onClick={() => setShowProjectModal(false)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white' }}>Cancel</button>

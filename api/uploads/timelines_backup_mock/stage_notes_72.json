@@ -1,0 +1,182 @@
+[
+    {
+        "category": "Product Distribution",
+        "startDate": "2026-08-20",
+        "endDate": "2026-09-05",
+        "note": "hjjjjjj",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "Ready to Dispatch",
+        "startDate": "2026-08-21",
+        "endDate": "2026-09-01",
+        "note": "njhjjhhjhjhjhhjhjhjjhhhhhhhhhhhhhhhhhhhhhhhhhh",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "In Transit",
+        "startDate": "2026-08-22",
+        "endDate": "2026-08-27",
+        "note": "jhjhhhjj",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "Delivery",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "Kickoff_M",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "HDS",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "Material Segregation",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "QC",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "Installation",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "Final QC",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "Handover",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "saasasasas",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm",
+        "isDeleted": true
+    },
+    {
+        "category": "DD",
+        "startDate": "2026-08-21",
+        "endDate": "2026-08-27",
+        "note": "assjsjksjkas\naskjaskjaskaskaskkaskjakskaskjkasjasakskas",
+        "source": "designer"
+    },
+    {
+        "category": "3D Approval",
+        "startDate": "2026-08-22",
+        "endDate": "2026-08-26",
+        "note": "skjsdsdksdjsd\n",
+        "source": "designer"
+    },
+    {
+        "category": "2D",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "QC1",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Masking",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Signoff",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Final 2D",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "QC2",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Final Quote",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "R2P",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "timeline_active_note_designer",
+        "startDate": "",
+        "endDate": "",
+        "note": "mmmkjk",
+        "source": "designer"
+    },
+    {
+        "category": "timeline_active_note_pm",
+        "startDate": "",
+        "endDate": "",
+        "note": "<b>This is a PM active note.xdddsdsdsdjsdkjjsdjkskdskdjsdkskdskdjsdkskdsdsksdksdsdkdskdsjjjjjjjjjjjjjjjjjjjjj<\/b>",
+        "source": "pm"
+    }
+]

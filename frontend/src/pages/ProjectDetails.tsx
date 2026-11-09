@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -25,11 +25,19 @@ import {
     Layers,
     ArrowUpDown,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    Download,
+    Eye,
+    Upload
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import QuoteTab from '../components/QuoteTab';
 import { DocumentTab } from '../components/DocumentTab';
+import { QualityCheckTab } from '../components/QualityCheckTab';
+import { ProjectStages } from '../components/ProjectStages';
+import { computeProjectAutoStage, STAGE_COLORS } from './Projects';
+import { ClientSignatureModal } from '../components/ClientSignatureModal';
+import { PostQcDecisionModal } from '../components/PostQcDecisionModal';
 
 interface ProjectDetailsDarunta {
     project_id: string;
@@ -50,6 +58,33 @@ interface ProjectDetailsDarunta {
     remaining_balance: number;
     status: string;
     project_head_name: string;
+    qc_status?: string;
+    qc_booking_time?: string;
+    qc_approved?: number;
+    mmts_status?: string;
+    mmts_booking_time?: string;
+    client_signature?: string;
+    lead_info?: any;
+    lead_id?: string | number;
+    converted_from_lead_id?: string | number;
+    manual_client_id?: string;
+    project_stage?: string;
+    advance_paid?: number;
+    advance_received?: number;
+    paid_amount?: number;
+    budget?: number;
+    initial_quote_amount?: number;
+    approved_quote_amount?: number;
+    latest_quote_amount?: number;
+    has_pending_quote_revision?: boolean;
+    is_10_percent_paid?: number;
+    stage1_paid?: number;
+    stage2_paid?: number;
+    is_20_percent_paid?: number;
+    stage3_paid?: number;
+    stage4_paid?: number;
+    payment_status?: string;
+    is_final_quote_approved?: number;
     team: Array<{
         user_id: string;
         name: string;
@@ -86,6 +121,13 @@ export const ProjectDetails: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const isAdmin = Boolean(
+        user?.role === 'admin' ||
+        user?.is_admin === 1 ||
+        user?.is_admin === true ||
+        String(user?.is_admin) === '1'
+    );
+
     // Set initial tab based on query param, localStorage or fallback
     const [activeTab, setActiveTab] = useState(() => {
         const searchParams = new URLSearchParams(window.location.search);
@@ -117,6 +159,96 @@ export const ProjectDetails: React.FC = () => {
         localStorage.setItem(`active_project_tab_${id}`, tab);
     };
 
+    // Dynamic Role Project Tab Permissions
+    const [roleTabPermissions, setRoleTabPermissions] = useState<Record<string, string[]> | null>(() => {
+        try {
+            const cached = localStorage.getItem('livrcart_role_tab_permissions');
+            return cached ? JSON.parse(cached) : null;
+        } catch {
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        const fetchRoleTabs = async () => {
+            try {
+                const res = await axios.get(`${API_BASE_URL}/role-tab-permissions`);
+                if (res.data?.success && res.data?.data) {
+                    setRoleTabPermissions(res.data.data);
+                    localStorage.setItem('livrcart_role_tab_permissions', JSON.stringify(res.data.data));
+                }
+            } catch {
+                // Silently fall back to cached or default
+            }
+        };
+        fetchRoleTabs();
+    }, []);
+
+    const allowedTabs = useMemo(() => {
+        const allPossibleTabs = [
+            'overview',
+            'quote',
+            'quality_check',
+            'documents',
+            'timeline',
+            'pm_timeline',
+            'stock_category',
+            'vendor_quta',
+            'transport',
+            'labor',
+            'miscellaneous',
+            'reimbursements',
+            'balance_sheet'
+        ];
+
+        return allPossibleTabs.filter(tab => {
+            // Admin always has all tabs enabled
+            if (user?.role === 'admin') {
+                const adminCustom = roleTabPermissions?.['admin'];
+                if (adminCustom && adminCustom.length > 0) {
+                    return adminCustom.includes(tab);
+                }
+                return true;
+            }
+
+            // Check dynamic custom permissions configured by Admin
+            const userRoleKey = String(user?.role || '').toLowerCase().trim();
+            if (roleTabPermissions && roleTabPermissions[userRoleKey]) {
+                return roleTabPermissions[userRoleKey].includes(tab);
+            }
+
+            // Default fallbacks if not customized
+            if (['accountant', 'project_head', 'project_manager', 'manager'].includes(user?.role)) {
+                return allPossibleTabs.includes(tab);
+            }
+
+            if (['site_engineer', 'site_inspector', 'inspector', 'qc'].includes(user?.role)) {
+                return ['overview', 'quality_check', 'documents', 'timeline', 'pm_timeline', 'stock_category'].includes(tab);
+            }
+
+            if (['d1', 'd2', 'graphic_designer', 'gd', 'designer', 'associate_designer'].includes(user?.role)) {
+                return ['overview', 'quote', 'quality_check', 'documents', 'timeline', 'pm_timeline'].includes(tab);
+            }
+
+            if (['sales', 'marketing_analyst', 'business_associate'].includes(user?.role)) {
+                return ['overview', 'quote', 'documents', 'timeline'].includes(tab);
+            }
+
+            if (user?.role === 'mmt') {
+                return ['overview', 'quote', 'quality_check', 'documents', 'timeline', 'stock_category', 'vendor_quta'].includes(tab);
+            }
+
+            return tab === 'overview';
+        });
+    }, [user?.role, roleTabPermissions]);
+
+    // Automatically fall back if active tab is restricted
+    useEffect(() => {
+        if (allowedTabs.length > 0 && !allowedTabs.includes(activeTab)) {
+            setActiveTab(allowedTabs[0]);
+        }
+    }, [allowedTabs, activeTab]);
+
     // const [project, setProject] = useState<ProjectDetailsData | null>(null);
     const [project, setProject] = useState<ProjectDetailsDarunta | null>(null);
     const [loading, setLoading] = useState(true);
@@ -131,9 +263,18 @@ export const ProjectDetails: React.FC = () => {
     });
     const [submitting, setSubmitting] = useState(false);
     const [quoteTotal, setQuoteTotal] = useState(0);
+    const [approvedQuoteTotal, setApprovedQuoteTotal] = useState(0);
     const [inventoryTotal, setInventoryTotal] = useState(0);
 
     const [transactions, setTransactions] = useState<any[]>([]);
+
+    // Status Badges & Modals State
+    const [existingAgreement, setExistingAgreement] = useState<any | null>(null);
+    const [showSigModal, setShowSigModal] = useState(false);
+    const [showSlotModal, setShowSlotModal] = useState(false);
+    const [showStageModal, setShowStageModal] = useState(false);
+    const [showPostQcDecisionModal, setShowPostQcDecisionModal] = useState(false);
+    const [updatingSlot, setUpdatingSlot] = useState(false);
 
     // Edit Settings State
     const [showEditModal, setShowEditModal] = useState(false);
@@ -149,15 +290,100 @@ export const ProjectDetails: React.FC = () => {
         project_type: ''
     });
 
+    // Fetch existing agreement for this project
+    useEffect(() => {
+        if (!project?.project_id && !project?.project_code && !id) return;
+        const pid = project?.project_id || project?.project_code || id;
+        axios.get(`${API_BASE_URL}/agreements?project_id=${encodeURIComponent(pid)}`)
+            .then(res => {
+                const list = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+                if (list.length > 0) {
+                    setExistingAgreement(list[0]);
+                }
+            })
+            .catch(() => { });
+    }, [project?.project_id, project?.project_code, id]);
+
+    const handleUpdateSlotStatus = async (newStatus: string) => {
+        if (!project) return;
+        setUpdatingSlot(true);
+        try {
+            const targetId = project.project_id || project.project_code || id;
+            const res = await axios.post(`${API_BASE_URL}/leads/update-qc-status`, {
+                lead_id: targetId,
+                status: newStatus,
+                assigned_by_name: user?.name || 'User'
+            });
+            if (res.data?.success) {
+                setProject((prev: any) => prev ? { ...prev, qc_status: newStatus } : prev);
+                fetchProjectDetails();
+                alert(`✅ Slot status updated to: ${newStatus}`);
+                setShowSlotModal(false);
+            } else {
+                alert(res.data?.message || 'Failed to update slot status');
+            }
+        } catch (err: any) {
+            alert('Failed to update slot status: ' + (err?.response?.data?.message || err.message));
+        } finally {
+            setUpdatingSlot(false);
+        }
+    };
+
     useEffect(() => {
         fetchProjectDetails();
         fetchTransactions();
         fetchInventoryTotal();
         fetchQuoteTotal();
+        fetchApprovedQuoteTotal();
         if (user?.role === 'admin' || user?.role === 'accountant') {
             fetchUsers();
         }
     }, [id, user]);
+
+    // Listen for QC approvals so Balance Sheet updates when QC issues final approval
+    useEffect(() => {
+        const handleQCChange = () => {
+            fetchProjectDetails();
+            fetchApprovedQuoteTotal();
+            fetchQuoteTotal();
+        };
+        window.addEventListener('qc_status_changed', handleQCChange);
+        return () => window.removeEventListener('qc_status_changed', handleQCChange);
+    }, [id]);
+
+    // Check if Post-QC Client Decision modal should be displayed automatically
+    useEffect(() => {
+        if (!project || loading) return;
+        const isQcApproved = Boolean(
+            project.is_final_quote_approved === 1 ||
+            project.qc_approved === 1 ||
+            project.status === 'qc_approved' ||
+            ['approved', 'qc_approved'].includes(String(project.qc_status || '').toLowerCase()) ||
+            ['quality check done', 'r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project.project_stage || '').toLowerCase())
+        );
+
+        const pidStr = String(project.project_id || id || '').toLowerCase().trim();
+        const pcodeStr = String(project.project_code || '').toLowerCase().trim();
+        const isStage3Paid = Boolean(
+            project.stage3_paid === 1 ||
+            String(project.payment_status || '').toLowerCase().includes('60%') ||
+            (pidStr && localStorage.getItem(`stage3_paid_${pidStr}`) === 'true') ||
+            (pcodeStr && localStorage.getItem(`stage3_paid_${pcodeStr}`) === 'true') ||
+            ['r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project.project_stage || '').toLowerCase())
+        );
+
+        const isProjectActive = !['lost', 'withdrawn', 'cancelled', 'completed'].includes(String(project.status || '').toLowerCase());
+        
+        // For employees: NEVER allow dismissing the post-qc decision modal; clear any previous session dismissal
+        if (!isAdmin) {
+            sessionStorage.removeItem(`dismissed_post_qc_${project.project_id || id}`);
+        }
+        const hasDismissed = isAdmin && sessionStorage.getItem(`dismissed_post_qc_${project.project_id || id}`) === 'true';
+
+        if (isQcApproved && !isStage3Paid && isProjectActive && !hasDismissed) {
+            setShowPostQcDecisionModal(true);
+        }
+    }, [project, loading, id, isAdmin, user?.role]);
 
     const fetchQuoteTotal = async () => {
         try {
@@ -167,6 +393,17 @@ export const ProjectDetails: React.FC = () => {
             }
         } catch (err) {
             console.error('Failed to fetch quote total');
+        }
+    };
+
+    const fetchApprovedQuoteTotal = async () => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/quotes/approved?project_id=${id}&is_used=false`);
+            if (response.data.success && response.data.data && parseFloat(response.data.data.total_amount) > 0) {
+                setApprovedQuoteTotal(parseFloat(response.data.data.total_amount));
+            }
+        } catch (err) {
+            console.error('Failed to fetch approved quote total');
         }
     };
 
@@ -196,8 +433,14 @@ export const ProjectDetails: React.FC = () => {
         try {
             const response = await axios.get(`${API_BASE_URL}/projects/${id}`);
             if (response.data.success) {
-                setProject(response.data.data);
-                setBudget(response.data.data.total_budget);
+                const proj = response.data.data;
+                setProject(proj);
+                const isQcApproved = Boolean(proj.is_final_quote_approved === 1 || proj.is_final_quote_approved === true || proj.status === 'qc_approved');
+                const officialBudget = isQcApproved
+                    ? parseFloat(proj.total_budget || proj.approved_quote_amount || proj.initial_quote_amount || 0)
+                    : parseFloat(proj.initial_quote_amount || proj.approved_quote_amount || proj.total_budget || 0);
+                setBudget(officialBudget.toString());
+                setApprovedQuoteTotal(officialBudget);
             }
         } catch (err) {
             console.error('Failed to fetch project details');
@@ -238,6 +481,10 @@ export const ProjectDetails: React.FC = () => {
 
     const handleRecordPayment = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!isAdmin) {
+            alert('Permission Denied: Only Admin can add or record customer payments.');
+            return;
+        }
         if (!payment.amount || parseFloat(payment.amount) <= 0) {
             alert('Please enter a valid amount.');
             return;
@@ -292,6 +539,12 @@ export const ProjectDetails: React.FC = () => {
                 } catch (monthlyError) {
                     console.error('Failed to save to monthly_income:', monthlyError);
                     // Don't fail the whole operation if monthly_income save fails
+                }
+
+                if (payment.description?.includes('Stage 3') || payment.description?.includes('40%')) {
+                    if (id) localStorage.setItem(`stage3_paid_${id}`, 'true');
+                    if (project?.project_id) localStorage.setItem(`stage3_paid_${project.project_id}`, 'true');
+                    if (project?.project_code) localStorage.setItem(`stage3_paid_${project.project_code}`, 'true');
                 }
 
                 setShowPaymentModal(false);
@@ -378,60 +631,88 @@ export const ProjectDetails: React.FC = () => {
 
     const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
 
+    const transportCount = (transactions || []).filter((t: any) => t.type === 'debit' && String(t.category || '').toLowerCase() === 'transport').length;
+    const laborCount = (transactions || []).filter((t: any) => t.type === 'debit' && String(t.category || '').toLowerCase() === 'labor').length;
+    const miscCount = (transactions || []).filter((t: any) => t.type === 'debit' && String(t.category || '').toLowerCase() === 'miscellaneous').length;
+    const reimbursementsCount = (transactions || []).filter((t: any) => t.type === 'debit' && (
+        t.category === 'Reimbursements' || t.category === 'Reimbursement' || t.category === 'Other' || t.category === 'Staff Expense'
+    )).length;
+
     const renderTabs = () => {
-        const tabs = ['overview', 'quote', 'documents', 'timeline', 'pm_timeline', 'stage_notes', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'other_expenses', 'balance_sheet'].filter(tab => {
+        const tabs = allowedTabs;
 
-            // Admin and Accountant see all tabs
-            if (user?.role === 'admin' || user?.role === 'accountant') {
-                return true;
+        const getTabLabel = (tab: string) => {
+            switch (tab) {
+                case 'overview': return 'Overview';
+                case 'quote': return 'Quote';
+                case 'quality_check': return 'Quality Check (QC)';
+                case 'documents': return 'Documents';
+                case 'timeline': return 'Designer Timeline';
+                case 'pm_timeline': return 'Project Manager Timeline';
+                case 'stock_category': return 'Stock Category';
+                case 'vendor_quta': return 'Materials Bill';
+                case 'transport': return `Transport (${transportCount})`;
+                case 'labor': return `Labor (${laborCount})`;
+                case 'miscellaneous': return `Miscellaneous (${miscCount})`;
+                case 'reimbursements':
+                case 'other_expenses': return `Reimbursements (${reimbursementsCount})`;
+                case 'balance_sheet': return 'Balance Sheet';
+                default: return tab.replace('_', ' ');
             }
-
-            // Project Head sees these tabs
-            if (user?.role === 'project_head') {
-                return ['timeline', 'pm_timeline', 'stage_notes', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'other_expenses'].includes(tab);
-            }
-
-            // Project Manager sees timeline tabs + stage notes
-            if (user?.role === 'project_manager' || user?.role === 'manager') {
-                return ['timeline', 'pm_timeline', 'stage_notes', 'stock_category', 'vendor_quta', 'transport', 'labor', 'miscellaneous', 'other_expenses'].includes(tab);
-            }
-
-            // Site Engineer sees timeline tabs
-            if (user?.role === 'site_engineer') {
-                return ['timeline', 'pm_timeline', 'stage_notes', 'stock_category'].includes(tab);
-            }
-
-            // Designer roles see overview, documents, timeline and stage notes
-            if (['d1', 'd2', 'graphic_designer', 'gd'].includes(user?.role)) {
-                return ['overview', 'documents', 'timeline', 'pm_timeline', 'stage_notes'].includes(tab);
-            }
-
-            // Default: overview only
-            return tab === 'overview';
-        });
+        };
 
         return (
-            <div className="tabs-container" style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '1px', flexWrap: 'wrap' }}>
-                {tabs.map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => handleTabChange(tab)}
-                        style={{
-                            padding: '12px 20px',
-                            fontSize: '0.92rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === tab ? '3px solid #253b50' : '3px solid transparent',
-                            color: activeTab === tab ? '#253b50' : '#6b7280',
-                            textTransform: 'capitalize',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        {tab === 'vendor_quta' ? 'Vendor Bill' : tab === 'timeline' ? 'Designer Timeline' : tab === 'pm_timeline' ? 'Project Manager Timeline' : tab === 'stage_notes' ? '📋 Stage Notes' : tab === 'quote' ? 'Quote' : tab === 'other_expenses' ? 'Other Expenses' : tab.replace('_', ' ')}
-                    </button>
-                ))}
+            <div
+                className="tabs-container"
+                style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: '8px 12px',
+                    marginBottom: '24px',
+                    padding: '4px 0'
+                }}
+            >
+                {tabs.map((tab) => {
+                    const isActive = activeTab === tab;
+                    return (
+                        <button
+                            key={tab}
+                            type="button"
+                            onClick={() => handleTabChange(tab)}
+                            style={{
+                                padding: isActive ? '9px 20px' : '9px 14px',
+                                fontSize: '0.94rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                backgroundColor: isActive ? '#0f172a' : 'transparent',
+                                color: isActive ? '#ffffff' : '#1e293b',
+                                border: 'none',
+                                borderRadius: '8px',
+                                transition: 'all 0.15s ease',
+                                outline: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                whiteSpace: 'nowrap'
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!isActive) {
+                                    e.currentTarget.style.backgroundColor = '#f1f5f9';
+                                    e.currentTarget.style.color = '#0f172a';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!isActive) {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.color = '#1e293b';
+                                }
+                            }}
+                        >
+                            {getTabLabel(tab)}
+                        </button>
+                    );
+                })}
             </div>
         );
     };
@@ -481,33 +762,664 @@ export const ProjectDetails: React.FC = () => {
                 </div>
             </div>
 
+            {/* 4 Status Badges Bar (Agreement | Dynamic Slot Lifecycle | Stage & Paid % | Sign) */}
+            {(() => {
+                const totalPaidCredit = (transactions || [])
+                    .filter((t: any) => String(t.type || '').toLowerCase().trim() === 'credit')
+                    .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+                const totalBudgetVal = Number(project?.total_budget || 0);
+                const calcPaidPct = totalBudgetVal > 0 ? (totalPaidCredit / totalBudgetVal) * 100 : 0;
+
+                const pidStr = String(project?.project_id || id || '').toLowerCase().trim();
+                const pcodeStr = String(project?.project_code || '').toLowerCase().trim();
+
+                const isQcApproved = Boolean(
+                    project?.is_final_quote_approved === 1 ||
+                    project?.qc_approved === 1 ||
+                    project?.status === 'qc_approved' ||
+                    ['approved', 'qc_approved'].includes(String(project?.qc_status || '').toLowerCase()) ||
+                    ['quality check done', 'r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase())
+                );
+
+                const is20PercentPaid = calcPaidPct >= 19.9 ||
+                    Boolean(project?.is_20_percent_paid) ||
+                    Boolean(project?.stage2_paid) ||
+                    isQcApproved ||
+                    ['masking done', 'sow done', 'quality check done', 'r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase()) ||
+                    (pidStr && localStorage.getItem(`stage2_paid_${pidStr}`) === 'true') ||
+                    (pcodeStr && localStorage.getItem(`stage2_paid_${pcodeStr}`) === 'true');
+
+                const is10PercentPaid = is20PercentPaid || calcPaidPct >= 9.9 ||
+                    Boolean(project?.is_10_percent_paid) ||
+                    Boolean(project?.stage1_paid) ||
+                    (pidStr && localStorage.getItem(`stage1_paid_${pidStr}`) === 'true') ||
+                    (pcodeStr && localStorage.getItem(`stage1_paid_${pcodeStr}`) === 'true');
+
+                const isStage3Paid = Boolean(
+                    project?.stage3_paid === 1 ||
+                    String(project?.payment_status || '').toLowerCase().includes('60%') ||
+                    (pidStr && localStorage.getItem(`stage3_paid_${pidStr}`) === 'true') ||
+                    (pcodeStr && localStorage.getItem(`stage3_paid_${pcodeStr}`) === 'true') ||
+                    ['r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase())
+                );
+
+                const mmtsSt = String(project?.mmts_status || project?.lead_info?.mmts_status || '').toLowerCase().trim();
+                const hasMmtsTime = Boolean(
+                    (project?.mmts_booking_time && String(project.mmts_booking_time).trim() !== '' && project.mmts_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.mmts_booking_time && String(project.lead_info.mmts_booking_time).trim() !== '' && project.lead_info.mmts_booking_time !== '0000-00-00 00:00:00')
+                );
+                const isMmtsBooked = hasMmtsTime || ['booked', 'in_meeting', 'meeting_completed', 'completed', 'approved'].includes(mmtsSt);
+                const isMmtsEnded = ['meeting_completed', 'completed', 'approved'].includes(mmtsSt);
+
+                const qcSt = String(project?.qc_status || project?.lead_info?.qc_status || '').toLowerCase().trim();
+                const hasQcTime = Boolean(
+                    (project?.qc_booking_time && String(project.qc_booking_time).trim() !== '' && project.qc_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.qc_booking_time && String(project.lead_info.qc_booking_time).trim() !== '' && project.lead_info.qc_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.site_manager_booking_time && String(project.lead_info.site_manager_booking_time).trim() !== '' && project.lead_info.site_manager_booking_time !== '0000-00-00 00:00:00')
+                );
+                const isQcBooked = hasQcTime || ['booked', 'approved', 'qc_approved', 'in_meeting', 'completed', 'meeting_completed', 'site_manager_booked'].includes(qcSt);
+                const isQcEnded = ['completed', 'approved', 'qc_approved', 'meeting_completed'].includes(qcSt) ||
+                    project?.is_final_quote_approved === 1 ||
+                    project?.qc_approved === 1;
+
+                // Automatic Slot Lifecycle mapping:
+                // 1. Stage 2 (20% Masking) Payment done / QC Phase:
+                //    - QC inspection ended / completed / approved -> ✓ Slot Booked (green) -> redirects to QC
+                //    - QC slot booked -> ✓ QC Slot Booked (green) -> redirects to QC
+                //    - QC slot not booked yet -> 🔍 Book QC Slot (blue) -> redirects to QC
+                // 2. Stage 1 (10% Token) Payment done / MMTS Phase:
+                //    - MMTS ended & waiting for Stage 2 payment -> ✓ MMTS Done (Pay Stage 2) (sky blue) -> redirects to MMTS
+                //    - MMTS slot booked -> ✓ MMTS Slot Booked (sky blue) -> redirects to MMTS
+                //    - MMTS not booked yet -> 📦 Book MMTS Slot (orange) -> redirects to MMTS
+                // 3. Before Stage 1 Payment (< 10% paid):
+                //    - 📅 Slot Booking (amber/orange) -> redirects to MMTS
+                let slotConfig = {
+                    label: 'Slot Booking',
+                    icon: '📅',
+                    color: '#c2410c',
+                    bg: '#fff7ed',
+                    border: '#fed7aa',
+                    target: 'mmts',
+                    tooltip: 'Requires Stage 1 (10% Token) payment to book MMTS slot'
+                };
+
+                const isQcPhase = is20PercentPaid || isQcBooked || isQcEnded;
+
+                if (isQcPhase) {
+                    if (isQcEnded) {
+                        slotConfig = {
+                            label: 'Slot Booked',
+                            icon: '✓',
+                            color: '#15803d',
+                            bg: '#f0fdf4',
+                            border: '#22c55e',
+                            target: 'qc',
+                            tooltip: '✓ QC inspection completed! Click to view 🔍 QC Inspector & PM schedule history'
+                        };
+                    } else if (isQcBooked) {
+                        slotConfig = {
+                            label: 'QC Slot Booked',
+                            icon: '✓',
+                            color: '#16a34a',
+                            bg: '#f0fdf4',
+                            border: '#86efac',
+                            target: 'qc',
+                            tooltip: 'QC Slot Booked! Click to view 🔍 QC Inspector & PM inspection schedule'
+                        };
+                    } else {
+                        slotConfig = {
+                            label: 'Book QC Slot',
+                            icon: '🔍',
+                            color: '#2563eb',
+                            bg: '#eff6ff',
+                            border: '#93c5fd',
+                            target: 'qc',
+                            tooltip: 'Stage 2 Paid! Click to open schedule for 🔍 QC Inspector & PM'
+                        };
+                    }
+                } else if (is10PercentPaid || isMmtsBooked || isMmtsEnded) {
+                    if (isMmtsEnded) {
+                        slotConfig = {
+                            label: '✓ MMTS Done (Pay Stage 2)',
+                            icon: '✓',
+                            color: '#0284c7',
+                            bg: '#f0f9ff',
+                            border: '#7dd3fc',
+                            target: 'mmts',
+                            tooltip: 'MMTS meeting finished. Record Stage 2 (20%) payment to unlock QC Inspector Slot'
+                        };
+                    } else if (isMmtsBooked) {
+                        slotConfig = {
+                            label: 'MMTS Slot Booked',
+                            icon: '✓',
+                            color: '#0284c7',
+                            bg: '#f0f9ff',
+                            border: '#7dd3fc',
+                            target: 'mmts',
+                            tooltip: 'MMTS Slot Booked! Click to view 📦 MMTS Team & PM meeting schedule'
+                        };
+                    } else {
+                        slotConfig = {
+                            label: 'Book MMTS Slot',
+                            icon: '📦',
+                            color: '#ea580c',
+                            bg: '#fff7ed',
+                            border: '#fdba74',
+                            target: 'mmts',
+                            tooltip: 'Stage 1 Paid! Click to open schedule for 📦 MMTS Team & PM'
+                        };
+                    }
+                } else {
+                    slotConfig = {
+                        label: 'Slot Booking',
+                        icon: '📅',
+                        color: '#c2410c',
+                        bg: '#fff7ed',
+                        border: '#fed7aa',
+                        target: 'mmts',
+                        tooltip: 'Requires Stage 1 (10% Token) payment to book MMTS slot'
+                    };
+                }
+
+                const autoStageInfo = project ? computeProjectAutoStage(project, transactions) : null;
+                const currentStage = autoStageInfo?.stage || project?.project_stage || 'Quality check done';
+                const currentPaidPercent = autoStageInfo?.paidPercent ?? (project?.total_budget > 0 ? (project.total_paid / project.total_budget) * 100 : 0);
+                const stageCfg = STAGE_COLORS[currentStage] || { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' };
+                const hasSignature = Boolean(project?.client_signature && String(project.client_signature).length > 20);
+
+                return (
+                    <div className="no-print" style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        marginBottom: '18px',
+                        marginTop: '4px'
+                    }}>
+                        {/* 1. Agreement */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const targetPid = project.project_id || project.project_code || id;
+                                navigate(`/agreements?project_id=${encodeURIComponent(targetPid)}`);
+                            }}
+                            style={{
+                                padding: '7px 18px',
+                                borderRadius: '24px',
+                                border: '1.5px solid #22c55e',
+                                backgroundColor: '#f0fdf4',
+                                color: '#15803d',
+                                fontSize: '0.88rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                transition: 'all 0.15s ease'
+                            }}
+                            title={existingAgreement ? `Agreement active (Ref: ${existingAgreement.ref_id || existingAgreement.id}) - Click to open` : "Click to view or create project agreement"}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 3px 8px rgba(34,197,94,0.18)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)'; }}
+                        >
+                            <span>📜</span> Agreement
+                        </button>
+
+                        {/* 2. Slot Lifecycle Dynamic Pill (Direct Redirect to MMTS / QC schedule) */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const targetPid = project?.lead_info?.lead_id ||
+                                    project?.converted_from_lead_id ||
+                                    project?.lead_id ||
+                                    project?.project_code ||
+                                    project?.project_id ||
+                                    id;
+                                if (slotConfig.target === 'qc') {
+                                    navigate(`/d1-leads?lead_id=${encodeURIComponent(targetPid)}&open_qc=true`);
+                                } else {
+                                    navigate(`/d1-leads?lead_id=${encodeURIComponent(targetPid)}&open_mmts=true`);
+                                }
+                            }}
+                            style={{
+                                padding: '7px 18px',
+                                borderRadius: '24px',
+                                border: `1.5px solid ${slotConfig.border}`,
+                                backgroundColor: slotConfig.bg,
+                                color: slotConfig.color,
+                                fontSize: '0.88rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                transition: 'all 0.15s ease'
+                            }}
+                            title={slotConfig.tooltip}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 3px 8px ${slotConfig.border}`; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)'; }}
+                        >
+                            <span>{slotConfig.icon}</span> {slotConfig.label}
+                        </button>
+
+                        {/* 3. Stage & Paid % */}
+                        <button
+                            type="button"
+                            onClick={() => setShowStageModal(true)}
+                            style={{
+                                padding: '7px 18px',
+                                borderRadius: '24px',
+                                border: `1.5px solid ${stageCfg.border || '#a7f3d0'}`,
+                                backgroundColor: stageCfg.bg || '#ecfdf5',
+                                color: stageCfg.text || '#047857',
+                                fontSize: '0.88rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                transition: 'all 0.15s ease'
+                            }}
+                            title={`Stage: ${currentStage} (${currentPaidPercent.toFixed(1)}% Paid) - Click for stage breakdown`}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 3px 8px rgba(4,120,87,0.18)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)'; }}
+                        >
+                            <span>💳</span> {currentStage} ({currentPaidPercent.toFixed(1)}% Paid)
+                        </button>
+
+                        {/* 4. Client Sign */}
+                        <button
+                            type="button"
+                            onClick={() => setShowSigModal(true)}
+                            style={{
+                                padding: '7px 18px',
+                                borderRadius: '24px',
+                                border: '1.5px solid #0284c7',
+                                backgroundColor: '#f0f9ff',
+                                color: '#0284c7',
+                                fontSize: '0.88rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                transition: 'all 0.15s ease'
+                            }}
+                            title={hasSignature ? "Client signature captured - Click to view or re-sign" : "Click to capture client signature pad"}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 3px 8px rgba(2,132,199,0.18)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)'; }}
+                        >
+                            <span>✒️</span> <span>✍️</span> Sign{hasSignature ? ' ✓' : ''}
+                        </button>
+
+                        {/* 5. Post-QC Client Decision Pill */}
+                        {isQcApproved && !isStage3Paid && !['lost', 'withdrawn', 'cancelled'].includes(String(project?.status || '').toLowerCase()) && (
+                            <button
+                                type="button"
+                                onClick={() => setShowPostQcDecisionModal(true)}
+                                style={{
+                                    padding: '7px 18px',
+                                    borderRadius: '24px',
+                                    border: '1.5px solid #f59e0b',
+                                    backgroundColor: '#fffbeb',
+                                    color: '#b45309',
+                                    fontSize: '0.88rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                title="Quality Check verification complete! Click to view client decision (Continue or Withdraw)"
+                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 3px 8px rgba(245,158,11,0.25)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)'; }}
+                            >
+                                <span>📋</span> Client Decision (Post-QC)
+                            </button>
+                        )}
+                    </div>
+                );
+            })()}
+
             <div className="no-print">
                 {renderTabs()}
             </div>
 
-            {activeTab === 'overview' && <OverviewTab project={project} budget={budget} quoteTotal={quoteTotal} isAccountant={isAccountant} setShowBudgetModal={setShowBudgetModal} />}
+            {activeTab === 'overview' && (
+                <OverviewTab
+                    project={project}
+                    budget={budget}
+                    quoteTotal={quoteTotal}
+                    isAccountant={isAccountant}
+                    setShowBudgetModal={setShowBudgetModal}
+                    transactions={transactions}
+                />
+            )}
+            {activeTab === 'quote' && (() => {
+                const totalPaidCredit = (transactions || [])
+                    .filter((t: any) => String(t.type || '').toLowerCase().trim() === 'credit')
+                    .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+                const totalBudgetVal = Number(project?.total_budget || 0);
+                const calcPaidPct = totalBudgetVal > 0 ? (totalPaidCredit / totalBudgetVal) * 100 : 0;
+                const pidStr = String(project?.project_id || id || '').toLowerCase().trim();
+                const pcodeStr = String(project?.project_code || '').toLowerCase().trim();
+
+                const isProj20Paid = calcPaidPct >= 19.9 ||
+                    Boolean(project?.is_20_percent_paid) ||
+                    Boolean(project?.stage2_paid) ||
+                    (pidStr && (localStorage.getItem(`stage2_paid_${pidStr}`) === 'true' || localStorage.getItem(`stage2_paid_${pidStr}`) === '1')) ||
+                    (pcodeStr && (localStorage.getItem(`stage2_paid_${pcodeStr}`) === 'true' || localStorage.getItem(`stage2_paid_${pcodeStr}`) === '1'));
+
+                const projQcSt = String(project?.qc_status || project?.lead_info?.qc_status || (project as any)?.site_inspector_status || (project as any)?.site_manager_status || '').toLowerCase().trim();
+                const hasProjQcTime = Boolean(
+                    (project?.qc_booking_time && String(project.qc_booking_time).trim() !== '' && project.qc_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.qc_booking_time && String(project.lead_info.qc_booking_time).trim() !== '' && project.lead_info.qc_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.site_manager_booking_time && String(project.lead_info.site_manager_booking_time).trim() !== '' && project.lead_info.site_manager_booking_time !== '0000-00-00 00:00:00')
+                );
+                const isProjQcBooked = hasProjQcTime || ['booked', 'approved', 'qc_approved', 'in_meeting', 'completed', 'meeting_completed', 'site_manager_booked', 'under_review'].includes(projQcSt) ||
+                    (pidStr && (localStorage.getItem(`qc_booked_${pidStr}`) === 'true' || localStorage.getItem(`qc_completed_${pidStr}`) === 'true')) ||
+                    (pcodeStr && (localStorage.getItem(`qc_booked_${pcodeStr}`) === 'true' || localStorage.getItem(`qc_completed_${pcodeStr}`) === 'true'));
+
+                return (
+                    <QuoteTab
+                        key={`qtab-${project?.project_id}-${project?.client_name}`}
+                        project={project}
+                        setQuoteTotal={(val: number) => {
+                            // Draft total kept in local state; NEVER overwrite project budget or approved Balance Sheet total while editing
+                            setQuoteTotal(val);
+                        }}
+                        isReadOnly={user?.role === 'site_engineer'}
+                        user={user}
+                        isUsedQuote={false}
+                        isStage2Paid={isProj20Paid}
+                        isQcBooked={isProjQcBooked}
+                    />
+                );
+            })()}
+            {(activeTab === 'quality_check' || activeTab === 'qc') && <QualityCheckTab projectId={project.project_id} project={project} />}
             {activeTab === 'documents' && <DocumentTab projectId={project.project_id} />}
             {activeTab === 'timeline' && <TimelineTab project={project} user={user} type="designer" fetchProjectDetails={fetchProjectDetails} totalPaid={transactions.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0)} />}
             {activeTab === 'pm_timeline' && <TimelineTab project={project} user={user} type="pm" fetchProjectDetails={fetchProjectDetails} totalPaid={transactions.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0)} />}
             {activeTab === 'stage_notes' && <StageNotesTab project={project} user={user} filterType="pm" />}
-            {activeTab === 'quote' && <QuoteTab key={`qtab-${project?.project_id}-${project?.client_name}`} project={project} setQuoteTotal={(val: number) => { setQuoteTotal(val); setBudget(val.toString()); fetchProjectDetails(); }} isReadOnly={user?.role === 'site_engineer'} user={user} isUsedQuote={false} />}
             {activeTab === 'stock_category' && <StockCategoryTab project={project} user={user} />}
-
             {activeTab === 'vendor_quta' && <InventoryTab key={project?.project_id} project={project} setInventoryTotal={setInventoryTotal} user={user} />}
             {activeTab === 'transport' && <ExpenseCategoryTab project={project} category="Transport" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
             {activeTab === 'labor' && <ExpenseCategoryTab project={project} category="Labor" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
             {activeTab === 'miscellaneous' && <ExpenseCategoryTab project={project} category="Miscellaneous" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
-            {activeTab === 'other_expenses' && <ExpenseCategoryTab project={project} category="Other" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
-            {activeTab === 'balance_sheet' && <BalanceSheetTab project={project} transactions={transactions}
-                quoteTotal={quoteTotal}
-                inventoryTotal={inventoryTotal}
-                fetchTransactions={fetchTransactions} />}
+            {(activeTab === 'reimbursements' || activeTab === 'other_expenses') && <ExpenseCategoryTab project={project} category="Reimbursements" transactions={transactions} fetchTransactions={fetchTransactions} user={user} />}
+            {activeTab === 'balance_sheet' && (
+                <BalanceSheetTab
+                    project={project}
+                    transactions={transactions}
+                    quoteTotal={approvedQuoteTotal > 0 ? approvedQuoteTotal : (Number(project?.approved_quote_amount) || Number(project?.initial_quote_amount) || Number(project?.total_budget) || 0)}
+                    approvedQuoteTotal={approvedQuoteTotal > 0 ? approvedQuoteTotal : (Number(project?.approved_quote_amount) || Number(project?.initial_quote_amount) || Number(project?.total_budget) || 0)}
+                    latestQuoteTotal={quoteTotal}
+                    inventoryTotal={inventoryTotal}
+                    fetchTransactions={fetchTransactions}
+                    user={user}
+                />
+            )}
 
 
 
             {/* Modals */}
+            {/* Client Signature Modal */}
+            {showSigModal && project && (
+                <ClientSignatureModal
+                    isOpen={showSigModal}
+                    onClose={() => setShowSigModal(false)}
+                    clientName={project.client_name || 'Client'}
+                    projectId={project.project_id || project.project_code || id}
+                    leadId={project.lead_info?.lead_id}
+                    existingSignature={project.client_signature || ''}
+                    onSignatureSaved={(sigDataUrl: string) => {
+                        setProject((prev: any) => prev ? { ...prev, client_signature: sigDataUrl } : prev);
+                        fetchProjectDetails();
+                    }}
+                />
+            )}
+
+            {/* QC / MMTS Slot Details Modal */}
+            {showSlotModal && project && (() => {
+                const isSlotBooked = Boolean(
+                    (project?.qc_status && ['booked', 'approved', 'qc_approved', 'in_meeting', 'completed'].includes(String(project.qc_status).toLowerCase())) ||
+                    (project?.mmts_status && ['booked', 'in_meeting', 'meeting_completed', 'completed'].includes(String(project.mmts_status).toLowerCase())) ||
+                    (project?.mmts_booking_time && project.mmts_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.qc_booking_time && project.lead_info.qc_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.d1_booking_time && project.lead_info.d1_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.site_manager_booking_time && project.lead_info.site_manager_booking_time !== '0000-00-00 00:00:00') ||
+                    (project?.lead_info?.mmts_booking_time && project.lead_info.mmts_booking_time !== '0000-00-00 00:00:00')
+                );
+
+                return (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+                        <div className="premium-card" style={{ width: '100%', maxWidth: '460px', position: 'relative', padding: '28px', borderRadius: '16px', backgroundColor: '#ffffff', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+                            <button onClick={() => setShowSlotModal(false)} style={{ position: 'absolute', right: '18px', top: '18px', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                                <X size={20} />
+                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#f0f9ff', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '1.2rem' }}>
+                                    ✓
+                                </div>
+                                <div>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>QC / MMTS Slot Details</h3>
+                                    <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Inspection & verification schedule</p>
+                                </div>
+                            </div>
+
+                            <div style={{ backgroundColor: '#f8fafc', borderRadius: '10px', padding: '16px', marginBottom: '20px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Booking Status:</span>
+                                    <span style={{
+                                        padding: '4px 12px',
+                                        borderRadius: '16px',
+                                        backgroundColor: isSlotBooked ? '#f0f9ff' : '#fff7ed',
+                                        color: isSlotBooked ? '#0284c7' : '#c2410c',
+                                        border: `1.5px solid ${isSlotBooked ? '#0284c7' : '#fed7aa'}`,
+                                        fontWeight: 800,
+                                        fontSize: '0.82rem'
+                                    }}>
+                                        {isSlotBooked ? '✓ Slot Booked' : '📅 Not Booked'}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>QC Status:</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', textTransform: 'capitalize' }}>
+                                        {project.qc_status || 'Unassigned'}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Scheduled Time:</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                                        {project.mmts_booking_time || project.lead_info?.qc_booking_time || project.lead_info?.mmts_booking_time || 'Not Scheduled'}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>QC Inspector:</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                                        {project.lead_info?.site_inspector_assigned_name || 'QC Inspector'}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Project Manager:</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                                        {project.lead_info?.pm_assigned_name || project.project_head_name || 'Project Manager'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '20px' }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '8px', textTransform: 'uppercase' }}>Update Slot Status:</div>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    <button
+                                        disabled={updatingSlot}
+                                        onClick={() => handleUpdateSlotStatus('booked')}
+                                        style={{ flex: 1, minWidth: '90px', padding: '6px 10px', fontSize: '0.8rem', fontWeight: 700, borderRadius: '8px', border: '1px solid #0284c7', backgroundColor: '#f0f9ff', color: '#0284c7', cursor: 'pointer' }}
+                                    >
+                                        ✓ Booked
+                                    </button>
+                                    <button
+                                        disabled={updatingSlot}
+                                        onClick={() => handleUpdateSlotStatus('completed')}
+                                        style={{ flex: 1, minWidth: '90px', padding: '6px 10px', fontSize: '0.8rem', fontWeight: 700, borderRadius: '8px', border: '1px solid #16a34a', backgroundColor: '#f0fdf4', color: '#16a34a', cursor: 'pointer' }}
+                                    >
+                                        ✓ Completed
+                                    </button>
+                                    <button
+                                        disabled={updatingSlot}
+                                        onClick={() => handleUpdateSlotStatus('rescheduled')}
+                                        style={{ flex: 1, minWidth: '90px', padding: '6px 10px', fontSize: '0.8rem', fontWeight: 700, borderRadius: '8px', border: '1px solid #f59e0b', backgroundColor: '#fffbeb', color: '#f59e0b', cursor: 'pointer' }}
+                                    >
+                                        ⏳ Reschedule
+                                    </button>
+                                    <button
+                                        disabled={updatingSlot}
+                                        onClick={() => handleUpdateSlotStatus('cancelled')}
+                                        style={{ flex: 1, minWidth: '90px', padding: '6px 10px', fontSize: '0.8rem', fontWeight: 700, borderRadius: '8px', border: '1px solid #ef4444', backgroundColor: '#fef2f2', color: '#ef4444', cursor: 'pointer' }}
+                                    >
+                                        ✕ Cancel
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => {
+                                        handleTabChange('quality_check');
+                                        setShowSlotModal(false);
+                                    }}
+                                    style={{ padding: '9px 18px', borderRadius: '8px', backgroundColor: '#0f172a', color: '#ffffff', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                                >
+                                    Go to Quality Check (QC) Tab →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* Project Stage & Payment Milestone Modal */}
+            {showStageModal && project && (() => {
+                const autoStageInfo = computeProjectAutoStage(project, transactions);
+                const currentStage = autoStageInfo?.stage || project?.project_stage || 'Quality check done';
+                const currentPaidPercent = autoStageInfo?.paidPercent ?? (project?.total_budget > 0 ? (project.total_paid / project.total_budget) * 100 : 0);
+                const stageCfg = STAGE_COLORS[currentStage] || { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' };
+
+                return (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+                        <div className="premium-card" style={{ width: '100%', maxWidth: '520px', position: 'relative', padding: '28px', borderRadius: '16px', backgroundColor: '#ffffff', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+                            <button onClick={() => setShowStageModal(false)} style={{ position: 'absolute', right: '18px', top: '18px', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                                <X size={20} />
+                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: stageCfg.bg, color: stageCfg.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '1.2rem' }}>
+                                    💳
+                                </div>
+                                <div>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Project Stage & Payment Status</h3>
+                                    <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Milestone progress based on payments & approvals</p>
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '18px' }}>
+                                <span style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '20px',
+                                    border: `1.5px solid ${stageCfg.border || '#a7f3d0'}`,
+                                    backgroundColor: stageCfg.bg || '#ecfdf5',
+                                    color: stageCfg.text || '#047857',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 800,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}>
+                                    💳 {currentStage} ({currentPaidPercent.toFixed(1)}% Paid)
+                                </span>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '18px' }}>
+                                <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Budget</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>₹{Math.round(project.total_budget || 0).toLocaleString('en-IN')}</div>
+                                </div>
+                                <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '10px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase' }}>Paid</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', marginTop: '2px' }}>₹{Math.round(project.total_paid || 0).toLocaleString('en-IN')}</div>
+                                </div>
+                                <div style={{ backgroundColor: '#fff7ed', padding: '12px', borderRadius: '10px', border: '1px solid #fed7aa', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.72rem', color: '#c2410c', fontWeight: 700, textTransform: 'uppercase' }}>Balance</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#c2410c', marginTop: '2px' }}>₹{Math.round(Math.max(0, (project.total_budget || 0) - (project.total_paid || 0))).toLocaleString('en-IN')}</div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                    <span>Payment Progress</span>
+                                    <span>{currentPaidPercent.toFixed(1)}%</span>
+                                </div>
+                                <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ width: `${Math.min(100, Math.max(0, currentPaidPercent))}%`, height: '100%', backgroundColor: '#10b981', borderRadius: '4px', transition: 'width 0.3s ease' }} />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                {isAccountant && (
+                                    <button
+                                        onClick={() => {
+                                            setShowStageModal(false);
+                                            setShowPaymentModal(true);
+                                        }}
+                                        style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: '#10b981', color: '#ffffff', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                                    >
+                                        + Add Payment
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        handleTabChange('balance_sheet');
+                                        setShowStageModal(false);
+                                    }}
+                                    style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: '#0f172a', color: '#ffffff', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                                >
+                                    View Balance Sheet →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
             {showBudgetModal && <BudgetModal budget={budget} setBudget={setBudget} submitting={submitting} handleUpdateBudget={handleUpdateBudget} setShowBudgetModal={setShowBudgetModal} />}
-            {showPaymentModal && <PaymentModal payment={payment} setPayment={setPayment} submitting={submitting} handleRecordPayment={handleRecordPayment} setShowPaymentModal={setShowPaymentModal} />}
+            {showPaymentModal && (
+                <PaymentModal
+                    project={project}
+                    transactions={transactions}
+                    payment={payment}
+                    setPayment={setPayment}
+                    submitting={submitting}
+                    handleRecordPayment={handleRecordPayment}
+                    setShowPaymentModal={setShowPaymentModal}
+                    isAdmin={isAdmin}
+                />
+            )}
+
+            <PostQcDecisionModal
+                isOpen={showPostQcDecisionModal}
+                onClose={() => setShowPostQcDecisionModal(false)}
+                projectId={project?.project_id || id}
+                finalBudget={Number(project?.total_budget) || Number(budget) || 0}
+                isAdmin={isAdmin}
+                onContinue={() => {
+                    setShowPostQcDecisionModal(false);
+                    setShowPaymentModal(true);
+                }}
+            />
 
             {showEditModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -543,11 +1455,11 @@ export const ProjectDetails: React.FC = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>Start Date</label>
-                                    <input type="date" required value={editForm.start_date} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                                    <input type="date" required value={editForm.start_date} onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }} />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500 }}>End Date</label>
-                                    <input type="date" required value={editForm.expected_end_date} onChange={(e) => setEditForm({ ...editForm, expected_end_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                                    <input type="date" required value={editForm.expected_end_date} onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }} onChange={(e) => setEditForm({ ...editForm, expected_end_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }} />
                                 </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '24px' }}>
@@ -685,162 +1597,258 @@ export const ProjectDetails: React.FC = () => {
     );
 };
 
-const OverviewTab = ({ project, budget, quoteTotal, isAccountant, setShowBudgetModal }: any) => {
-    // We use budget for Financial Overview instead of quoteTotal
-    const displayBudget = Number(budget) || 0;
-    const progress = Math.round((project.total_paid / (displayBudget || 1)) * 100);
+const OverviewTab = ({ project, budget, quoteTotal, isAccountant, setShowBudgetModal, transactions = [] }: any) => {
+    const displayBudget = Number(budget) || Number(project?.total_budget) || 0;
+    const totalPaidCredit = (transactions || [])
+        .filter((t: any) => String(t.type || '').toLowerCase().trim() === 'credit')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+    const totalPaidVal = Math.max(totalPaidCredit, Number(project?.total_paid) || 0);
+    const progress = Math.round((totalPaidVal / (displayBudget || 1)) * 100);
+    const remaining = Math.max(0, displayBudget - totalPaidVal);
+
+    const isQcApproved = Boolean(
+        project?.is_final_quote_approved === 1 ||
+        project?.qc_approved === 1 ||
+        project?.status === 'qc_approved' ||
+        ['approved', 'qc_approved'].includes(String(project?.qc_status || '').toLowerCase()) ||
+        ['quality check done', 'r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase())
+    );
+
+    const pId = String(project?.project_id || '').toLowerCase().trim();
+    const pCode = String(project?.project_code || '').toLowerCase().trim();
+
+    const hasPassedStage2 = Boolean(
+        isQcApproved ||
+        project?.stage2_paid === 1 ||
+        project?.stage2_paid === true ||
+        project?.is_20_percent_paid === 1 ||
+        project?.is_20_percent_paid === true ||
+        ['masking done', 'sow done', 'quality check done', 'r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase()) ||
+        (pId && localStorage.getItem(`stage2_paid_${pId}`) === 'true') ||
+        (pCode && localStorage.getItem(`stage2_paid_${pCode}`) === 'true') ||
+        progress >= 20
+    );
+
+    const hasPassedStage1 = Boolean(
+        hasPassedStage2 ||
+        project?.stage1_paid === 1 ||
+        project?.stage1_paid === true ||
+        project?.is_10_percent_paid === 1 ||
+        project?.is_10_percent_paid === true ||
+        (pId && localStorage.getItem(`stage1_paid_${pId}`) === 'true') ||
+        (pCode && localStorage.getItem(`stage1_paid_${pCode}`) === 'true') ||
+        progress >= 10
+    );
+
+    const hasPassedStage3 = Boolean(
+        project?.stage3_paid === 1 ||
+        project?.stage3_paid === true ||
+        String(project?.payment_status || '').toLowerCase().includes('60%') ||
+        ['r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase()) ||
+        (pId && localStorage.getItem(`stage3_paid_${pId}`) === 'true') ||
+        (pCode && localStorage.getItem(`stage3_paid_${pCode}`) === 'true') ||
+        progress >= 60
+    );
+
+    const autoStageInfo = project ? computeProjectAutoStage(project, transactions) : null;
+    const stageText = autoStageInfo?.stage || project?.project_stage || (isQcApproved ? 'Quality check done' : (hasPassedStage2 ? 'Masking done' : 'Order booked'));
+
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+            {/* LEFT COLUMN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div className="premium-card">
+                {/* 1. Client Information & Site Location Card (Row 1 from Image 1) */}
+                <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                         <div>
-                            <h4 style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '8px' }}>Client Information</h4>
+                            <h4 style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 600, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Client Information</h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 600 }}>
-                                    <User size={16} color="#253b50" /> {project.client_name}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 700, color: '#0f172a', fontSize: '0.98rem' }}>
+                                    <User size={16} color="#0f172a" /> {project.client_name || '—'}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#253b50' }}>
-                                    <Phone size={16} /> <a href={`tel:${project.client_phone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{project.client_phone}</a>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#475569', fontSize: '0.88rem' }}>
+                                    <Phone size={15} color="#64748b" /> <a href={`tel:${project.client_phone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{project.client_phone || '—'}</a>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#6b7280', fontSize: '0.85rem' }}>
-                                    <MapPin size={14} style={{ marginTop: '2px' }} />
-                                    <span>{project.site_address}</span>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#64748b', fontSize: '0.85rem' }}>
+                                    <MapPin size={15} style={{ marginTop: '2px', flexShrink: 0 }} />
+                                    <span>{project.site_address || '—'}</span>
                                 </div>
-                                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                                     <span style={{
                                         padding: '4px 12px',
                                         borderRadius: '20px',
-                                        backgroundColor: '#253b50',
-                                        color: 'white',
+                                        backgroundColor: '#0f172a',
+                                        color: '#ffffff',
                                         fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        textTransform: 'uppercase'
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px'
                                     }}>
-                                        {project.project_type}
+                                        {project.project_type || 'FURNITURE PROJECTS'}
+                                    </span>
+                                    <span style={{
+                                        padding: '4px 12px',
+                                        borderRadius: '20px',
+                                        backgroundColor: '#f0fdf4',
+                                        border: '1px solid #86efac',
+                                        color: '#15803d',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}>
+                                        ✓ Stage: {stageText} ({progress.toFixed(1)}% Paid)
                                     </span>
                                 </div>
                             </div>
                         </div>
+
                         <div>
-                            <h4 style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '8px' }}>Project Site Location</h4>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#253b50', fontWeight: 500 }}>
-                                <MapPin size={16} style={{ marginTop: '4px' }} />
-                                <span style={{ fontSize: '0.95rem' }}>{project.client_address}</span>
+                            <h4 style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 600, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Project Site Location</h4>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#0f172a', fontWeight: 600 }}>
+                                <MapPin size={16} color="#64748b" style={{ marginTop: '3px', flexShrink: 0 }} />
+                                <span style={{ fontSize: '0.92rem', color: '#0f172a' }}>{project.client_address || project.site_address || '—'}</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="premium-card">
-                    <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 700 }}>Financial Overview</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-                        <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                {/* 2. Financial Overview Card (Row 2 from Image 1) */}
+                <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                    <h3 style={{ marginBottom: '18px', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>Financial Overview</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                        {/* Project Budget */}
+                        <div style={{ padding: '18px 20px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', marginBottom: '8px', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Briefcase size={16} /> <span style={{ fontSize: '0.85rem' }}>Project Budget</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Briefcase size={15} /> <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Project Budget</span>
                                 </div>
                                 {isAccountant && (
-                                    <button onClick={() => setShowBudgetModal(true)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                    <button onClick={() => setShowBudgetModal(true)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 700 }}>
                                         <Edit2 size={12} /> Edit
                                     </button>
                                 )}
                             </div>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#253b50' }}>₹{displayBudget.toLocaleString()}</div>
+                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a' }}>₹{displayBudget.toLocaleString('en-IN')}</div>
                         </div>
-                        <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
+
+                        {/* Paid Amount */}
+                        <div style={{ padding: '18px 20px', borderRadius: '12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', marginBottom: '8px' }}>
-                                <CheckCircle2 size={16} /> <span style={{ fontSize: '0.85rem' }}>Paid Amount</span>
+                                <CheckCircle2 size={15} /> <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>Paid Amount</span>
                             </div>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#15803d' }}>₹{project.total_paid.toLocaleString()}</div>
+                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#15803d' }}>₹{project.total_paid.toLocaleString('en-IN')}</div>
                         </div>
-                        <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #ffedd5' }}>
+
+                        {/* Remaining */}
+                        <div style={{ padding: '18px 20px', borderRadius: '12px', backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9a3412', marginBottom: '8px' }}>
-                                <CreditCard size={16} /> <span style={{ fontSize: '0.85rem' }}>Remaining</span>
+                                <CreditCard size={15} /> <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>Remaining</span>
                             </div>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c' }}>₹{(displayBudget - project.total_paid).toLocaleString()}</div>
-                        </div>
-                    </div>
-                    <div style={{ marginTop: '24px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                            <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>Payment Progress</span>
-                            <span style={{ fontWeight: 700, color: '#253b50' }}>{progress}% Received</span>
-                        </div>
-                        <div style={{ width: '100%', height: '8px', backgroundColor: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.5s ease' }}></div>
+                            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#ea580c' }}>₹{remaining.toLocaleString('en-IN')}</div>
                         </div>
                     </div>
 
-                    <div style={{ marginTop: '30px', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
-                        <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#253b50', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            💳 Payment-Timeline Milestone Gates
-                        </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            {[
-                                { name: 'Designer Timeline', req: 10, label: 'Timeline Start (10%)' },
-                                { name: 'Masking Stage', req: 20, label: 'Masking Works (20%)' },
-                                { name: 'R2P (Ready to Paint)', req: 60, label: 'Production / Paint (60%)' },
-                                { name: 'Delivery Phases', req: 95, label: 'Distribution & Transit (95%)' },
-                                { name: 'Project Handover', req: 100, label: 'Final Handover (100%)' }
-                            ].map((gate) => {
-                                const unlocked = progress >= gate.req;
-                                return (
-                                    <div key={gate.name} style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '12px 16px',
-                                        borderRadius: '10px',
-                                        backgroundColor: unlocked ? '#f0fdf4' : '#fef2f2',
-                                        border: unlocked ? '1px solid #bbf7d0' : '1px solid #fecaca',
-                                        transition: 'all 0.3s ease'
-                                    }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: unlocked ? '#166534' : '#991b1b' }}>{gate.name}</span>
-                                            <span style={{ fontSize: '0.72rem', color: unlocked ? '#15803d' : '#b91c1c', opacity: 0.85 }}>{gate.label}</span>
-                                        </div>
-                                        <span style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.7rem',
-                                            fontWeight: 800,
-                                            backgroundColor: unlocked ? '#dcfce7' : '#fee2e2',
-                                            color: unlocked ? '#15803d' : '#ef4444',
-                                            textTransform: 'uppercase'
-                                        }}>
-                                            {unlocked ? '🔓 Unlocked' : '🔒 Locked'}
-                                        </span>
-                                    </div>
-                                );
-                            })}
+                    {/* Progress Bar */}
+                    <div style={{ marginTop: '22px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.82rem' }}>
+                            <span style={{ color: '#64748b', fontWeight: 600 }}>Payment Progress</span>
+                            <span style={{ fontWeight: 800, color: '#0f172a' }}>{progress}% Received</span>
                         </div>
+                        <div style={{ width: '100%', height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.min(100, Math.max(0, progress))}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.5s ease' }}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. Assigned Vendors, Labour & Contractors Card (Row 3 from Image 1) */}
+                <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>Assigned Vendors, Labour &amp; Contractors</h3>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                            Total Assigned: 0 (Labour: 0, Contractors: 0, Material Vendors: 0)
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '20px' }}>
+                        <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px 18px' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                                TOTAL AGREED CONTRACTS
+                            </div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>₹0</div>
+                        </div>
+
+                        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '14px 18px' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                                TOTAL PAYMENTS MADE
+                            </div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#15803d' }}>₹0</div>
+                        </div>
+
+                        <div style={{ backgroundColor: '#fff1f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '14px 18px' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#9f1239', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                                TOTAL BALANCE DUE
+                            </div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#dc2626' }}>₹0</div>
+                        </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', padding: '24px 10px', color: '#94a3b8', fontSize: '0.84rem' }}>
+                        No contracts or labour assigned yet for this project.
                     </div>
                 </div>
             </div>
 
+            {/* RIGHT COLUMN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div className="premium-card">
-                    <h3 style={{ marginBottom: '20px', fontSize: '1.2rem', fontWeight: 700 }}>Assigned Team</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {project.team.map((member: any, idx: number) => (
-                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '8px', backgroundColor: '#f8fafc' }}>
-                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#253b50', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-                                    {member.name.charAt(0)}
+                {/* 1. Assigned Team Card (Top Right from Image 1) */}
+                <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                    <h3 style={{ marginBottom: '16px', fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>Assigned Team</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {(project.team || []).map((member: any, idx: number) => {
+                            const rawRole = String(member.assignment_role || member.role || '');
+                            let roleDisplay = rawRole.replace(/_/g, ' ');
+                            if (/d1/i.test(rawRole)) roleDisplay = 'Lead Designer (D1)';
+                            else if (/^pm$/i.test(rawRole) || /project_manager/i.test(rawRole)) roleDisplay = 'Project Manager (PM)';
+                            else if (/mmt/i.test(rawRole) || /material/i.test(rawRole)) roleDisplay = 'Material Management (MMT)';
+                            else if (/associate_designer/i.test(rawRole) || /designer/i.test(rawRole)) roleDisplay = 'Associate Designer';
+                            else if (/sales/i.test(rawRole) || /admin/i.test(rawRole)) roleDisplay = 'Sales / Business Associate';
+
+                            return (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '8px', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#0f172a', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.9rem', flexShrink: 0 }}>
+                                        {(member.name || 'U').charAt(0).toUpperCase()}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</p>
+                                        <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: '#64748b' }}>{roleDisplay}</p>
+                                    </div>
                                 </div>
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{member.name}</p>
-                                    <p style={{ fontSize: '0.8rem', color: '#6b7280', textTransform: 'capitalize' }}>{member.assignment_role.replace('_', ' ')}</p>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
+                </div>
+
+                {/* 2. Project Stages Card (Bottom Right from Image 1) */}
+                <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                    <ProjectStages
+                        paymentProgress={progress}
+                        totalBudget={displayBudget}
+                        initialBudget={Number(project?.initial_quote_amount) || displayBudget}
+                        totalPaid={totalPaidVal}
+                        currentStage={stageText}
+                        isStage1Completed={hasPassedStage1}
+                        isStage2Completed={hasPassedStage2}
+                        isStage3Completed={hasPassedStage3}
+                        isPmAcceptedInQc={true}
+                        isQcApproved={isQcApproved}
+                    />
                 </div>
             </div>
         </div>
     );
 };
-
-
 
 const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
 
@@ -1322,8 +2330,9 @@ const InventoryTab = ({ project, setInventoryTotal, user }: any) => {
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Date</label>
                                     <input
-                                        style={inputStyle}
+                                        style={{ ...inputStyle, cursor: 'pointer' }}
                                         type="date"
+                                        onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
                                         value={invoice.invoice_date || ''}
                                         onChange={(e) => updateInvoiceField(i, 'invoice_date', e.target.value)}
                                     />
@@ -1710,63 +2719,212 @@ const printBtn = {
 };
 
 const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions, user }: any) => {
-    // Standard fields
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
+    const displayCategory = category === 'Reimbursements' ? 'Reimbursement' : category;
 
-    // Labor specific fields
+    // Form fields matching new design reference
     const [name, setName] = useState('');
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+    const [amount, setAmount] = useState('');
+    const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
     const [paymentMode, setPaymentMode] = useState('Cash');
+    const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved'>('pending');
+    const [description, setDescription] = useState('');
+    const [remarks, setRemarks] = useState('');
+    const [receiptImage, setReceiptImage] = useState<string | null>(null);
 
-    // Edit state fields
+    // Edit and loading state
     const [editingTransaction, setEditingTransaction] = useState<any>(null);
-
     const [submitting, setSubmitting] = useState(false);
+    const [uploadingTxnId, setUploadingTxnId] = useState<any>(null);
 
-    const filteredTransactions = transactions.filter((t: any) => t.type === 'debit' && t.category === category);
+    // Filter pill state: 'all' | 'paid' | 'unpaid' | 'pending_approval'
+    const [filter, setFilter] = useState<'all' | 'paid' | 'unpaid' | 'pending_approval'>('all');
 
-    // Populate form when editing starts
+    // Proof preview modal
+    const [viewProofImage, setViewProofImage] = useState<string | null>(null);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Helper: compress image or read file
+    const compressOrReadFile = (file: File, callback: (base64: string) => void) => {
+        const reader = new FileReader();
+        if (file.type.startsWith('image/')) {
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target?.result as string;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_WIDTH = 1200;
+                    const MAX_HEIGHT = 1200;
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height = Math.round((height * MAX_WIDTH) / width);
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width = Math.round((width * MAX_HEIGHT) / height);
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, width, height);
+                        ctx.drawImage(img, 0, 0, width, height);
+                        callback(canvas.toDataURL('image/jpeg', 0.7));
+                    } else {
+                        callback(reader.result as string);
+                    }
+                };
+            };
+            reader.readAsDataURL(file);
+        } else {
+            reader.onload = () => {
+                callback(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // Filter all transactions for this category
+    const categoryTransactions = (transactions || []).filter((t: any) => {
+        if (t.type !== 'debit') return false;
+        if (category === 'Reimbursements') {
+            return t.category === 'Reimbursements' || t.category === 'Reimbursement' || t.category === 'Other' || t.category === 'Staff Expense';
+        }
+        return String(t.category || '').toLowerCase() === String(category).toLowerCase();
+    });
+
+    const isPendingTx = (t: any) => {
+        const s = String(t.approval_status || '').toLowerCase();
+        return s === 'pending' || s === 'pending_approval';
+    };
+
+    // Counts & Totals for Summary Cards
+    const paidRecords = categoryTransactions.filter((t: any) => (t.payment_status || 'paid').toLowerCase() === 'paid');
+    const unpaidRecords = categoryTransactions.filter((t: any) => (t.payment_status || '').toLowerCase() === 'unpaid');
+    const pendingApprovalRecords = categoryTransactions.filter(isPendingTx);
+
+    const paidAmountTotal = paidRecords.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+    const unpaidAmountTotal = unpaidRecords.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+    const totalAmountSum = categoryTransactions.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+
+    const paidCount = paidRecords.length;
+    const unpaidCount = unpaidRecords.length;
+    const totalCount = categoryTransactions.length;
+    const pendingApprovalCount = pendingApprovalRecords.length;
+
+    // Filtered list based on active filter pill
+    const displayList = categoryTransactions.filter((t: any) => {
+        if (filter === 'paid') return (t.payment_status || 'paid').toLowerCase() === 'paid';
+        if (filter === 'unpaid') return (t.payment_status || '').toLowerCase() === 'unpaid';
+        if (filter === 'pending_approval') return isPendingTx(t);
+        return true;
+    });
+
+    // Inline approval handlers for admin
+    const handleApproveExpenseInline = async (transactionId: any) => {
+        try {
+            const res = await axios.post(`${API_BASE_URL}/finance/approve`, {
+                transaction_id: transactionId,
+                approved_by: user?.name || user?.username || 'Admin'
+            });
+            if (res.data?.success) {
+                fetchTransactions();
+            } else {
+                alert(res.data?.message || 'Failed to approve');
+            }
+        } catch (err: any) {
+            alert(err?.response?.data?.message || 'Failed to approve expense');
+        }
+    };
+
+    const handleRejectExpenseInline = async (transactionId: any) => {
+        if (!window.confirm('Are you sure you want to reject this expense?')) return;
+        try {
+            const res = await axios.post(`${API_BASE_URL}/finance/reject`, {
+                transaction_id: transactionId,
+                approved_by: user?.name || user?.username || 'Admin'
+            });
+            if (res.data?.success) {
+                fetchTransactions();
+            } else {
+                alert(res.data?.message || 'Failed to reject');
+            }
+        } catch (err: any) {
+            alert(err?.response?.data?.message || 'Failed to reject expense');
+        }
+    };
+
+    // Start edit
     const startEdit = (t: any) => {
         setEditingTransaction(t);
-        setAmount(t.amount.toString());
-        setPaymentDate(t.transaction_date ? t.transaction_date.split(' ')[0] : new Date().toISOString().split('T')[0]);
         setName(t.person_name || '');
+        setPaymentDate(t.transaction_date ? t.transaction_date.split(' ')[0] : new Date().toISOString().split('T')[0]);
+        setAmount(t.amount ? t.amount.toString() : '');
+        setPaymentStatus(t.payment_status === 'unpaid' ? 'unpaid' : 'paid');
         setPaymentMode(t.payment_mode || 'Cash');
+        setApprovalStatus(t.approval_status === 'approved' ? 'approved' : 'pending');
         setDescription(t.description || '');
+        setRemarks(t.remarks || '');
+        setReceiptImage(t.receipt_image || null);
     };
 
-    // Cancel editing
+    // Cancel edit
     const cancelEdit = () => {
         setEditingTransaction(null);
-        setAmount('');
-        setDescription('');
         setName('');
         setPaymentDate(new Date().toISOString().split('T')[0]);
+        setAmount('');
+        setPaymentStatus('paid');
         setPaymentMode('Cash');
+        setApprovalStatus('pending');
+        setDescription('');
+        setRemarks('');
+        setReceiptImage(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    // Add or update expense
     const handleAddExpense = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!amount || parseFloat(amount) <= 0) {
+            alert('Please enter a valid amount');
+            return;
+        }
         setSubmitting(true);
         try {
+            const isPrivileged = ['admin', 'owner', 'superadmin'].includes(String(user?.role || '').toLowerCase());
+            // Non-admin employees ALWAYS submit as pending. Privileged users can choose, defaulting to pending for approvals workflow.
+            const chosenApprovalStatus = isPrivileged ? approvalStatus : 'pending';
+            const initialApprovalStatus = editingTransaction
+                ? (editingTransaction.approval_status || chosenApprovalStatus)
+                : chosenApprovalStatus;
+
             const payload: any = {
                 project_id: project.project_id,
                 type: 'debit',
                 category: category,
+                person_name: name,
+                date: paymentDate,
+                amount: amount,
+                payment_status: paymentStatus,
+                payment_mode: paymentMode,
+                description: description,
+                remarks: remarks,
+                receipt_image: receiptImage,
+                approval_status: initialApprovalStatus,
                 recorded_by: user?.user_id
             };
-
-            payload.amount = amount;
-            payload.person_name = name;
-            payload.date = paymentDate;
-            payload.payment_mode = paymentMode;
-            payload.description = description;
 
             let response;
             if (editingTransaction) {
                 payload.transaction_id = editingTransaction.transaction_id;
-                payload.date = paymentDate;
                 response = await axios.post(`${API_BASE_URL}/finance/update`, payload);
             } else {
                 response = await axios.post(`${API_BASE_URL}/finance`, payload);
@@ -1775,16 +2933,20 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
             if (response.data.success) {
                 cancelEdit();
                 fetchTransactions();
+                if (!isPrivileged && !editingTransaction) {
+                    alert('Expense recorded successfully! It has been submitted for Admin approval and will appear in the Balance Sheet once approved.');
+                }
             } else {
                 alert(response.data.message || 'Failed to save transaction');
             }
-        } catch (err) {
-            alert('Failed to record expense');
+        } catch (err: any) {
+            alert('Failed to record expense: ' + (err?.response?.data?.message || err?.message));
         } finally {
             setSubmitting(false);
         }
     };
 
+    // Delete expense
     const handleDeleteExpense = async (transactionId: any) => {
         if (!window.confirm('Are you sure you want to delete this expense?')) return;
         try {
@@ -1799,124 +2961,802 @@ const ExpenseCategoryTab = ({ project, category, transactions, fetchTransactions
         }
     };
 
+    // Upload proof for existing row
+    const handleUploadProofForRow = async (transactionId: any, file: File) => {
+        setUploadingTxnId(transactionId);
+        compressOrReadFile(file, async (base64) => {
+            try {
+                await axios.put(`${API_BASE_URL}/finance`, {
+                    transaction_id: transactionId,
+                    receipt_image: base64
+                });
+                fetchTransactions();
+            } catch (err) {
+                alert('Failed to upload proof document');
+            } finally {
+                setUploadingTxnId(null);
+            }
+        });
+    };
+
+    // CSV Export
+    const handleExportCSV = () => {
+        if (categoryTransactions.length === 0) {
+            alert('No data to export');
+            return;
+        }
+        const headers = ['Date', 'Name/Vendor', 'Status', 'Approval', 'Mode', 'Description', 'Remarks', 'Amount'];
+        const rows = categoryTransactions.map((t: any) => [
+            t.transaction_date ? t.transaction_date.split(' ')[0] : '',
+            `"${(t.person_name || '').replace(/"/g, '""')}"`,
+            t.payment_status || 'paid',
+            t.approval_status || 'approved',
+            t.payment_mode || 'Cash',
+            `"${(t.description || '').replace(/"/g, '""')}"`,
+            `"${(t.remarks || '').replace(/"/g, '""')}"`,
+            t.amount || 0
+        ]);
+        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `${displayCategory}_Expenses_${project?.project_code || 'Project'}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
-        <div className="premium-card" style={{ padding: '30px' }}>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '20px' }}>
-                {editingTransaction ? 'Edit' : ''} {category} Expense{editingTransaction ? 's' : ''}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Header Title */}
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: '0 0 18px 0' }}>
+                {displayCategory} Expense
             </h3>
 
-            <form onSubmit={handleAddExpense} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr auto auto', gap: '15px', marginBottom: '30px', alignItems: 'end' }}>
-                <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Name</label>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter name" />
-                </div>
-                <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Date</label>
-                    <input type="date" required value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                </div>
-                <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Amount (₹)</label>
-                    <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="0.00" />
-                </div>
-                <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Payment Mode</label>
-                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                        <option value="Cash">Cash</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="UPI">UPI</option>
-                        <option value="Cheque">Cheque</option>
-                    </select>
-                </div>
-                <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>Description</label>
-                    <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} placeholder="Enter details..." />
-                </div>
-                <button type="submit" disabled={submitting} className="btn-primary" style={{ padding: '10px 20px', height: '42px' }}>
-                    {submitting ? 'Saving...' : (editingTransaction ? 'Save' : 'Add')}
-                </button>
-                {editingTransaction && (
-                    <button type="button" onClick={cancelEdit} className="btn-secondary" style={{ padding: '10px 20px', height: '42px', backgroundColor: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
-                        Cancel
-                    </button>
-                )}
-            </form>
+            {/* FORM CARD (Row 1 from Reference Image) */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px 24px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                <form onSubmit={handleAddExpense}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px', alignItems: 'flex-start' }}>
+                        {/* 1. Name / Vendor */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                Name / Vendor
+                            </label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Enter name or select..."
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', boxSizing: 'border-box' }}
+                            />
+                        </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                    <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DATE</th>
-                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>NAME</th>
-                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>MODE</th>
-                        <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>DESCRIPTION</th>
-                        <th style={{ padding: '12px', textAlign: 'right', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>AMOUNT</th>
-                        <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>ACTION</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filteredTransactions.map((t: any, i: number) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '12px', color: '#64748b' }}>{new Date(t.transaction_date).toLocaleDateString()}</td>
-                            <td style={{ padding: '12px', fontWeight: 500 }}>{t.person_name || '-'}</td>
-                            <td style={{ padding: '12px', color: '#64748b' }}>{t.payment_mode || '-'}</td>
-                            <td style={{ padding: '12px', fontWeight: 500 }}>{t.description || '-'}</td>
-                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>
-                                ₹{parseFloat(t.amount).toLocaleString()}
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
-                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                        {/* 2. Payment Date */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                Payment Date
+                            </label>
+                            <input
+                                type="date"
+                                required
+                                value={paymentDate}
+                                onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                onChange={(e) => setPaymentDate(e.target.value)}
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', boxSizing: 'border-box', cursor: 'pointer' }}
+                            />
+                        </div>
+
+                        {/* 3. Payment Amount (₹) */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                Payment Amount (₹)
+                            </label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                required
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                placeholder="0.00"
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', boxSizing: 'border-box' }}
+                            />
+                        </div>
+
+                        {/* 4. Payment Status */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                Payment Status
+                            </label>
+                            <select
+                                value={paymentStatus}
+                                onChange={(e: any) => setPaymentStatus(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '9px 12px',
+                                    borderRadius: '8px',
+                                    border: paymentStatus === 'paid' ? '1.5px solid #86efac' : '1.5px solid #fca5a5',
+                                    backgroundColor: paymentStatus === 'paid' ? '#f0fdf4' : '#fff1f2',
+                                    color: paymentStatus === 'paid' ? '#15803d' : '#b91c1c',
+                                    fontWeight: 700,
+                                    fontSize: '0.82rem',
+                                    boxSizing: 'border-box',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <option value="paid">✓ Paid</option>
+                                <option value="unpaid">⌛ Unpaid</option>
+                            </select>
+                        </div>
+
+                        {/* 5. Payment Mode */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                Payment Mode
+                            </label>
+                            <select
+                                value={paymentMode}
+                                onChange={(e) => setPaymentMode(e.target.value)}
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', boxSizing: 'border-box' }}
+                            >
+                                <option value="Cash">Cash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Cheque">Cheque</option>
+                            </select>
+                        </div>
+
+                        {/* 5b. Approval Status (Visible to Admin to test/manage approvals) */}
+                        {['admin', 'owner', 'superadmin'].includes(String(user?.role || '').toLowerCase()) && (
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                    Approval Status
+                                </label>
+                                <select
+                                    value={approvalStatus}
+                                    onChange={(e: any) => setApprovalStatus(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '9px 12px',
+                                        borderRadius: '8px',
+                                        border: approvalStatus === 'approved' ? '1.5px solid #86efac' : '1.5px solid #93c5fd',
+                                        backgroundColor: approvalStatus === 'approved' ? '#f0fdf4' : '#eff6ff',
+                                        color: approvalStatus === 'approved' ? '#15803d' : '#1d4ed8',
+                                        fontWeight: 700,
+                                        fontSize: '0.82rem',
+                                        boxSizing: 'border-box',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <option value="pending">⏳ Pending Admin Approval</option>
+                                    <option value="approved">✓ Direct Approved</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* 6. Description */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                Description
+                            </label>
+                            <textarea
+                                rows={2}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                onInput={(e: any) => {
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = Math.max(38, e.target.scrollHeight) + 'px';
+                                }}
+                                placeholder="Enter details..."
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #cbd5e1',
+                                    fontSize: '0.82rem',
+                                    boxSizing: 'border-box',
+                                    fontFamily: 'inherit',
+                                    resize: 'vertical',
+                                    minHeight: '38px',
+                                    lineHeight: '1.4'
+                                }}
+                            />
+                        </div>
+
+                        {/* 7. Remarks */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                Remarks
+                            </label>
+                            <input
+                                type="text"
+                                value={remarks}
+                                onChange={(e) => setRemarks(e.target.value)}
+                                placeholder="Add remarks..."
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', boxSizing: 'border-box' }}
+                            />
+                        </div>
+
+                        {/* 8. Receipt Proof Image */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                                Receipt Proof Image
+                            </label>
+                            <label
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    padding: '9px 12px',
+                                    borderRadius: '8px',
+                                    border: receiptImage ? '1.5px solid #86efac' : '1px dashed #cbd5e1',
+                                    backgroundColor: receiptImage ? '#f0fdf4' : '#ffffff',
+                                    color: receiptImage ? '#15803d' : '#64748b',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    boxSizing: 'border-box',
+                                    height: '38px',
+                                    whiteSpace: 'nowrap'
+                                }}
+                                title={receiptImage ? 'Proof file attached' : 'Click to attach proof document'}
+                            >
+                                <Upload size={14} />
+                                {receiptImage ? '✓ Proof Attached' : 'Attach Proof'}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) compressOrReadFile(file, (b64) => setReceiptImage(b64));
+                                    }}
+                                />
+                            </label>
+                            {receiptImage && (
+                                <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <button
-                                        onClick={() => startEdit(t)}
-                                        style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
-                                        title="Edit"
+                                        type="button"
+                                        onClick={() => setViewProofImage(receiptImage)}
+                                        style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
                                     >
-                                        <Edit2 size={16} />
+                                        View
                                     </button>
+                                    <span style={{ color: '#cbd5e1' }}>•</span>
                                     <button
-                                        onClick={() => handleDeleteExpense(t.transaction_id)}
-                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
-                                        title="Delete"
+                                        type="button"
+                                        onClick={() => {
+                                            setReceiptImage(null);
+                                            if (fileInputRef.current) fileInputRef.current.value = '';
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
                                     >
-                                        <Trash2 size={16} />
+                                        Remove
                                     </button>
                                 </div>
-                            </td>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Action Button: [ Add ] */}
+                    <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            style={{
+                                backgroundColor: '#1e293b',
+                                color: '#ffffff',
+                                padding: '9px 30px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}
+                        >
+                            {submitting ? 'Saving...' : (editingTransaction ? 'Update' : 'Add')}
+                        </button>
+                        {editingTransaction && (
+                            <button
+                                type="button"
+                                onClick={cancelEdit}
+                                style={{
+                                    backgroundColor: '#f1f5f9',
+                                    color: '#475569',
+                                    padding: '9px 20px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #cbd5e1',
+                                    fontWeight: 600,
+                                    fontSize: '0.85rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        )}
+                    </div>
+                </form>
+            </div>
+
+            {/* SUMMARY METRIC CARDS (Row 2 from Reference Image) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                {/* Card 1: TOTAL PAID HISTORY */}
+                <div style={{ backgroundColor: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: '12px', padding: '16px 20px' }}>
+                    <div style={{ color: '#166534', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                        TOTAL PAID HISTORY
+                    </div>
+                    <div style={{ color: '#15803d', fontSize: '1.8rem', fontWeight: 800, marginBottom: '4px' }}>
+                        ₹{paidAmountTotal.toLocaleString('en-IN')}
+                    </div>
+                    <div style={{ color: '#166534', fontSize: '0.78rem', fontWeight: 600 }}>
+                        {paidCount} Paid Records
+                    </div>
+                </div>
+
+                {/* Card 2: TOTAL UNPAID HISTORY */}
+                <div style={{ backgroundColor: '#fff1f2', border: '1.5px solid #fecaca', borderRadius: '12px', padding: '16px 20px' }}>
+                    <div style={{ color: '#9f1239', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                        TOTAL UNPAID HISTORY
+                    </div>
+                    <div style={{ color: '#dc2626', fontSize: '1.8rem', fontWeight: 800, marginBottom: '4px' }}>
+                        ₹{unpaidAmountTotal.toLocaleString('en-IN')}
+                    </div>
+                    <div style={{ color: '#9f1239', fontSize: '0.78rem', fontWeight: 600 }}>
+                        {unpaidCount} Pending Records
+                    </div>
+                </div>
+
+                {/* Card 3: TOTAL {CATEGORY} EXPENSES */}
+                <div style={{ backgroundColor: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px' }}>
+                    <div style={{ color: '#475569', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                        TOTAL {displayCategory.toUpperCase()} EXPENSES
+                    </div>
+                    <div style={{ color: '#0f172a', fontSize: '1.8rem', fontWeight: 800, marginBottom: '4px' }}>
+                        ₹{totalAmountSum.toLocaleString('en-IN')}
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 600 }}>
+                        {totalCount} Total Records
+                    </div>
+                </div>
+            </div>
+
+            {/* ACTION & FILTER TOOLBAR (Row 3 from Reference Image) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                {/* Left Filter Pills */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                        type="button"
+                        onClick={() => setFilter('all')}
+                        style={{
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            border: filter === 'all' ? 'none' : '1px solid #e2e8f0',
+                            backgroundColor: filter === 'all' ? '#0f172a' : '#ffffff',
+                            color: filter === 'all' ? '#ffffff' : '#334155',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        All History ({totalCount})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setFilter('paid')}
+                        style={{
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            border: filter === 'paid' ? 'none' : '1px solid #e2e8f0',
+                            backgroundColor: filter === 'paid' ? '#0f172a' : '#ffffff',
+                            color: filter === 'paid' ? '#ffffff' : '#166534',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        ✓ Paid History ({paidCount})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setFilter('unpaid')}
+                        style={{
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            border: filter === 'unpaid' ? 'none' : '1px solid #e2e8f0',
+                            backgroundColor: filter === 'unpaid' ? '#0f172a' : '#ffffff',
+                            color: filter === 'unpaid' ? '#ffffff' : '#b45309',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        ⌛ Unpaid History ({unpaidCount})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setFilter('pending_approval')}
+                        style={{
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            border: filter === 'pending_approval' ? 'none' : '1px solid #e2e8f0',
+                            backgroundColor: filter === 'pending_approval' ? '#0f172a' : '#ffffff',
+                            color: filter === 'pending_approval' ? '#ffffff' : '#2563eb',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        🛡️ Pending Approval ({pendingApprovalCount})
+                    </button>
+                </div>
+
+                {/* Right Action Buttons */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                        type="button"
+                        onClick={handleExportCSV}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '7px 14px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            backgroundColor: '#ffffff',
+                            color: '#334155',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <Download size={14} /> Export CSV
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => window.print()}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '7px 16px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            backgroundColor: '#0f172a',
+                            color: '#ffffff',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <Printer size={14} /> Print {displayCategory} Report
+                    </button>
+                    <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                        Showing {displayList.length} total records
+                    </span>
+                </div>
+            </div>
+
+            {/* DATA TABLE (Row 4 from Reference Image) */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                        <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase' }}>DATE</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase' }}>NAME</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase' }}>STATUS</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase' }}>APPROVAL</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase' }}>MODE</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase' }}>DESCRIPTION</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase' }}>REMARKS</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase' }}>RECEIPT / PROOF</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', textAlign: 'right' }}>AMOUNT</th>
+                            <th style={{ padding: '12px 14px', fontSize: '0.74rem', fontWeight: 800, color: '#475569', letterSpacing: '0.5px', textTransform: 'uppercase', textAlign: 'center' }}>ACTION</th>
                         </tr>
-                    ))}
-                    {filteredTransactions.length === 0 && (
-                        <tr>
-                            <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                                No expenses recorded yet.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {displayList.length === 0 ? (
+                            <tr>
+                                <td colSpan={10} style={{ textAlign: 'center', padding: '48px 20px', color: '#94a3b8', fontSize: '0.9rem' }}>
+                                    No expenses recorded yet.
+                                </td>
+                            </tr>
+                        ) : (
+                            displayList.map((t: any, i: number) => {
+                                const isPaid = (t.payment_status || 'paid').toLowerCase() === 'paid';
+                                const statusLower = String(t.approval_status || 'approved').toLowerCase();
+                                const isApproved = statusLower === 'approved';
+                                const isRejected = statusLower === 'rejected';
+                                const isPending = statusLower === 'pending' || statusLower === 'pending_approval';
+                                const isPrivileged = ['admin', 'owner', 'superadmin'].includes(String(user?.role || '').toLowerCase());
+                                const hasProof = Boolean(t.receipt_image);
+
+                                return (
+                                    <tr key={t.transaction_id || i} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }}>
+                                        {/* DATE */}
+                                        <td style={{ padding: '14px', fontSize: '0.82rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                            {t.transaction_date ? new Date(t.transaction_date).toLocaleDateString('en-GB') : '-'}
+                                        </td>
+
+                                        {/* NAME */}
+                                        <td style={{ padding: '14px', fontSize: '0.84rem', fontWeight: 700, color: '#0f172a' }}>
+                                            {t.person_name || t.name || '-'}
+                                        </td>
+
+                                        {/* STATUS */}
+                                        <td style={{ padding: '14px', whiteSpace: 'nowrap' }}>
+                                            {isPaid ? (
+                                                <span style={{ backgroundColor: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                                    ✓ Paid
+                                                </span>
+                                            ) : (
+                                                <span style={{ backgroundColor: '#fff1f2', color: '#dc2626', border: '1px solid #fecaca', padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                                    ⌛ Unpaid
+                                                </span>
+                                            )}
+                                        </td>
+
+                                        {/* APPROVAL */}
+                                        <td style={{ padding: '14px', whiteSpace: 'nowrap' }}>
+                                            {isApproved ? (
+                                                <div>
+                                                    <span style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                                        ✓ Approved
+                                                    </span>
+                                                    {t.approved_by && (
+                                                        <div style={{ fontSize: '0.68rem', color: '#166534', marginTop: '2px' }}>
+                                                            by {t.approved_by}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : isRejected ? (
+                                                <div>
+                                                    <span style={{ backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                                        ✕ Rejected
+                                                    </span>
+                                                    {t.approved_by && (
+                                                        <div style={{ fontSize: '0.68rem', color: '#991b1b', marginTop: '2px' }}>
+                                                            by {t.approved_by}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <span style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                                        ⏳ Pending Approval
+                                                    </span>
+                                                    {isPrivileged && (
+                                                        <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleApproveExpenseInline(t.transaction_id)}
+                                                                style={{
+                                                                    backgroundColor: '#16a34a',
+                                                                    color: '#ffffff',
+                                                                    border: 'none',
+                                                                    borderRadius: '4px',
+                                                                    padding: '2px 7px',
+                                                                    fontSize: '0.70rem',
+                                                                    fontWeight: 700,
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                                title="Approve this expense"
+                                                            >
+                                                                ✓ Approve
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRejectExpenseInline(t.transaction_id)}
+                                                                style={{
+                                                                    backgroundColor: '#dc2626',
+                                                                    color: '#ffffff',
+                                                                    border: 'none',
+                                                                    borderRadius: '4px',
+                                                                    padding: '2px 7px',
+                                                                    fontSize: '0.70rem',
+                                                                    fontWeight: 700,
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                                title="Reject this expense"
+                                                            >
+                                                                ✕ Reject
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* MODE */}
+                                        <td style={{ padding: '14px', fontSize: '0.82rem', color: '#475569', whiteSpace: 'nowrap' }}>
+                                            {t.payment_mode || 'Cash'}
+                                        </td>
+
+                                        {/* DESCRIPTION */}
+                                        <td style={{ padding: '14px', fontSize: '0.82rem', color: '#334155', whiteSpace: 'pre-wrap' }}>
+                                            {t.description || '-'}
+                                        </td>
+
+                                        {/* REMARKS */}
+                                        <td style={{ padding: '14px', fontSize: '0.82rem', color: '#64748b' }}>
+                                            {t.remarks || '-'}
+                                        </td>
+
+                                        {/* RECEIPT / PROOF */}
+                                        <td style={{ padding: '14px', whiteSpace: 'nowrap' }}>
+                                            {hasProof ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setViewProofImage(t.receipt_image)}
+                                                    style={{
+                                                        backgroundColor: '#fff7ed',
+                                                        color: '#ea580c',
+                                                        border: '1.5px solid #fed7aa',
+                                                        padding: '4px 10px',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.76rem',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                    title="View attached proof document"
+                                                >
+                                                    <Eye size={12} /> View Proof
+                                                </button>
+                                            ) : (
+                                                <label
+                                                    style={{
+                                                        backgroundColor: '#f8fafc',
+                                                        color: '#64748b',
+                                                        border: '1px dashed #cbd5e1',
+                                                        padding: '4px 10px',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.76rem',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                    title="Attach proof document for this row"
+                                                >
+                                                    {uploadingTxnId === t.transaction_id ? (
+                                                        <Loader2 size={12} className="animate-spin" />
+                                                    ) : (
+                                                        <Upload size={12} />
+                                                    )}
+                                                    Attach Proof
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*,application/pdf"
+                                                        style={{ display: 'none' }}
+                                                        disabled={uploadingTxnId === t.transaction_id}
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) handleUploadProofForRow(t.transaction_id, file);
+                                                        }}
+                                                    />
+                                                </label>
+                                            )}
+                                        </td>
+
+                                        {/* AMOUNT */}
+                                        <td style={{ padding: '14px', fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                            ₹{parseFloat(t.amount || 0).toLocaleString('en-IN')}
+                                        </td>
+
+                                        {/* ACTION */}
+                                        <td style={{ padding: '14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => startEdit(t)}
+                                                    style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
+                                                    title="Edit this record"
+                                                >
+                                                    <Edit2 size={14} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteExpense(t.transaction_id)}
+                                                    style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
+                                                    title="Delete this record"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* PROOF PREVIEW MODAL */}
+            {viewProofImage && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+                    <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '20px', maxWidth: '800px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
+                            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>Transaction Receipt / Proof</h4>
+                            <button
+                                onClick={() => setViewProofImage(null)}
+                                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                            {viewProofImage.startsWith('data:application/pdf') ? (
+                                <iframe src={viewProofImage} style={{ width: '100%', height: '550px', border: 'none' }} title="Proof PDF" />
+                            ) : (
+                                <img src={viewProofImage} alt="Receipt Proof" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
-};;
+};
 
-const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal = 0, fetchTransactions }: any) => {
+const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, approvedQuoteTotal = 0, latestQuoteTotal = 0, inventoryTotal = 0, fetchTransactions, user }: any) => {
     const [editingState, setEditingState] = useState<Record<string, { field: string; value: any }>>({});
 
-    const transportTotal = transactions
-        .filter((t: any) => t.type === 'debit' && t.category === 'Transport')
-        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+    // The official quotation amount for the Balance Sheet is strictly the approved quote amount
+    // (fixed to initial accepted amount, and ONLY changes when QC officially approves the final stage of a new version)
+    const isQcApproved = Boolean(project?.is_final_quote_approved === 1 || project?.is_final_quote_approved === true || project?.status === 'qc_approved');
+    const effectiveApprovedQuote = Number(
+        isQcApproved && approvedQuoteTotal > 0
+            ? approvedQuoteTotal
+            : (Number(project?.initial_quote_amount) || (isQcApproved ? Number(project?.total_budget) : 0) || approvedQuoteTotal || Number(project?.total_budget) || 0)
+    );
 
-    const laborTotal = transactions
-        .filter((t: any) => t.type === 'debit' && t.category === 'Labor')
-        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+    // Filter to approved debit transactions only (Pending and Rejected are NEVER included in Balance Sheet totals)
+    const isApprovedDebit = (t: any) => {
+        if (String(t.type || '').toLowerCase().trim() !== 'debit') return false;
+        const st = String(t.approval_status || '').toLowerCase().trim();
+        return st === 'approved';
+    };
 
-    const miscTotal = transactions
-        .filter((t: any) => t.type === 'debit' && t.category === 'Miscellaneous')
+    const transportTotal = (transactions || [])
+        .filter((t: any) => isApprovedDebit(t) && String(t.category || '').toLowerCase() === 'transport')
         .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
 
-    const otherExpTotal = transactions
-        .filter((t: any) => t.type === 'debit' && !['Transport', 'Labor', 'Miscellaneous'].includes(t.category))
+    const laborTotal = (transactions || [])
+        .filter((t: any) => isApprovedDebit(t) && String(t.category || '').toLowerCase() === 'labor')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+
+    const miscTotal = (transactions || [])
+        .filter((t: any) => isApprovedDebit(t) && String(t.category || '').toLowerCase() === 'miscellaneous')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+
+    const otherExpTotal = (transactions || [])
+        .filter((t: any) => isApprovedDebit(t) && !['transport', 'labor', 'miscellaneous'].includes(String(t.category || '').toLowerCase()))
         .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
 
     const totalSpent = inventoryTotal + transportTotal + laborTotal + miscTotal + otherExpTotal;
-    const profitOrLoss = quoteTotal - totalSpent;
-    const remainingBalance = quoteTotal - project.total_paid;
+    const profitOrLoss = effectiveApprovedQuote - totalSpent;
+    const remainingBalance = effectiveApprovedQuote - (project?.total_paid || 0);
+
+    // Separate pending debits awaiting admin approval
+    const pendingDebitTransactions = (transactions || []).filter((t: any) => {
+        if (String(t.type || '').toLowerCase().trim() !== 'debit') return false;
+        const st = String(t.approval_status || '').toLowerCase().trim();
+        return st === 'pending' || st === 'pending_approval' || st === '';
+    });
+    const pendingDebitAmount = pendingDebitTransactions.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+
+    // Only approved debits and all credit transactions appear in the balance sheet list
+    const balanceSheetTransactions = (transactions || []).filter((t: any) => {
+        if (String(t.type || '').toLowerCase().trim() === 'credit') return true;
+        const st = String(t.approval_status || '').toLowerCase().trim();
+        return st === 'approved';
+    });
 
     const isArchitectural = project?.project_type === 'Furniture projects';
 
@@ -2014,10 +3854,20 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
                 marginBottom: '30px'
             }}>
                 <div className="premium-card" style={{ borderLeft: '5px solid #253b50', padding: '24px', backgroundColor: '#f8fafc' }}>
-                    <p style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase' }}>Total Project Budget</p>
-                    <h3 style={{ fontWeight: 800, color: '#253b50', fontSize: '1.8rem' }}>
-                        ₹{quoteTotal.toLocaleString()}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '6px' }}>
+                        <p style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase' }}>Total Project Budget</p>
+                        <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', backgroundColor: project?.is_final_quote_approved ? '#dcfce7' : '#f1f5f9', color: project?.is_final_quote_approved ? '#166534' : '#475569', fontWeight: 700 }}>
+                            {project?.is_final_quote_approved ? '✓ QC Final Approved' : '🔒 Initial Approved Quote'}
+                        </span>
+                    </div>
+                    <h3 style={{ fontWeight: 800, color: '#253b50', fontSize: '1.8rem', margin: '4px 0 0 0' }}>
+                        ₹{effectiveApprovedQuote.toLocaleString()}
                     </h3>
+                    {latestQuoteTotal > 0 && Math.abs(latestQuoteTotal - effectiveApprovedQuote) > 1 && (
+                        <p style={{ margin: '8px 0 0 0', fontSize: '0.74rem', color: '#b45309', fontWeight: 600 }}>
+                            ⏳ Revision in progress: ₹{latestQuoteTotal.toLocaleString()} (Pending QC Final Approval)
+                        </p>
+                    )}
                 </div>
 
                 <div className="premium-card" style={{ borderLeft: '5px solid #10b981', padding: '24px', backgroundColor: '#f0fdf4' }}>
@@ -2044,8 +3894,11 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
                 <div className="premium-card" style={{ padding: '16px', textAlign: 'center', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
                     <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase' }}>Project Quote</p>
                     <h4 style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.2rem', margin: 0 }}>
-                        ₹{quoteTotal.toLocaleString()}
+                        ₹{effectiveApprovedQuote.toLocaleString()}
                     </h4>
+                    <span style={{ fontSize: '0.68rem', color: project?.is_final_quote_approved ? '#166534' : '#64748b', display: 'block', marginTop: '4px', fontWeight: 600 }}>
+                        {project?.is_final_quote_approved ? 'QC Final Approved' : 'Fixed Initial Quote'}
+                    </span>
                 </div>
 
                 {/* 2. VENDOR BILL */}
@@ -2102,14 +3955,53 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
                 <div className="premium-card" style={{ padding: '20px 24px', textAlign: 'center', border: '2px solid #059669', backgroundColor: '#f0fdf4', minWidth: '280px' }}>
                     <p style={{ color: '#059669', fontSize: '0.85rem', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>Profit (Project Budget - Total Spent)</p>
                     <h3 style={{ fontWeight: 900, color: profitOrLoss >= 0 ? '#059669' : '#dc2626', fontSize: '2rem', margin: 0 }}>
-                        ₹{(quoteTotal - totalSpent).toLocaleString()}
+                        ₹{profitOrLoss.toLocaleString()}
                     </h3>
                 </div>
             </div>
+            {/* PENDING APPROVAL NOTICE BANNER */}
+            {pendingDebitTransactions.length > 0 && (
+                <div style={{
+                    backgroundColor: '#fffbeb',
+                    border: '1.5px solid #fde68a',
+                    borderRadius: '10px',
+                    padding: '14px 18px',
+                    marginBottom: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1.3rem' }}>⏳</span>
+                        <div>
+                            <div style={{ fontWeight: 800, color: '#92400e', fontSize: '0.9rem' }}>
+                                {pendingDebitTransactions.length} Expense(s) Pending Admin Approval (Total: ₹{pendingDebitAmount.toLocaleString('en-IN')})
+                            </div>
+                            <div style={{ color: '#b45309', fontSize: '0.80rem', marginTop: '2px' }}>
+                                Awaiting Admin Approval. These are excluded from Balance Sheet and Total Spent until approved.
+                            </div>
+                        </div>
+                    </div>
+                    <span style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        backgroundColor: '#fef3c7',
+                        color: '#92400e',
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        border: '1px solid #fde68a'
+                    }}>
+                        Pending Admin Approval
+                    </span>
+                </div>
+            )}
+
             {/* TRANSACTIONS LIST */}
             <div className="premium-card" style={{ padding: '30px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>Payment & Expense Log</h3>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>Payment & Expense Log ({balanceSheetTransactions.length} Approved)</h3>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <span style={{ fontSize: '0.85rem', color: '#6b7280' }}><span style={{ color: '#10b981', fontWeight: 900 }}>●</span> Credit (Paid)</span>
                         <span style={{ fontSize: '0.85rem', color: '#6b7280' }}><span style={{ color: '#ef4444', fontWeight: 900 }}>●</span> Debit (Expense)</span>
@@ -2129,8 +4021,8 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
                     </thead>
 
                     <tbody>
-                        {transactions.length > 0 ? (
-                            transactions.map((tr: any) => {
+                        {balanceSheetTransactions.length > 0 ? (
+                            balanceSheetTransactions.map((tr: any) => {
                                 const editing = editingState[tr.transaction_id];
                                 const isEditingDate = editing?.field === 'transaction_date';
                                 const isEditingDescription = editing?.field === 'description';
@@ -2146,8 +4038,9 @@ const BalanceSheetTab = ({ project, transactions, quoteTotal = 0, inventoryTotal
                                                     <input
                                                         type="date"
                                                         value={editing?.value || ''}
+                                                        onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
                                                         onChange={(e) => updateEditingValue(tr.transaction_id, e.target.value)}
-                                                        style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem' }}
+                                                        style={{ padding: '4px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.85rem', cursor: 'pointer' }}
                                                     />
                                                     <button
                                                         onClick={() => handleSave(tr.transaction_id)}
@@ -3059,58 +4952,766 @@ const BudgetModal = ({ budget, setBudget, submitting, handleUpdateBudget, setSho
     </div>
 );
 
-const PaymentModal = ({ payment, setPayment, submitting, handleRecordPayment, setShowPaymentModal }: any) => (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-        <div className="premium-card" style={{ width: '100%', maxWidth: '400px', position: 'relative' }}>
-            <button onClick={() => setShowPaymentModal(false)} style={{ position: 'absolute', right: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
-            <h3 style={{ marginBottom: '20px' }}>Record Payment</h3>
-            <form onSubmit={handleRecordPayment}>
-                <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Amount Received (₹)</label>
-                    <input type="number" required value={payment.amount} onChange={(e) => setPayment({ ...payment, amount: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
-                </div>
-                <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Description</label>
-                    <input type="text" required value={payment.description} onChange={(e) => setPayment({ ...payment, description: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
-                </div>
-                <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Transaction Date</label>
-                    <input type="date" required value={payment.date} onChange={(e) => setPayment({ ...payment, date: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }} />
-                </div>
-                <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Payment Mode</label>
-                    <select value={payment.payment_mode} onChange={(e) => setPayment({ ...payment, payment_mode: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db' }}>
-                        <option value="UPI">UPI</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Cheque">Cheque</option>
-                        <option value="NEFT">NEFT</option>
-                        <option value="RTGS">RTGS</option>
-                        <option value="IMPS">IMPS</option>
-                        <option value="Card">Card</option>
-                    </select>
-                </div>
-                <button type="submit" disabled={submitting} className="btn-primary" style={{ width: '100%' }}>
-                    {submitting ? 'Recording...' : 'Save Payment'}
-                </button>
-            </form>
-        </div>
-    </div>
-);
-export const StageNotesTab = ({ project, user, filterType = 'pm' }: any) => {
-    const API_BASE_URL = (window as any).__API_BASE_URL__ || (import.meta as any).env?.VITE_API_BASE_URL || '';
-    const isReadOnly = !['admin', 'project_head', 'project_manager', 'manager'].includes(String(user?.role || '').toLowerCase());
+const PaymentModal = ({
+    project,
+    transactions = [],
+    payment,
+    setPayment,
+    submitting,
+    handleRecordPayment,
+    setShowPaymentModal,
+    isAdmin = false
+}: any) => {
+    const totalBudget = Number(project?.total_budget) || 0;
 
-    const [designerTasks, setDesignerTasks] = useState<any[]>([]);
-    const [pmTasks, setPmTasks] = useState<any[]>([]);
+    const pId = String(project?.project_id || '').toLowerCase().trim();
+    const pCode = String(project?.project_code || '').toLowerCase().trim();
+    const projCredits = (transactions || []).filter((t: any) => {
+        if (String(t.type || '').toLowerCase() !== 'credit') return false;
+        const tPid = String(t.project_id || '').toLowerCase().trim();
+        const tPCode = String(t.project_code || '').toLowerCase().trim();
+        const tDesc = String(t.description || '').toLowerCase();
+        return (pId && tPid === pId) || (pCode && (tPid === pCode || tPCode === pCode || (pCode.length > 2 && tDesc.includes(pCode))));
+    });
+
+    const totalPaidFromTx = projCredits.reduce((s: number, t: any) => s + (parseFloat(t.amount) || 0), 0);
+    const totalPaid = Math.max(totalPaidFromTx, Number(project?.total_paid) || 0);
+    const remainingBalance = Math.max(0, totalBudget - totalPaid);
+    const paidPercent = totalBudget > 0 ? (totalPaid / totalBudget) * 100 : 0;
+
+    const isQcApproved = Boolean(
+        project?.is_final_quote_approved === 1 ||
+        project?.qc_approved === 1 ||
+        project?.status === 'qc_approved' ||
+        ['approved', 'qc_approved'].includes(String(project?.qc_status || '').toLowerCase()) ||
+        ['quality check done', 'r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase())
+    );
+
+    const hasPassedStage2 = Boolean(
+        isQcApproved ||
+        project?.stage2_paid === 1 ||
+        project?.stage2_paid === true ||
+        project?.is_20_percent_paid === 1 ||
+        project?.is_20_percent_paid === true ||
+        ['masking done', 'sow done', 'quality check done', 'r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase()) ||
+        (pId && localStorage.getItem(`stage2_paid_${pId}`) === 'true') ||
+        (pCode && localStorage.getItem(`stage2_paid_${pCode}`) === 'true')
+    );
+
+    const hasPassedStage1 = Boolean(
+        hasPassedStage2 ||
+        project?.stage1_paid === 1 ||
+        project?.stage1_paid === true ||
+        project?.is_10_percent_paid === 1 ||
+        project?.is_10_percent_paid === true ||
+        (pId && localStorage.getItem(`stage1_paid_${pId}`) === 'true') ||
+        (pCode && localStorage.getItem(`stage1_paid_${pCode}`) === 'true')
+    );
+
+    // Stage targets & need amounts:
+    const target1 = Math.round(totalBudget * 0.10);
+    const isPaid1 = hasPassedStage1 || totalPaid >= (target1 - 1) || paidPercent >= 9.9;
+    const need1 = isPaid1 ? 0 : Math.max(0, target1 - totalPaid);
+
+    const target2 = Math.round(totalBudget * 0.20);
+    const isPaid2 = hasPassedStage2 || totalPaid >= (target2 - 1) || paidPercent >= 19.9;
+    const need2 = isPaid2 ? 0 : Math.max(0, target2 - totalPaid);
+
+    const stage3Amount = Math.round(totalBudget * 0.40); // 40% Stage Payment
+    const target3 = Math.round(totalBudget * 0.60);
+    const hasPassedStage3 = Boolean(
+        project?.stage3_paid === 1 ||
+        project?.stage3_paid === true ||
+        String(project?.payment_status || '').toLowerCase().includes('60%') ||
+        ['r2p done', 'works contract done', 'production in progress', 'ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase()) ||
+        (pId && localStorage.getItem(`stage3_paid_${pId}`) === 'true') ||
+        (pCode && localStorage.getItem(`stage3_paid_${pCode}`) === 'true')
+    );
+    const isPaid3 = hasPassedStage3 || totalPaid >= (target3 - 1) || paidPercent >= 59.9;
+    const need3 = isPaid3 ? 0 : stage3Amount;
+
+    const target4 = Math.round(totalBudget * 0.95);
+    const stage4Amount = Math.round(totalBudget * 0.35); // 35% Stage Payment
+    const hasPassedStage4 = Boolean(
+        project?.stage4_paid === 1 ||
+        project?.stage4_paid === true ||
+        ['ready to dispatch', 'in transit', 'delivery done', 'installation stage', 'final qc', 'handover'].includes(String(project?.project_stage || '').toLowerCase()) ||
+        (pId && localStorage.getItem(`stage4_paid_${pId}`) === 'true') ||
+        (pCode && localStorage.getItem(`stage4_paid_${pCode}`) === 'true')
+    );
+    const isPaid4 = hasPassedStage4 || totalPaid >= (target4 - 1) || paidPercent >= 94.9;
+    const need4 = isPaid4 ? 0 : (isPaid3 ? stage4Amount : Math.max(0, target4 - totalPaid));
+
+    const target5 = Math.round(totalBudget * 1.00);
+    const isPaid5 = totalPaid >= (target5 - 1) || paidPercent >= 99.9 || String(project?.project_stage || '').toLowerCase() === 'handover';
+    const need5 = isPaid5 ? 0 : remainingBalance;
+
+    const stages = [
+        {
+            num: '1️⃣',
+            name: 'Stage 1 (Token)',
+            pill: '10%',
+            pillBg: '#dbeafe',
+            pillColor: '#1d4ed8',
+            target: target1,
+            desc: `Target: ₹${target1.toLocaleString('en-IN')} • Initial Quote (10% Token) • Unlocks 3D Approval & 2D Drawings`,
+            isPaid: isPaid1,
+            need: need1,
+            stageDesc: 'Stage 1 (Token) Payment'
+        },
+        {
+            num: '2️⃣',
+            name: 'Stage 2 (Masking)',
+            pill: '20% (Cumulative)',
+            pillBg: '#ede9fe',
+            pillColor: '#6d28d9',
+            target: target2,
+            desc: `Target: ₹${target2.toLocaleString('en-IN')} • Initial Quote (20% Cumulative) • Unlocks Masking Files & QC Inspector Site Booking`,
+            isPaid: isPaid2,
+            need: need2,
+            stageDesc: 'Stage 2 (Masking) Payment'
+        },
+        {
+            num: '3️⃣',
+            name: 'Stage 3 (Production / R2P & Distribution)',
+            pill: '40% (Stage Payment)',
+            pillBg: '#fef3c7',
+            pillColor: '#b45309',
+            target: target3,
+            desc: `Stage Amount: ₹${stage3Amount.toLocaleString('en-IN')} (40% of Total Budget) • 60% Cumulative Target • Unlocks Factory Production & Product Distribution`,
+            isPaid: isPaid3,
+            need: need3,
+            stageDesc: 'Stage 3 (40% Production / R2P) Payment'
+        },
+        {
+            num: '4️⃣',
+            name: 'Stage 4 (Ready to Dispatch)',
+            pill: '35% (95% Cumulative)',
+            pillBg: '#ffedd5',
+            pillColor: '#ea580c',
+            target: target4,
+            desc: `Target: ₹${target4.toLocaleString('en-IN')} • Final Quote (95% Cumulative Target) • Unlocks Ready to Dispatch, In Transit, Delivery & Site Installation`,
+            isPaid: isPaid4,
+            need: need4,
+            stageDesc: 'Stage 4 (Ready to Dispatch) Payment'
+        },
+        {
+            num: '5️⃣',
+            name: 'Stage 5 (Final Handover)',
+            pill: '100% (Full Payment)',
+            pillBg: '#dcfce7',
+            pillColor: '#15803d',
+            target: target5,
+            desc: `Target: ₹${target5.toLocaleString('en-IN')} • Final Quote (100% Full Payment) • Final Handover Signoff & Project Completion`,
+            isPaid: isPaid5,
+            need: need5,
+            stageDesc: 'Stage 5 (Final Handover) Payment'
+        }
+    ];
+
+    const handleFillStage = (needAmt: number, stageDesc: string) => {
+        setPayment((prev: any) => ({
+            ...prev,
+            amount: String(needAmt),
+            description: stageDesc
+        }));
+    };
+
+    return (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '16px' }}>
+            <div style={{
+                width: '100%',
+                maxWidth: '780px',
+                maxHeight: '92vh',
+                overflowY: 'auto',
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                padding: '28px',
+                boxSizing: 'border-box',
+                position: 'relative'
+            }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                    <div>
+                        <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>💳</span> Record Customer Payment
+                        </h3>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '4px 0 0 0' }}>
+                            Manage project payment stages, percentages & transactions
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowPaymentModal(false)}
+                        style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            backgroundColor: '#f1f5f9',
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: '#64748b'
+                        }}
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* Summary Card with 3 Boxes + Progress Bar */}
+                <div style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: '14px',
+                    border: '1px solid #e2e8f0',
+                    padding: '18px',
+                    marginBottom: '22px'
+                }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '16px' }}>
+                        {/* Total Budget */}
+                        <div style={{
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '12px',
+                            padding: '14px 16px',
+                            textAlign: 'center'
+                        }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>Total Project Budget</div>
+                            <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0f172a', marginTop: '4px' }}>
+                                ₹{Math.round(totalBudget).toLocaleString('en-IN')}
+                            </div>
+                        </div>
+
+                        {/* Total Paid So Far */}
+                        <div style={{
+                            backgroundColor: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            borderRadius: '12px',
+                            padding: '14px 16px',
+                            textAlign: 'center'
+                        }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803d' }}>
+                                Total Paid So Far ({paidPercent.toFixed(1)}%)
+                            </div>
+                            <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#16a34a', marginTop: '4px' }}>
+                                ₹{Math.round(totalPaid).toLocaleString('en-IN')}
+                            </div>
+                        </div>
+
+                        {/* Remaining Balance */}
+                        <div style={{
+                            backgroundColor: '#fff7ed',
+                            border: '1px solid #fed7aa',
+                            borderRadius: '12px',
+                            padding: '14px 16px',
+                            textAlign: 'center'
+                        }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#c2410c' }}>Remaining Balance</div>
+                            <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#ea580c', marginTop: '4px' }}>
+                                ₹{Math.round(remainingBalance).toLocaleString('en-IN')}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Payment Progress Bar */}
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                            <span>Payment Progress</span>
+                            <span>{paidPercent.toFixed(1)}% Collected</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.min(100, Math.max(0, paidPercent))}%`, height: '100%', backgroundColor: '#16a34a', borderRadius: '6px', transition: 'width 0.3s ease' }} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Payment Stages & Required Amounts */}
+                <div style={{ marginBottom: '22px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>📊</span> Payment Stages &amp; Required Amounts:
+                        </span>
+                        <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 500 }}>
+                            {isAdmin ? 'Click any stage to quick-fill form' : 'Stage milestones & target requirements (View Only)'}
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {stages.map((st, i) => (
+                            <div
+                                key={`stage-row-${i}`}
+                                onClick={() => {
+                                    if (isAdmin && !st.isPaid && st.need > 0) {
+                                        handleFillStage(st.need, st.stageDesc);
+                                    }
+                                }}
+                                style={{
+                                    backgroundColor: st.isPaid ? '#f0fdf4' : '#eff6ff',
+                                    border: `1.5px solid ${st.isPaid ? '#86efac' : '#bfdbfe'}`,
+                                    borderRadius: '12px',
+                                    padding: '12px 16px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    cursor: (isAdmin && !st.isPaid && st.need > 0) ? 'pointer' : 'default',
+                                    transition: 'all 0.15s ease'
+                                }}
+                            >
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
+                                            {st.name}
+                                        </span>
+                                        <span style={{
+                                            fontSize: '0.72rem',
+                                            fontWeight: 800,
+                                            padding: '2px 8px',
+                                            borderRadius: '10px',
+                                            backgroundColor: st.pillBg,
+                                            color: st.pillColor
+                                        }}>
+                                            {st.pill}
+                                        </span>
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                        {st.desc}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    {st.isPaid ? (
+                                        <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            ✅ Fully Paid
+                                        </span>
+                                    ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1d4ed8' }}>
+                                                Needs: ₹{st.need.toLocaleString('en-IN')}
+                                            </span>
+                                            {isAdmin ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleFillStage(st.need, st.stageDesc);
+                                                    }}
+                                                    style={{
+                                                        padding: '6px 14px',
+                                                        borderRadius: '8px',
+                                                        backgroundColor: '#2563eb',
+                                                        color: '#ffffff',
+                                                        border: 'none',
+                                                        fontWeight: 700,
+                                                        fontSize: '0.82rem',
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                >
+                                                    ⚡ Fill ₹{st.need.toLocaleString('en-IN')}
+                                                </button>
+                                            ) : (
+                                                <span style={{
+                                                    padding: '5px 10px',
+                                                    borderRadius: '6px',
+                                                    backgroundColor: '#dbeafe',
+                                                    color: '#1d4ed8',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.78rem'
+                                                }}>
+                                                    Milestone
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Quick Presets / Milestones */}
+                {isAdmin ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '22px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569' }}>Quick Presets:</span>
+
+                        {isPaid1 ? (
+                            <span style={{ padding: '5px 12px', borderRadius: '8px', backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #86efac', fontWeight: 700, fontSize: '0.8rem' }}>
+                                ✅ 10% Token Paid
+                            </span>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => handleFillStage(need1, 'Stage 1 (Token) Payment')}
+                                style={{ padding: '5px 12px', borderRadius: '8px', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+                            >
+                                ⚡ Stage 1 (Needs ₹{need1.toLocaleString('en-IN')})
+                            </button>
+                        )}
+
+                        {isPaid2 ? (
+                            <span style={{ padding: '5px 12px', borderRadius: '8px', backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #86efac', fontWeight: 700, fontSize: '0.8rem' }}>
+                                ✅ Stage 2 (20%) Paid
+                            </span>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => handleFillStage(need2, 'Stage 2 (Masking) Payment')}
+                                style={{ padding: '5px 12px', borderRadius: '8px', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+                            >
+                                ⚡ Stage 2 (Needs ₹{need2.toLocaleString('en-IN')})
+                            </button>
+                        )}
+
+                        {isPaid3 ? (
+                            <span style={{ padding: '5px 12px', borderRadius: '8px', backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #86efac', fontWeight: 700, fontSize: '0.8rem' }}>
+                                ✅ Stage 3 (40%) Paid
+                            </span>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => handleFillStage(need3, 'Stage 3 (40% Production / R2P) Payment')}
+                                style={{ padding: '5px 12px', borderRadius: '8px', backgroundColor: '#fffbeb', color: '#b45309', border: '1.5px solid #f59e0b', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer' }}
+                            >
+                                ⚡ Stage 3 (40% = ₹{need3.toLocaleString('en-IN')})
+                            </button>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={() => handleFillStage(need4, 'Stage 4 (Ready to Dispatch) Payment')}
+                            style={{ padding: '5px 12px', borderRadius: '8px', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+                        >
+                            Stage 4 (+35% = 95%)
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleFillStage(remainingBalance, 'Full Remaining Balance Payment')}
+                            style={{ padding: '5px 12px', borderRadius: '8px', backgroundColor: '#fff7ed', color: '#ea580c', border: '1.5px solid #ea580c', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer' }}
+                        >
+                            Full Remaining (₹{remainingBalance.toLocaleString('en-IN')})
+                        </button>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '22px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569' }}>Milestone Stages:</span>
+                        <span style={{ padding: '4px 10px', borderRadius: '8px', backgroundColor: isPaid1 ? '#f0fdf4' : '#eff6ff', color: isPaid1 ? '#16a34a' : '#1d4ed8', border: `1px solid ${isPaid1 ? '#86efac' : '#bfdbfe'}`, fontWeight: 700, fontSize: '0.78rem' }}>
+                            {isPaid1 ? '✅' : '⏳'} Stage 1 (10% Token)
+                        </span>
+                        <span style={{ padding: '4px 10px', borderRadius: '8px', backgroundColor: isPaid2 ? '#f0fdf4' : '#eff6ff', color: isPaid2 ? '#16a34a' : '#1d4ed8', border: `1px solid ${isPaid2 ? '#86efac' : '#bfdbfe'}`, fontWeight: 700, fontSize: '0.78rem' }}>
+                            {isPaid2 ? '✅' : '⏳'} Stage 2 (20% Masking)
+                        </span>
+                        <span style={{ padding: '4px 10px', borderRadius: '8px', backgroundColor: isPaid3 ? '#f0fdf4' : '#fffbeb', color: isPaid3 ? '#16a34a' : '#b45309', border: `1.5px solid ${isPaid3 ? '#86efac' : '#f59e0b'}`, fontWeight: 800, fontSize: '0.78rem' }}>
+                            {isPaid3 ? '✅' : '⏳'} Stage 3 (40% Production / R2P)
+                        </span>
+                        <span style={{ padding: '4px 10px', borderRadius: '8px', backgroundColor: isPaid4 ? '#f0fdf4' : '#ffffff', color: isPaid4 ? '#16a34a' : '#475569', border: `1px solid ${isPaid4 ? '#86efac' : '#cbd5e1'}`, fontWeight: 700, fontSize: '0.78rem' }}>
+                            {isPaid4 ? '✅' : '⏳'} Stage 4 (35% Dispatch)
+                        </span>
+                        <span style={{ padding: '4px 10px', borderRadius: '8px', backgroundColor: isPaid5 ? '#f0fdf4' : '#fff7ed', color: isPaid5 ? '#16a34a' : '#ea580c', border: `1px solid ${isPaid5 ? '#86efac' : '#fed7aa'}`, fontWeight: 700, fontSize: '0.78rem' }}>
+                            {isPaid5 ? '✅' : '⏳'} Stage 5 (Handover)
+                        </span>
+                    </div>
+                )}
+
+                {/* Payment Entry Form (Admin Only) vs Employee View-Only Mode */}
+                {isAdmin ? (
+                    <form onSubmit={handleRecordPayment} style={{ marginBottom: '22px' }}>
+                        <div style={{
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '14px',
+                            padding: '20px',
+                            marginBottom: '16px'
+                        }}>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>📝</span> Payment Entry Details (Admin)
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                                        Amount Received (₹) *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        required
+                                        placeholder="e.g. 50000"
+                                        value={payment.amount}
+                                        onChange={(e) => setPayment({ ...payment, amount: e.target.value })}
+                                        style={{
+                                            width: '100%',
+                                            padding: '11px 14px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #cbd5e1',
+                                            fontSize: '0.95rem',
+                                            fontWeight: 700,
+                                            outline: 'none',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                                        Payment Mode *
+                                    </label>
+                                    <select
+                                        value={payment.payment_mode}
+                                        onChange={(e) => setPayment({ ...payment, payment_mode: e.target.value })}
+                                        style={{
+                                            width: '100%',
+                                            padding: '11px 14px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #cbd5e1',
+                                            fontSize: '0.95rem',
+                                            fontWeight: 600,
+                                            outline: 'none',
+                                            backgroundColor: '#ffffff',
+                                            cursor: 'pointer',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    >
+                                        <option value="UPI">UPI (Google Pay / PhonePe / Paytm)</option>
+                                        <option value="Bank Transfer">Bank Transfer / NEFT / RTGS / IMPS</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Cheque">Cheque</option>
+                                        <option value="Card">Credit / Debit Card</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                                        Description / Stage Note *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={payment.description}
+                                        onChange={(e) => setPayment({ ...payment, description: e.target.value })}
+                                        style={{
+                                            width: '100%',
+                                            padding: '11px 14px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #cbd5e1',
+                                            fontSize: '0.95rem',
+                                            outline: 'none',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                                        Transaction Date *
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={payment.date}
+                                        onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                        onChange={(e) => setPayment({ ...payment, date: e.target.value })}
+                                        style={{
+                                            width: '100%',
+                                            padding: '11px 14px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #cbd5e1',
+                                            fontSize: '0.95rem',
+                                            outline: 'none',
+                                            cursor: 'pointer',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                style={{
+                                    width: '100%',
+                                    padding: '14px',
+                                    backgroundColor: '#1e293b',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '10px',
+                                    fontWeight: 800,
+                                    fontSize: '1rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    transition: 'background-color 0.15s ease'
+                                }}
+                            >
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="animate-spin" size={18} /> Recording Payment...
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>💳</span> Save &amp; Confirm Payment (₹{(parseFloat(payment.amount) || 0).toLocaleString('en-IN')})
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                ) : (
+                    <div style={{
+                        backgroundColor: '#f8fafc',
+                        border: '1.5px dashed #cbd5e1',
+                        borderRadius: '14px',
+                        padding: '24px 20px',
+                        marginBottom: '22px',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🔒</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
+                            Employee View-Only Access
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '520px', margin: '0 auto 12px auto', lineHeight: 1.5 }}>
+                            You are viewing customer payment milestones and transactions. <strong>Only Admin has permission to add or record customer payments (including Stage 3 40% payment).</strong>
+                        </p>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            backgroundColor: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            color: '#1d4ed8'
+                        }}>
+                            <span>ℹ️</span> To record received customer funds, please contact an Administrator.
+                        </div>
+                    </div>
+                )}
+
+                {/* Paid Transactions History */}
+                <div style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '14px',
+                    padding: '20px',
+                    marginBottom: '20px'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                        <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>📄</span> Paid Transactions History ({projCredits.length}):
+                        </span>
+                        <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#16a34a' }}>
+                            ₹{Math.round(totalPaid).toLocaleString('en-IN')} Total
+                        </span>
+                    </div>
+
+                    {projCredits.length > 0 ? (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                                        <th style={{ padding: '8px 10px', fontWeight: 700 }}>Date</th>
+                                        <th style={{ padding: '8px 10px', fontWeight: 700 }}>Mode</th>
+                                        <th style={{ padding: '8px 10px', fontWeight: 700 }}>Description</th>
+                                        <th style={{ padding: '8px 10px', fontWeight: 700, textAlign: 'right' }}>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {projCredits.map((tr: any, idx: number) => {
+                                        const trAmt = parseFloat(tr.amount || 0);
+                                        const trPct = totalBudget > 0 ? ((trAmt / totalBudget) * 100).toFixed(1) : '0';
+                                        return (
+                                            <tr key={`tr-hist-${idx}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                <td style={{ padding: '10px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                                    {tr.transaction_date || tr.created_at || '-'}
+                                                </td>
+                                                <td style={{ padding: '10px' }}>
+                                                    <span style={{
+                                                        padding: '3px 8px',
+                                                        borderRadius: '6px',
+                                                        backgroundColor: '#f1f5f9',
+                                                        color: '#1e293b',
+                                                        fontWeight: 700,
+                                                        fontSize: '0.75rem'
+                                                    }}>
+                                                        {tr.payment_mode || 'UPI'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '10px', color: '#0f172a', fontWeight: 600 }}>
+                                                    {tr.description || 'Customer Payment'}
+                                                </td>
+                                                <td style={{ padding: '10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                    <div style={{ fontWeight: 800, color: '#16a34a' }}>
+                                                        ₹{Math.round(trAmt).toLocaleString('en-IN')}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>
+                                                        ({trPct}%)
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.85rem' }}>
+                            No paid transactions recorded yet.
+                        </div>
+                    )}
+                </div>
+
+                {/* Next Workflow Unlocked After Payment */}
+                <div style={{
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '12px',
+                    padding: '14px 18px'
+                }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#15803d', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>🚀</span> Next Workflow Unlocked After Payment:
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: '#166534', lineHeight: 1.5 }}>
+                        {totalPaid < target1 ? (
+                            '• Pay Stage 1 (10% Token Advance) to unlock 3D Approval & 2D Drawings.'
+                        ) : totalPaid < target2 ? (
+                            '• Pay Stage 2 (20% cumulative target of Initial Quote) to unlock Masking Files & QC Inspector Site Booking.'
+                        ) : totalPaid < target3 ? (
+                            '• Pay Stage 3 (60% cumulative target of Final Quote) to unlock Factory Production & Product Distribution.'
+                        ) : totalPaid < target4 ? (
+                            '• Pay Stage 4 (95% cumulative target of Final Quote) to unlock Ready to Dispatch, In Transit, Delivery & Site Installation.'
+                        ) : totalPaid < target5 ? (
+                            '• Pay Stage 5 (100% full payment) to unlock Final Handover Signoff & Project Completion.'
+                        ) : (
+                            '• All project payment stages completed! Project is ready for final handover & signoff.'
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const StageNotesTab = ({ project, user, filterType = 'pm', timelineTasks, timelineCategories, onSyncDatesToTimeline }: any) => {
+    const isReadOnly = !['admin', 'project_head', 'project_manager', 'manager', 'd1', 'd2', 'designer'].includes(String(user?.role || '').toLowerCase());
+
     const [stageNotes, setStageNotes] = useState<any[]>([]);
+    const [activeNote, setActiveNote] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [editingIdx, setEditingIdx] = useState<number | null>(null);
+
+    const activeNoteCategoryKey = filterType === 'pm' ? 'timeline_active_note_pm' : 'timeline_active_note_designer';
 
     useEffect(() => {
         if (project?.project_id) loadAll();
-    }, [project?.project_id]);
+    }, [project?.project_id, filterType]);
 
     const loadAll = async () => {
         setLoading(true);
@@ -3123,50 +5724,76 @@ export const StageNotesTab = ({ project, user, filterType = 'pm' }: any) => {
 
             const dTasks: any[] = dRes.data?.tasks || [];
             const pTasks: any[] = pmRes.data?.tasks || [];
-            setDesignerTasks(dTasks);
-            setPmTasks(pTasks);
-
             const savedNotes: any[] = notesRes.data?.data || [];
 
-            // Build rows from PM categories
-            const DESIGNER_ORDER = ['DD', '3D Approval', '2D', 'QC1', 'Masking', 'Signoff', 'Final 2D', 'QC2', 'Final Quote', 'R2P'];
-            const PM_ORDER = ['Product Distribution', 'Ready to Dispatch', 'In Transit', 'Delivery', 'Kickoff_M', 'HDS', 'Material Segregation', 'QC', 'Installation', 'Final QC', 'Handover'];
-
-            // Get unique categories in order
-            const dCats = dRes.data?.categoryOrder?.length ? dRes.data.categoryOrder : DESIGNER_ORDER;
-            const pCats = pmRes.data?.categoryOrder?.length ? pmRes.data.categoryOrder : PM_ORDER;
-
-            // Filter categories based on filterType prop (defaults to 'pm')
-            let allCats: string[];
-            if (filterType === 'designer') {
-                allCats = dCats;
-            } else if (filterType === 'all') {
-                allCats = [...dCats, ...pCats.filter((c: string) => !dCats.includes(c))];
-            } else {
-                allCats = pCats; // Default: Only PM categories
+            // Extract active note if saved
+            const foundActiveNote = savedNotes.find((n: any) => n.category === activeNoteCategoryKey);
+            if (foundActiveNote) {
+                setActiveNote(foundActiveNote.note || '');
             }
 
-            const rows = allCats.map((cat: string) => {
-                // Find earliest start and latest end across tasks in this category
-                const relevantTasks = filterType === 'pm' ? pTasks : (filterType === 'designer' ? dTasks : [...dTasks, ...pTasks]);
-                const catTasks = relevantTasks.filter((t: any) => t.category === cat);
-                let startDate = '';
-                let endDate = '';
+            // Standard order for Designer and PM matching Images 2, 3, 4, 5
+            const DESIGNER_ORDER = ['DD', '3D Approval', '2D', 'QC1', 'Masking', 'Signoff', 'Final 2D', 'QC2', 'Final Quote', 'R2P'];
+            const PM_ORDER = ['Product Distribution', 'Ready to Dispatch', 'In Transit', 'Delivery', 'Kickoff M', 'HOK', 'Material Segregation', 'QC', 'Installation', 'Final QC', 'Handover'];
+
+            const baseOrder = filterType === 'designer' ? DESIGNER_ORDER : PM_ORDER;
+            const relevantTasks: any[] = (timelineTasks && timelineTasks.length > 0)
+                ? timelineTasks
+                : (filterType === 'designer' ? dTasks : pTasks);
+
+            const activeTimelineCats: string[] = (timelineCategories && timelineCategories.length > 0)
+                ? timelineCategories
+                : (filterType === 'designer' ? (dRes.data?.categoryOrder || []) : (pmRes.data?.categoryOrder || []));
+
+            const clean = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            const extraFromTimelineCats = activeTimelineCats.filter(c =>
+                c && !baseOrder.some(b => clean(b) === clean(c))
+            );
+
+            const taskCats = relevantTasks.map((t: any) => t.category).filter(Boolean);
+            const extraFromTasks = taskCats.filter(c =>
+                c &&
+                !baseOrder.some(b => clean(b) === clean(c)) &&
+                !extraFromTimelineCats.some(e => clean(e) === clean(c))
+            );
+
+            const extraFromSaved = savedNotes
+                .filter((sn: any) => sn.category && !sn.category.startsWith('timeline_active_note_') && (sn.source === filterType || (!sn.source && filterType === 'designer')))
+                .map((sn: any) => sn.category)
+                .filter((c: string) =>
+                    c &&
+                    !baseOrder.some(b => clean(b) === clean(c)) &&
+                    !extraFromTimelineCats.some(e => clean(e) === clean(c)) &&
+                    !extraFromTasks.some(e => clean(e) === clean(c))
+                );
+
+            const allCategories = Array.from(new Set([...baseOrder, ...extraFromTimelineCats, ...extraFromTasks, ...extraFromSaved]));
+
+            const rows = allCategories.map((cat: string) => {
+                const catTasks = relevantTasks.filter((t: any) => {
+                    const tCat = clean(t.category);
+                    const tName = clean(t.name);
+                    const cClean = clean(cat);
+                    return tCat === cClean || tName === cClean || tCat.includes(cClean) || cClean.includes(tCat);
+                });
+
+                let tStart = '';
+                let tEnd = '';
                 if (catTasks.length > 0) {
                     const starts = catTasks.map((t: any) => t.startDate).filter(Boolean).sort();
                     const ends = catTasks.map((t: any) => t.endDate).filter(Boolean).sort();
-                    startDate = starts[0] || '';
-                    endDate = ends[ends.length - 1] || '';
+                    tStart = starts[0] || '';
+                    tEnd = ends[ends.length - 1] || '';
                 }
 
-                // Merge with saved note if exists
-                const saved = savedNotes.find((n: any) => n.category === cat);
+                const saved = savedNotes.find((n: any) => clean(n.category) === clean(cat));
                 return {
                     category: cat,
-                    startDate: saved?.startDate || startDate,
-                    endDate: saved?.endDate || endDate,
+                    startDate: tStart || saved?.startDate || '',
+                    endDate: tEnd || saved?.endDate || '',
                     note: saved?.note || '',
-                    source: dCats.includes(cat) ? 'designer' : 'pm'
+                    source: filterType
                 };
             });
 
@@ -3178,17 +5805,113 @@ export const StageNotesTab = ({ project, user, filterType = 'pm' }: any) => {
         }
     };
 
+    // Live auto-sync whenever timelineTasks or timelineCategories update
+    useEffect(() => {
+        if (!timelineTasks && !timelineCategories) return;
+        setStageNotes(prev => {
+            const currentTasks = timelineTasks || [];
+            const currentCats = timelineCategories || [];
+            const clean = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            const DESIGNER_ORDER = ['DD', '3D Approval', '2D', 'QC1', 'Masking', 'Signoff', 'Final 2D', 'QC2', 'Final Quote', 'R2P'];
+            const PM_ORDER = ['Product Distribution', 'Ready to Dispatch', 'In Transit', 'Delivery', 'Kickoff M', 'HOK', 'Material Segregation', 'QC', 'Installation', 'Final QC', 'Handover'];
+            const baseOrder = filterType === 'designer' ? DESIGNER_ORDER : PM_ORDER;
+
+            const extraCats = currentCats.filter((c: string) => c && !baseOrder.some(b => clean(b) === clean(c)));
+            const taskCats = currentTasks.map((t: any) => t.category).filter(Boolean);
+            const extraFromTasks = taskCats.filter((c: string) =>
+                c &&
+                !baseOrder.some(b => clean(b) === clean(c)) &&
+                !extraCats.some((e: string) => clean(e) === clean(c))
+            );
+            const prevCats = prev.map(p => p.category);
+
+            const allCategories = Array.from(new Set([...baseOrder, ...extraCats, ...extraFromTasks, ...prevCats]));
+
+            return allCategories.map(cat => {
+                const existing = prev.find(p => clean(p.category) === clean(cat));
+                const catTasks = currentTasks.filter((t: any) => {
+                    const tCat = clean(t.category);
+                    const tName = clean(t.name);
+                    const cClean = clean(cat);
+                    return tCat === cClean || tName === cClean || tCat.includes(cClean) || cClean.includes(tCat);
+                });
+
+                let tStart = '';
+                let tEnd = '';
+                if (catTasks.length > 0) {
+                    const starts = catTasks.map((t: any) => t.startDate).filter(Boolean).sort();
+                    const ends = catTasks.map((t: any) => t.endDate).filter(Boolean).sort();
+                    tStart = starts[0] || '';
+                    tEnd = ends[ends.length - 1] || '';
+                }
+
+                return {
+                    category: cat,
+                    startDate: tStart || existing?.startDate || '',
+                    endDate: tEnd || existing?.endDate || '',
+                    note: existing?.note || '',
+                    source: filterType
+                };
+            });
+        });
+    }, [timelineTasks, timelineCategories, filterType]);
+
     const handleFieldChange = (idx: number, field: string, value: string) => {
-        setStageNotes(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+        setStageNotes(prev => {
+            const updated = prev.map((row, i) => i === idx ? { ...row, [field]: value } : row);
+            const targetRow = updated[idx];
+            if (targetRow && (field === 'startDate' || field === 'endDate')) {
+                onSyncDatesToTimeline?.(targetRow.category, targetRow.startDate, targetRow.endDate);
+            }
+            return updated;
+        });
+        setSaved(false);
+    };
+
+    const handleAddCustomStageNote = () => {
+        const stageName = window.prompt('Enter new stage / note title:');
+        if (!stageName || !stageName.trim()) return;
+        const newRow = {
+            category: stageName.trim(),
+            startDate: new Date().toISOString().split('T')[0],
+            endDate: new Date().toISOString().split('T')[0],
+            note: '',
+            source: filterType
+        };
+        setStageNotes(prev => [...prev, newRow]);
+        setSaved(false);
+    };
+
+    const handleDeleteStageRow = (idx: number) => {
+        if (!window.confirm('Are you sure you want to delete this stage note?')) return;
+        setStageNotes(prev => prev.filter((_, i) => i !== idx));
         setSaved(false);
     };
 
     const handleSave = async () => {
         setSaving(true);
         try {
+            // Keep other source notes intact when saving
+            const existingRes = await axios.get(`${API_BASE_URL}/controllers/timeline/stage-notes.php?project_id=${project.project_id}`);
+            const existing: any[] = existingRes.data?.data || [];
+
+            // Filter out existing notes from current filterType & current activeNoteKey
+            const otherNotes = existing.filter((n: any) => {
+                if (n.category === activeNoteCategoryKey) return false;
+                if (n.source === filterType) return false;
+                return true;
+            });
+
+            const merged = [
+                ...otherNotes,
+                ...stageNotes,
+                { category: activeNoteCategoryKey, note: activeNote, source: filterType }
+            ];
+
             await axios.post(`${API_BASE_URL}/controllers/timeline/stage-notes.php`, {
                 project_id: project.project_id,
-                notes: stageNotes
+                notes: merged
             });
             setSaved(true);
             setTimeout(() => setSaved(false), 2500);
@@ -3196,6 +5919,53 @@ export const StageNotesTab = ({ project, user, filterType = 'pm' }: any) => {
             alert('Failed to save stage notes');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDownloadMomPdf = async () => {
+        try {
+            const res = await axios.post(`${API_BASE_URL}/pdf/generate-mom`, {
+                project_id: project.project_id,
+                type: filterType
+            });
+            if (res.data?.pdf_base64) {
+                const byteCharacters = atob(res.data.pdf_base64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = `MOM_${project.project_code || project.project_id}_${filterType}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            } else if (res.data?.pdf_url) {
+                window.open(res.data.pdf_url, '_blank');
+            } else {
+                window.open(`/print-mom/${project.project_id}?type=${filterType}`, '_blank');
+            }
+        } catch (e) {
+            window.open(`/print-mom/${project.project_id}?type=${filterType}`, '_blank');
+        }
+    };
+
+    const handlePrintMomPdf = () => {
+        window.open(`/print-mom/${project.project_id}?type=${filterType}`, '_blank');
+    };
+
+    const insertFormatTag = (tag: string) => {
+        if (tag === 'list') {
+            setActiveNote(prev => prev + '\n• ');
+        } else if (tag === 'link') {
+            const url = window.prompt('Enter URL:');
+            if (url) setActiveNote(prev => prev + ' ' + url + ' ');
+        } else {
+            setActiveNote(prev => prev + ` <${tag}>text</${tag}> `);
         }
     };
 
@@ -3207,167 +5977,315 @@ export const StageNotesTab = ({ project, user, filterType = 'pm' }: any) => {
 
     return (
         <div style={{ padding: '0', fontFamily: 'inherit' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                        📋 Stage Notes
-                    </h2>
-                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '4px 0 0 0' }}>
-                        Work descriptions, scheduled dates & remarks for each project stage
-                    </p>
+            {/* STAGE NOTES / MOM CARD (Images 2, 3, 4, 5) */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', border: '1px solid #fed7aa', padding: '24px', marginBottom: '28px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '1.2rem' }}>📋</span>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                                Stage Notes / MOM
+                            </h2>
+                        </div>
+                        <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 0 0' }}>
+                            Add, edit and delete stage records or generate client-ready MOM PDFs.
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 20px',
+                                backgroundColor: saved ? '#16a34a' : '#1e293b',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 700,
+                                fontSize: '0.82rem',
+                                cursor: saving ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}
+                        >
+                            <Save size={14} />
+                            {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Changes'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleAddCustomStageNote}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 18px',
+                                backgroundColor: '#ea580c',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 700,
+                                fontSize: '0.82rem',
+                                cursor: 'pointer',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}
+                        >
+                            <Plus size={14} /> Add Stage Note
+                        </button>
+                    </div>
                 </div>
-                {!isReadOnly && (
+
+                {/* Table */}
+                <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid #fed7aa' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                            <tr style={{ backgroundColor: '#fffbeb', borderBottom: '1.5px solid #fed7aa', color: '#0f172a' }}>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 800, width: '160px' }}>Stage</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 800, width: '160px' }}>Start Date</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 800, width: '160px' }}>End Date</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 800 }}>Description</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 800, width: '130px' }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {stageNotes.map((row, idx) => (
+                                <tr
+                                    key={row.category || idx}
+                                    style={{
+                                        backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9',
+                                        borderBottom: '1px solid #f3f4f6'
+                                    }}
+                                >
+                                    {/* Stage Badge */}
+                                    <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                                        <span style={{
+                                            display: 'inline-block',
+                                            padding: '4px 10px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.78rem',
+                                            fontWeight: 700,
+                                            backgroundColor: '#eff6ff',
+                                            color: '#1e40af',
+                                            border: '1px solid #bfdbfe'
+                                        }}>
+                                            {row.category}
+                                        </span>
+                                    </td>
+
+                                    {/* Start Date */}
+                                    <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
+                                        <input
+                                            type="date"
+                                            value={row.startDate ? row.startDate.split(' ')[0] : ''}
+                                            onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                            onChange={e => handleFieldChange(idx, 'startDate', e.target.value)}
+                                            style={{
+                                                padding: '6px 10px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #cbd5e1',
+                                                fontSize: '0.8rem',
+                                                color: '#1e293b',
+                                                outline: 'none',
+                                                width: '135px',
+                                                cursor: 'pointer'
+                                            }}
+                                        />
+                                    </td>
+
+                                    {/* End Date */}
+                                    <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
+                                        <input
+                                            type="date"
+                                            min={row.startDate ? row.startDate.split(' ')[0] : undefined}
+                                            value={row.endDate ? row.endDate.split(' ')[0] : ''}
+                                            onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                            onChange={e => handleFieldChange(idx, 'endDate', e.target.value)}
+                                            style={{
+                                                padding: '6px 10px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #cbd5e1',
+                                                fontSize: '0.8rem',
+                                                color: '#1e293b',
+                                                outline: 'none',
+                                                width: '135px',
+                                                cursor: 'pointer'
+                                            }}
+                                        />
+                                    </td>
+
+                                    {/* Description (Multi-line) */}
+                                    <td style={{ padding: '10px 16px' }}>
+                                        <textarea
+                                            rows={2}
+                                            placeholder="Enter stage description / remarks directly..."
+                                            value={row.note || ''}
+                                            onChange={e => handleFieldChange(idx, 'note', e.target.value)}
+                                            onInput={(e: any) => {
+                                                e.target.style.height = 'auto';
+                                                e.target.style.height = Math.max(44, e.target.scrollHeight) + 'px';
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #cbd5e1',
+                                                fontSize: '0.82rem',
+                                                color: '#0f172a',
+                                                outline: 'none',
+                                                boxSizing: 'border-box',
+                                                resize: 'vertical',
+                                                minHeight: '44px',
+                                                fontFamily: 'inherit',
+                                                lineHeight: 1.4
+                                            }}
+                                        />
+                                    </td>
+
+                                    {/* Actions */}
+                                    <td style={{ padding: '10px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingIdx(editingIdx === idx ? null : idx)}
+                                                style={{ background: 'none', border: 'none', color: '#ea580c', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                                title="Edit Stage"
+                                            >
+                                                <Edit2 size={13} /> Edit
+                                            </button>
+                                            <span style={{ color: '#cbd5e1' }}>|</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteStageRow(idx)}
+                                                style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                                title="Delete Stage"
+                                            >
+                                                <Trash2 size={13} /> Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* TIMELINE ACTIVE NOTES CARD (Images 3 & 5) */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', border: '1px solid #fed7aa', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>📝</span>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                        {filterType === 'pm' ? 'Project Manager' : 'Designer'} Timeline Active Notes
+                    </h3>
+                </div>
+
+                {/* Toolbar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                     <button
-                        onClick={handleSave}
-                        disabled={saving}
+                        type="button"
+                        onClick={() => insertFormatTag('b')}
+                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', fontWeight: 800, fontSize: '0.78rem', cursor: 'pointer' }}
+                        title="Bold"
+                    >
+                        B
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => insertFormatTag('i')}
+                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', fontStyle: 'italic', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
+                        title="Italic"
+                    >
+                        I
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => insertFormatTag('list')}
+                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
+                        title="Bullet List"
+                    >
+                        • List
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => insertFormatTag('link')}
+                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#f8fafc', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
+                        title="Insert Link"
+                    >
+                        🔗 Link
+                    </button>
+                </div>
+
+                {/* Textarea */}
+                <textarea
+                    rows={5}
+                    value={activeNote}
+                    onChange={e => { setActiveNote(e.target.value); setSaved(false); }}
+                    placeholder="Type meeting notes, client agreements, discussion summary, or MOM minutes directly..."
+                    style={{
+                        width: '100%',
+                        padding: '14px',
+                        borderRadius: '10px',
+                        border: '1.5px solid #fef08a',
+                        backgroundColor: '#ffffff',
+                        fontSize: '0.85rem',
+                        lineHeight: 1.6,
+                        color: '#0f172a',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        minHeight: '120px',
+                        marginBottom: '16px'
+                    }}
+                />
+
+                {/* Bottom Action Bar */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+                    <button
+                        type="button"
+                        onClick={handleDownloadMomPdf}
                         style={{
-                            display: 'flex', alignItems: 'center', gap: '8px',
-                            padding: '10px 22px',
-                            backgroundColor: saved ? '#16a34a' : '#253b50',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '9px 20px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            backgroundColor: '#1e293b',
                             color: '#ffffff',
-                            border: 'none', borderRadius: '10px',
-                            fontWeight: 700, fontSize: '0.9rem',
-                            cursor: saving ? 'not-allowed' : 'pointer',
-                            boxShadow: '0 2px 8px rgba(37,59,80,0.2)',
-                            transition: 'all 0.2s'
+                            fontWeight: 700,
+                            fontSize: '0.82rem',
+                            cursor: 'pointer',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                         }}
                     >
-                        <Save size={16} />
-                        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Notes'}
+                        <Download size={14} /> Download MOM PDF
                     </button>
-                )}
-            </div>
-
-            {/* Table */}
-            <div style={{ overflowX: 'auto', borderRadius: '14px', border: '1.5px solid #e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                    <thead>
-                        <tr style={{ backgroundColor: '#253b50', color: '#ffffff' }}>
-                            <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: 700, width: '50px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>#</th>
-                            <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 700, minWidth: '160px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Work Description</th>
-                            <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 700, width: '160px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>Start Date</th>
-                            <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 700, width: '160px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>End Date</th>
-                            <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: 700 }}>Note / Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {stageNotes.map((row, idx) => (
-                            <tr
-                                key={row.category}
-                                style={{
-                                    backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc',
-                                    borderBottom: '1px solid #e2e8f0',
-                                    transition: 'background 0.1s'
-                                }}
-                            >
-                                {/* # */}
-                                <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 700, color: '#94a3b8', borderRight: '1px solid #e2e8f0' }}>
-                                    {idx + 1}
-                                </td>
-
-                                {/* Work Description */}
-                                <td style={{ padding: '12px 16px', borderRight: '1px solid #e2e8f0' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{
-                                            width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
-                                            backgroundColor: row.source === 'designer' ? '#3b82f6' : '#8b5cf6'
-                                        }} />
-                                        <span style={{ fontWeight: 700, color: '#0f172a' }}>{row.category}</span>
-                                        {!filterType && (
-                                            <span style={{
-                                                fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px',
-                                                borderRadius: '8px', textTransform: 'uppercase',
-                                                backgroundColor: row.source === 'designer' ? '#dbeafe' : '#ede9fe',
-                                                color: row.source === 'designer' ? '#1d4ed8' : '#6d28d9'
-                                            }}>
-                                                {row.source === 'designer' ? 'Designer' : 'PM'}
-                                            </span>
-                                        )}
-                                    </div>
-                                </td>
-
-                                {/* Start Date */}
-                                <td style={{ padding: '10px 16px', borderRight: '1px solid #e2e8f0' }}>
-                                    <input
-                                        type="date"
-                                        value={row.startDate || ''}
-                                        onChange={e => handleFieldChange(idx, 'startDate', e.target.value)}
-                                        disabled={isReadOnly}
-                                        style={{
-                                            width: '100%', padding: '7px 10px',
-                                            border: '1.5px solid #e2e8f0', borderRadius: '8px',
-                                            fontSize: '0.85rem', color: '#0f172a',
-                                            backgroundColor: isReadOnly ? '#f8fafc' : '#ffffff',
-                                            cursor: isReadOnly ? 'default' : 'pointer',
-                                            outline: 'none'
-                                        }}
-                                    />
-                                </td>
-
-                                {/* End Date */}
-                                <td style={{ padding: '10px 16px', borderRight: '1px solid #e2e8f0' }}>
-                                    <input
-                                        type="date"
-                                        value={row.endDate || ''}
-                                        onChange={e => handleFieldChange(idx, 'endDate', e.target.value)}
-                                        disabled={isReadOnly}
-                                        style={{
-                                            width: '100%', padding: '7px 10px',
-                                            border: '1.5px solid #e2e8f0', borderRadius: '8px',
-                                            fontSize: '0.85rem', color: '#0f172a',
-                                            backgroundColor: isReadOnly ? '#f8fafc' : '#ffffff',
-                                            cursor: isReadOnly ? 'default' : 'pointer',
-                                            outline: 'none'
-                                        }}
-                                    />
-                                </td>
-
-                                {/* Note / Remarks */}
-                                <td style={{ padding: '10px 16px' }}>
-                                    <input
-                                        type="text"
-                                        placeholder={isReadOnly ? '—' : 'Enter remarks…'}
-                                        value={row.note || ''}
-                                        onChange={e => handleFieldChange(idx, 'note', e.target.value)}
-                                        disabled={isReadOnly}
-                                        style={{
-                                            width: '100%', padding: '7px 10px',
-                                            border: '1.5px solid #e2e8f0', borderRadius: '8px',
-                                            fontSize: '0.85rem', color: '#0f172a',
-                                            backgroundColor: isReadOnly ? '#f8fafc' : '#ffffff',
-                                            outline: 'none',
-                                            minWidth: '200px'
-                                        }}
-                                    />
-                                </td>
-                            </tr>
-                        ))}
-
-                        {stageNotes.length === 0 && (
-                            <tr>
-                                <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
-                                    No timeline stages found. Add tasks to the Designer or PM Timeline first.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Legend */}
-            {!filterType && (
-                <div style={{ display: 'flex', gap: '16px', marginTop: '16px', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#64748b' }}>
-                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#3b82f6', display: 'inline-block' }} />
-                        Designer Timeline Stage
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#64748b' }}>
-                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#8b5cf6', display: 'inline-block' }} />
-                        Project Manager Timeline Stage
-                    </div>
+                    <button
+                        type="button"
+                        onClick={handlePrintMomPdf}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '9px 20px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            backgroundColor: '#1e293b',
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            fontSize: '0.82rem',
+                            cursor: 'pointer',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        }}
+                    >
+                        <Printer size={14} /> Print MOM (Save as PDF)
+                    </button>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
@@ -3683,6 +6601,11 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
     };
 
     const handleUpdateProjectDates = async () => {
+        const minDate = projectStartDate || todayStr;
+        if (projectEndDate && minDate && projectEndDate < minDate) {
+            alert('Expected End Date cannot be earlier than Start Date (' + minDate + ')');
+            return;
+        }
         setUpdatingDates(true);
         try {
             const headMember = project?.team?.find((t: any) => t.assignment_role === 'project_head');
@@ -3728,14 +6651,23 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
 
         if (!finalCategory || !resolvedName || !newTask.startDate || !newTask.endDate) return;
 
-        if (newTask.category === 'OTHER' && !customCategories.includes(finalCategory)) {
-            setCustomCategories(prev => [...prev, finalCategory]);
+        let newCustom = customCategories;
+        let newOrder = categoryOrder;
+        if (newTask.category === 'OTHER') {
+            if (!customCategories.includes(finalCategory)) {
+                newCustom = [...customCategories, finalCategory];
+                setCustomCategories(newCustom);
+            }
+            if (!categoryOrder.includes(finalCategory)) {
+                newOrder = [...categoryOrder, finalCategory];
+                setCategoryOrder(newOrder);
+            }
         }
 
         const updated = [...tasks, { id: Date.now(), category: finalCategory, name: resolvedName, startDate: newTask.startDate, endDate: newTask.endDate }];
         setTasks(updated);
         setNewTask({ category: '', customCategory: '', name: '', customName: '', startDate: '', endDate: '' });
-        persistState(updated, completions);
+        persistState(updated, completions, newOrder, newCustom);
     };
 
     const handleSaveEdit = () => {
@@ -3765,39 +6697,36 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
 
         const catNorm = String(targetTask?.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const nameNorm = String(targetTask?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const isMasking    = catNorm.includes('masking')  || nameNorm.includes('masking');
-        const isR2P        = catNorm.includes('r2p')      || nameNorm.includes('r2p') || catNorm.includes('readytopaint') || nameNorm.includes('readytopaint');
+        const isMasking = catNorm.includes('masking') || nameNorm.includes('masking');
+        const isR2P = catNorm.includes('r2p') || nameNorm.includes('r2p') || catNorm.includes('readytopaint') || nameNorm.includes('readytopaint');
         const isDeliveryStage = ['productdistribution', 'readytodispatch', 'intransit', 'delivery', 'dispatch', 'transit'].some(k => catNorm.includes(k) || nameNorm.includes(k));
-        const isHandover   = catNorm.includes('handover') || nameNorm.includes('handover');
+        const isHandover = catNorm.includes('handover') || nameNorm.includes('handover');
 
         // ─── Payment Gate Rules (cumulative %) ───────────────────────────
-        // 10% → Designer Timeline starts
-        if (paidPercent < 10) {
-            setPaymentModal({ open: true, requiredPercent: 10, stageName: 'Project Timeline' });
-            return;
-        }
-        // 30% → Masking stage unlocks  (10% advance + next 20%)
-        if (isMasking && paidPercent < 30) {
-            setPaymentModal({ open: true, requiredPercent: 30, stageName: 'Masking Stage' });
-            return;
-        }
-        // 60% → R2P stage unlocks  (next 30% after Masking)
-        if (isR2P && paidPercent < 60) {
-            setPaymentModal({ open: true, requiredPercent: 60, stageName: 'R2P (Ready to Paint) Stage' });
-            return;
-        }
-        // 95% → Product Distribution / Delivery stages unlock  (next 35% after R2P)
-        if (isDeliveryStage && paidPercent < 95) {
-            setPaymentModal({ open: true, requiredPercent: 95, stageName: 'Product Distribution / Delivery Stage' });
-            return;
-        }
-        // 100% → Handover unlocks  (final 5%)
-        if (isHandover && paidPercent < 100) {
-            setPaymentModal({ open: true, requiredPercent: 100, stageName: 'Handover Stage' });
-            return;
+        // Designer Timeline has NO payment restriction (user requirement)
+        if (type !== 'designer') {
+            if (paidPercent < 10) {
+                setPaymentModal({ open: true, requiredPercent: 10, stageName: 'Project Timeline' });
+                return;
+            }
+            if (isMasking && paidPercent < 30) {
+                setPaymentModal({ open: true, requiredPercent: 30, stageName: 'Masking Stage' });
+                return;
+            }
+            if (isR2P && paidPercent < 60) {
+                setPaymentModal({ open: true, requiredPercent: 60, stageName: 'R2P (Ready to Paint) Stage' });
+                return;
+            }
+            if (isDeliveryStage && paidPercent < 95) {
+                setPaymentModal({ open: true, requiredPercent: 95, stageName: 'Product Distribution / Delivery Stage' });
+                return;
+            }
+            if (isHandover && paidPercent < 100) {
+                setPaymentModal({ open: true, requiredPercent: 100, stageName: 'Handover Stage' });
+                return;
+            }
         }
 
-        // PM TIMELINE LOCK: Block all clicks until Designer starts Masking stage
         if (type === 'pm' && !maskingUnlocked) {
             setPmLockedModal(true);
             return;
@@ -3881,7 +6810,7 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
     const handleAdminAcceptTask = (taskId: any, date: string) => {
         const targetTask = tasks.find(t => String(t.id) === String(taskId));
         const updatedTaskCompletions = { ...(completions[taskId] || {}) };
-        
+
         if (targetTask && targetTask.startDate && targetTask.endDate) {
             const tStart = new Date(targetTask.startDate).getTime();
             const tEnd = new Date(targetTask.endDate).getTime();
@@ -3923,6 +6852,28 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
         return colDate < todayStr ? "#EF4444" : "#A6A6A6";
     };
 
+    const handleSyncDatesFromStageNotes = (category: string, startDate: string, endDate: string) => {
+        const catClean = String(category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        let changed = false;
+        const updatedTasks = tasks.map(t => {
+            const tCat = String(t.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const tName = String(t.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (tCat === catClean || tName === catClean || tCat.includes(catClean) || catClean.includes(tCat)) {
+                changed = true;
+                return {
+                    ...t,
+                    startDate: startDate || t.startDate,
+                    endDate: endDate || t.endDate
+                };
+            }
+            return t;
+        });
+        if (changed) {
+            setTasks(updatedTasks);
+            persistState(updatedTasks, completions);
+        }
+    };
+
     if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></div>;
 
     const totalBudget = project?.total_budget || 0;
@@ -3931,85 +6882,73 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
     return (
         <div className="timeline-container" style={{ backgroundColor: "white", padding: "40px", width: "100%", border: "1px solid #000", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", position: 'relative' }}>
 
-            {/* ── Payment Schedule Status Banners ─────────────────── */}
-
-            {/* Fully locked: < 10% */}
-            {paidPercent < 10 && (
-                <div style={{ background: 'linear-gradient(135deg,#7f1d1d,#991b1b)', color:'#fff', borderRadius:'12px', padding:'18px 24px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'16px', border:'1.5px solid #b91c1c', boxShadow:'0 4px 14px rgba(0,0,0,.2)' }}>
-                    <span style={{ fontSize:'28px', flexShrink:0 }}>💳</span>
-                    <div>
-                        <div style={{ fontWeight:900, fontSize:'1rem', marginBottom:'4px', textTransform:'uppercase' }}>Timeline Locked — PAYMENT NOT PAID</div>
-                        <div style={{ fontSize:'0.85rem', opacity:.85, lineHeight:1.5 }}>
-                            At least <strong>10%</strong> of the project budget must be paid to start the timeline.
-                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
+            {/* PM Timeline Banners (Image 4 from Reference) */}
+            {type === 'pm' && paidPercent < 60 && (
+                <div style={{
+                    backgroundColor: '#fff7ed',
+                    border: '1.5px solid #fed7aa',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    marginBottom: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <span style={{ fontSize: '24px' }}>🔒</span>
+                        <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#9a3412', marginBottom: '3px' }}>
+                                Production (60%) &amp; Product Distribution — STAGE LOCKED
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#c2410c', marginBottom: '4px' }}>
+                                QC Approved + 60% Stage Payment Required to Unlock Product Distribution &amp; R2P
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#7c2d12', fontWeight: 600 }}>
+                                Stage Amount (40%): ₹{(totalBudget * 0.40).toLocaleString('en-IN', { maximumFractionDigits: 0 })} &nbsp;|&nbsp; Cumulative Target (60%): ₹{(totalBudget * 0.60).toLocaleString('en-IN', { maximumFractionDigits: 0 })} &nbsp;|&nbsp; Paid so far: {paidPercent.toFixed(1)}% (₹{totalPaid.toLocaleString('en-IN')})
+                            </div>
                         </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setPaymentModal({ open: true, requiredPercent: 60, stageName: 'Production & Product Distribution' })}
+                        style={{
+                            backgroundColor: '#ea580c',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '10px 18px',
+                            fontWeight: 700,
+                            fontSize: '0.82rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        💳 Pay 40% Stage Payment (₹{(totalBudget * 0.40).toLocaleString('en-IN', { maximumFractionDigits: 0 })})
+                    </button>
                 </div>
             )}
 
-            {/* Masking locked: 10–29% */}
-            {paidPercent >= 10 && paidPercent < 30 && (
-                <div style={{ background:'linear-gradient(135deg,#78350f,#92400e)', color:'#fff', borderRadius:'12px', padding:'14px 20px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'14px', border:'1.5px solid #b45309', boxShadow:'0 4px 12px rgba(0,0,0,.15)' }}>
-                    <span style={{ fontSize:'22px', flexShrink:0 }}>⚠️</span>
-                    <div>
-                        <div style={{ fontWeight:800, fontSize:'0.9rem', marginBottom:'2px' }}>MASKING STAGE LOCKED</div>
-                        <div style={{ fontSize:'0.8rem', opacity:.9, lineHeight:1.4 }}>
-                            <strong>30%</strong> total payment unlocks Masking (next installment: 20%). 
-                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* R2P locked: 30–59% */}
-            {paidPercent >= 30 && paidPercent < 60 && (
-                <div style={{ background:'linear-gradient(135deg,#4c1d95,#5b21b6)', color:'#fff', borderRadius:'12px', padding:'14px 20px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'14px', border:'1.5px solid #7c3aed', boxShadow:'0 4px 12px rgba(0,0,0,.15)' }}>
-                    <span style={{ fontSize:'22px', flexShrink:0 }}>🎨</span>
-                    <div>
-                        <div style={{ fontWeight:800, fontSize:'0.9rem', marginBottom:'2px' }}>R2P STAGE LOCKED</div>
-                        <div style={{ fontSize:'0.8rem', opacity:.9, lineHeight:1.4 }}>
-                            <strong>60%</strong> total payment unlocks R2P (next installment: 30%). 
-                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Delivery stages locked: 60–94% */}
-            {paidPercent >= 60 && paidPercent < 95 && (
-                <div style={{ background:'linear-gradient(135deg,#065f46,#047857)', color:'#fff', borderRadius:'12px', padding:'14px 20px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'14px', border:'1.5px solid #059669', boxShadow:'0 4px 12px rgba(0,0,0,.15)' }}>
-                    <span style={{ fontSize:'22px', flexShrink:0 }}>🚚</span>
-                    <div>
-                        <div style={{ fontWeight:800, fontSize:'0.9rem', marginBottom:'2px' }}>DELIVERY STAGES LOCKED</div>
-                        <div style={{ fontSize:'0.8rem', opacity:.9, lineHeight:1.4 }}>
-                            <strong>95%</strong> total payment unlocks Product Distribution / Delivery (next installment: 35%). 
-                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Handover locked: 95–99% */}
-            {paidPercent >= 95 && paidPercent < 100 && (
-                <div style={{ background:'linear-gradient(135deg,#0c4a6e,#0369a1)', color:'#fff', borderRadius:'12px', padding:'14px 20px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'14px', border:'1.5px solid #0284c7', boxShadow:'0 4px 12px rgba(0,0,0,.15)' }}>
-                    <span style={{ fontSize:'22px', flexShrink:0 }}>🏠</span>
-                    <div>
-                        <div style={{ fontWeight:800, fontSize:'0.9rem', marginBottom:'2px' }}>HANDOVER STAGE LOCKED</div>
-                        <div style={{ fontSize:'0.8rem', opacity:.9, lineHeight:1.4 }}>
-                            <strong>100%</strong> (final 5%) payment required to unlock Handover. 
-                            Paid: <strong>{paidPercent.toFixed(1)}%</strong> of ₹{totalBudget.toLocaleString()}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* PM Timeline Locked Banner (Masking not started by Designer yet) */}
             {type === 'pm' && !maskingUnlocked && (
-                <div style={{ background:'linear-gradient(135deg,#1e3a5f,#253b50)', color:'#fff', borderRadius:'12px', padding:'18px 24px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'16px', border:'1.5px solid #3b5a7a', boxShadow:'0 4px 14px rgba(0,0,0,.2)' }}>
-                    <span style={{ fontSize:'28px', flexShrink:0 }}>🔒</span>
+                <div style={{
+                    backgroundColor: '#fefce8',
+                    border: '1.5px solid #fef08a',
+                    borderRadius: '12px',
+                    padding: '14px 20px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '14px'
+                }}>
+                    <span style={{ fontSize: '22px' }}>🔒</span>
                     <div>
-                        <div style={{ fontWeight:900, fontSize:'1rem', marginBottom:'4px' }}>PM Timeline is LOCKED</div>
-                        <div style={{ fontSize:'0.85rem', opacity:.85, lineHeight:1.5 }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#854d0e', marginBottom: '3px' }}>
+                            PM Timeline is LOCKED
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#a16207' }}>
                             Unlocks automatically once the <strong>Designer</strong> starts the <strong>Masking</strong> stage (<strong>ONGOING</strong>).
                         </div>
                     </div>
@@ -4376,12 +7315,39 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
 
                             <div>
                                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '5px' }}>From Date</label>
-                                <input type="date" value={newTask.startDate} onChange={e => setNewTask({ ...newTask, startDate: e.target.value })} style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', fontWeight: 500, color: '#1e293b', accentColor: '#374151' }} />
+                                <input
+                                    type="date"
+                                    value={newTask.startDate}
+                                    onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                    onChange={e => {
+                                        const newStart = e.target.value;
+                                        setNewTask(prev => ({
+                                            ...prev,
+                                            startDate: newStart,
+                                            endDate: prev.endDate && newStart && prev.endDate < newStart ? newStart : prev.endDate
+                                        }));
+                                    }}
+                                    style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', fontWeight: 500, color: '#1e293b', accentColor: '#374151', cursor: 'pointer' }}
+                                />
                             </div>
 
                             <div>
                                 <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '5px' }}>To Date</label>
-                                <input type="date" value={newTask.endDate} onChange={e => setNewTask({ ...newTask, endDate: e.target.value })} style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', fontWeight: 500, color: '#1e293b', accentColor: '#374151' }} />
+                                <input
+                                    type="date"
+                                    min={newTask.startDate}
+                                    value={newTask.endDate}
+                                    onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                    onChange={e => {
+                                        const newEnd = e.target.value;
+                                        if (newEnd && newTask.startDate && newEnd < newTask.startDate) {
+                                            alert('To Date cannot be earlier than From Date (' + newTask.startDate + ')');
+                                            return;
+                                        }
+                                        setNewTask(prev => ({ ...prev, endDate: newEnd }));
+                                    }}
+                                    style={{ width: '100%', padding: '9px 10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', fontWeight: 500, color: '#1e293b', accentColor: '#374151', cursor: 'pointer' }}
+                                />
                             </div>
 
                             <button
@@ -4455,11 +7421,38 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                     <div>
                                         <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '5px' }}>Start Date</label>
-                                        <input type="date" value={projectStartDate} onChange={e => setProjectStartDate(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: '7px', border: '1px solid #cbd5e1', color: '#1e293b', fontWeight: 700, outline: 'none', fontSize: '0.88rem' }} />
+                                        <input
+                                            type="date"
+                                            value={projectStartDate}
+                                            onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                            onChange={e => {
+                                                const newStart = e.target.value;
+                                                setProjectStartDate(newStart);
+                                                if (projectEndDate && newStart && projectEndDate < newStart) {
+                                                    setProjectEndDate(newStart);
+                                                }
+                                            }}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '7px', border: '1px solid #cbd5e1', color: '#1e293b', fontWeight: 700, outline: 'none', fontSize: '0.88rem', cursor: 'pointer' }}
+                                        />
                                     </div>
                                     <div>
                                         <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '5px' }}>Expected End Date</label>
-                                        <input type="date" value={projectEndDate} onChange={e => setProjectEndDate(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: '7px', border: '1px solid #cbd5e1', color: '#1e293b', fontWeight: 700, outline: 'none', fontSize: '0.88rem' }} />
+                                        <input
+                                            type="date"
+                                            min={projectStartDate || todayStr}
+                                            value={projectEndDate}
+                                            onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                            onChange={e => {
+                                                const newEnd = e.target.value;
+                                                const minDate = projectStartDate || todayStr;
+                                                if (newEnd && minDate && newEnd < minDate) {
+                                                    alert('Expected End Date cannot be earlier than Start Date (' + minDate + ')');
+                                                    return;
+                                                }
+                                                setProjectEndDate(newEnd);
+                                            }}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '7px', border: '1px solid #cbd5e1', color: '#1e293b', fontWeight: 700, outline: 'none', fontSize: '0.88rem', cursor: 'pointer' }}
+                                        />
                                     </div>
                                 </div>
                                 <button
@@ -4610,13 +7603,18 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
                 ))}
             </div>
 
-            {/* Stage Notes Table — below Gantt chart and legend for PM Timeline */}
-            {type === 'pm' && (
-                <div style={{ marginTop: '36px' }} className="no-print">
-                    <hr style={{ border: 'none', borderTop: '2px solid #e2e8f0', marginBottom: '28px' }} />
-                    <StageNotesTab project={project} user={user} filterType="pm" />
-                </div>
-            )}
+            {/* Stage Notes & Active Notes (Images 2, 3, 4, 5) — Rendered for both Designer and PM Timeline */}
+            <div style={{ marginTop: '36px' }} className="no-print">
+                <hr style={{ border: 'none', borderTop: '2px solid #e2e8f0', marginBottom: '28px' }} />
+                <StageNotesTab
+                    project={project}
+                    user={user}
+                    filterType={type === 'pm' ? 'pm' : 'designer'}
+                    timelineTasks={tasks}
+                    timelineCategories={categoryOrder}
+                    onSyncDatesToTimeline={handleSyncDatesFromStageNotes}
+                />
+            </div>
 
             {/* Edit Task Modal */}
             {editingTask && (
@@ -4626,11 +7624,38 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
                         <p style={{ fontWeight: 600, color: '#253b50', marginBottom: '16px' }}>{editingTask.name}</p>
                         <div style={{ marginBottom: '14px' }}>
                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>From Date</label>
-                            <input type="date" value={editingTask.startDate} onChange={e => setEditingTask({ ...editingTask, startDate: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                            <input
+                                type="date"
+                                value={editingTask.startDate}
+                                onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                onChange={e => {
+                                    const newStart = e.target.value;
+                                    setEditingTask({
+                                        ...editingTask,
+                                        startDate: newStart,
+                                        endDate: editingTask.endDate && newStart && editingTask.endDate < newStart ? newStart : editingTask.endDate
+                                    });
+                                }}
+                                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }}
+                            />
                         </div>
                         <div style={{ marginBottom: '24px' }}>
                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>To Date</label>
-                            <input type="date" value={editingTask.endDate} onChange={e => setEditingTask({ ...editingTask, endDate: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }} />
+                            <input
+                                type="date"
+                                min={editingTask.startDate}
+                                value={editingTask.endDate}
+                                onClick={(e) => { try { (e.currentTarget as any).showPicker?.(); } catch (err) { } }}
+                                onChange={e => {
+                                    const newEnd = e.target.value;
+                                    if (newEnd && editingTask.startDate && newEnd < editingTask.startDate) {
+                                        alert('To Date cannot be earlier than From Date (' + editingTask.startDate + ')');
+                                        return;
+                                    }
+                                    setEditingTask({ ...editingTask, endDate: newEnd });
+                                }}
+                                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }}
+                            />
                         </div>
                         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                             <button onClick={() => setEditingTask(null)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: 'white', cursor: 'pointer' }}>Cancel</button>
@@ -4674,12 +7699,12 @@ export const TimelineTab = ({ project, user, type = 'designer', fetchProjectDeta
                                     Pending Admin Approval
                                 </h3>
                                 <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.5, margin: '0 0 24px 0' }}>
-                                     Task <strong>"{approvalModal.taskName}"</strong> is currently in <strong>PENDING APPROVAL</strong> status (Yellow color).
-                                     <br /><br />
-                                     It will remain in <strong>Pending Approval</strong> state until the Admin reviews and accepts it on the <strong>Dashboard</strong>.
-                                     <br /><br />
-                                     To approve and change the cell color to <strong>GREEN</strong>, go to <strong>Dashboard</strong> (<code>http://localhost:5174/overview</code>) &rarr; <strong>Timeline Approvals</strong> (after <i>My Monthly Targets</i>) and click <strong>Accept</strong>.
-                                 </p>
+                                    Task <strong>"{approvalModal.taskName}"</strong> is currently in <strong>PENDING APPROVAL</strong> status (Yellow color).
+                                    <br /><br />
+                                    It will remain in <strong>Pending Approval</strong> state until the Admin reviews and accepts it on the <strong>Dashboard</strong>.
+                                    <br /><br />
+                                    To approve and change the cell color to <strong>GREEN</strong>, go to <strong>Dashboard</strong> (<code>http://localhost:5174/overview</code>) &rarr; <strong>Timeline Approvals</strong> (after <i>My Monthly Targets</i>) and click <strong>Accept</strong>.
+                                </p>
                                 <button
                                     onClick={() => setApprovalModal({ open: false, mode: 'warning' })}
                                     style={{

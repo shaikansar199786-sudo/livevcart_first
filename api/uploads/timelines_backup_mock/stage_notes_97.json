@@ -1,0 +1,86 @@
+[
+    {
+        "category": "DD",
+        "startDate": "2026-10-09",
+        "endDate": "2026-10-10",
+        "note": "cxkmcx\nldkfldkfdlfdlfkdlkdfdkf\nlkfdfkdfffffffffffffffffffffffffffffffffffffffffffff",
+        "source": "designer"
+    },
+    {
+        "category": "3D Approval",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "2D",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "QC1",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Masking",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Signoff",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Final 2D",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "QC2",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Final Quote",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "R2P",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "timeline_active_note_designer",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "timeline_active_note_pm",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm"
+    }
+]

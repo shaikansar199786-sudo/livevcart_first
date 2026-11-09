@@ -13,11 +13,12 @@ import {
     Clock,
     Circle,
     Edit3,
-    Check
+    Check,
+    Briefcase
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
-type TrackerCategory = 'architectural' | 'interior';
+type TrackerCategory = 'architectural' | 'interior' | 'commercial';
 
 interface TrackerRow {
     id?: number;
@@ -33,8 +34,9 @@ interface Project {
 }
 
 const CATEGORIES = [
-    { id: 'architectural', label: 'Furniture projects', icon: Building2, color: '#3b82f6' },
     { id: 'interior', label: 'Interior Projects', icon: Home, color: '#8b5cf6' },
+    { id: 'architectural', label: 'Furniture projects', icon: Building2, color: '#3b82f6' },
+    { id: 'commercial', label: 'Commercial Projects', icon: Briefcase, color: '#f59e0b' },
 ];
 
 const DEFAULT_COLUMNS: Record<TrackerCategory, string[]> = {
@@ -47,6 +49,10 @@ const DEFAULT_COLUMNS: Record<TrackerCategory, string[]> = {
         '5. Painting', '6. Carpentry', '7. Granite & Tiles', '8. Glass/Mirror',
         '9. Sanitary & Bath', '10. Elec. Fitments', '11. Furniture', '12. Deep Cleaning',
         '13. Curtains', '14. Handover'
+    ],
+    commercial: [
+        'DD', '3D Approval', '2D', 'QC1',
+        'Masking', 'Signoff', 'Final 2D', 'QC2', 'Final Quote', 'R2P'
     ]
 };
 

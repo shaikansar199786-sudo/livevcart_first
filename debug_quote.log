@@ -1,0 +1,830 @@
+DRAFT ERROR: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'DRAFT-998877-B' for key 'quote_number'
+SAVE CALLED: 2026-09-01 12:28:26
+Array
+(
+    [project_id] => 863582
+    [client_name] => Retest Client
+    [subtitle] => Retest Client
+    [total_amount] => 250000
+    [status] => booked
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Living Room
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Unit Panel
+                                    [rate] => 120000
+                                    [quantity] => 1
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Foyer Shoe Rack
+                                    [rate] => 130000
+                                    [quantity] => 1
+                                    [amount] => 130000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 12:28:26
+Array
+(
+    [project_id] => 863582
+    [client_name] => Retest Client
+    [subtitle] => Retest Client
+    [total_amount] => 250000
+    [status] => proposal_sent
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Living Room
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Unit Panel
+                                    [rate] => 120000
+                                    [quantity] => 1
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Foyer Shoe Rack
+                                    [rate] => 130000
+                                    [quantity] => 1
+                                    [amount] => 130000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 12:29:54
+Array
+(
+    [project_id] => 859757
+    [client_name] => Retest Client
+    [subtitle] => Retest Client
+    [total_amount] => 250000
+    [status] => booked
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Living Room
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Unit Panel
+                                    [rate] => 120000
+                                    [quantity] => 1
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Foyer Shoe Rack
+                                    [rate] => 130000
+                                    [quantity] => 1
+                                    [amount] => 130000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 12:29:54
+Array
+(
+    [project_id] => 859757
+    [client_name] => Retest Client
+    [subtitle] => Retest Client
+    [total_amount] => 250000
+    [status] => proposal_sent
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Living Room
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Unit Panel
+                                    [rate] => 120000
+                                    [quantity] => 1
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Foyer Shoe Rack
+                                    [rate] => 130000
+                                    [quantity] => 1
+                                    [amount] => 130000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 12:30:29
+Array
+(
+    [project_id] => 955136
+    [client_name] => Retest Client
+    [subtitle] => Retest Client
+    [total_amount] => 250000
+    [status] => booked
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Living Room
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Unit Panel
+                                    [rate] => 120000
+                                    [quantity] => 1
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Foyer Shoe Rack
+                                    [rate] => 130000
+                                    [quantity] => 1
+                                    [amount] => 130000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 12:30:29
+Array
+(
+    [project_id] => 955136
+    [client_name] => Retest Client
+    [subtitle] => Retest Client
+    [total_amount] => 250000
+    [status] => proposal_sent
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Living Room
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Unit Panel
+                                    [rate] => 120000
+                                    [quantity] => 1
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Foyer Shoe Rack
+                                    [rate] => 130000
+                                    [quantity] => 1
+                                    [amount] => 130000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 12:44:00
+Array
+(
+    [project_id] => 877989
+    [client_name] => Retest Client
+    [subtitle] => Retest Client
+    [total_amount] => 250000
+    [status] => booked
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Living Room
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Unit Panel
+                                    [rate] => 120000
+                                    [quantity] => 1
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Foyer Shoe Rack
+                                    [rate] => 130000
+                                    [quantity] => 1
+                                    [amount] => 130000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 12:44:00
+Array
+(
+    [project_id] => 877989
+    [client_name] => Retest Client
+    [subtitle] => Retest Client
+    [total_amount] => 250000
+    [status] => proposal_sent
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Living Room
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Unit Panel
+                                    [rate] => 120000
+                                    [quantity] => 1
+                                    [amount] => 120000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Foyer Shoe Rack
+                                    [rate] => 130000
+                                    [quantity] => 1
+                                    [amount] => 130000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 12:58:30
+Array
+(
+    [project_id] => 724919
+    [client_name] => Mr. Salman Shaik
+    [subtitle] => Mr. Salman Shaik - Luxury 3BHK Residence
+    [total_amount] => 1285000
+    [status] => proposal_sent
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Modular Kitchen & Utility
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Base Cabinets in HDMR Plywood with 1mm Laminate & Soft Close Drawers
+                                    [brand] => Hafele / Hettich
+                                    [quantity] => 1
+                                    [rate] => 185000
+                                    [amount] => 185000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Wall Cabinets with Hydraulic Lift-up Glass Fluted Doors & LED Profile Lights
+                                    [brand] => Blum
+                                    [quantity] => 1
+                                    [rate] => 125000
+                                    [amount] => 125000
+                                )
+
+                            [2] => Array
+                                (
+                                    [particulars] => Kalinga Quartz Countertop 20mm Moulded Edge with Under-mount Sink Cutout
+                                    [brand] => Kalinga
+                                    [quantity] => 1
+                                    [rate] => 85000
+                                    [amount] => 85000
+                                )
+
+                            [3] => Array
+                                (
+                                    [particulars] => Tall Unit with Built-in Oven & Microwave Provision & Pantry Pull-out Baskets
+                                    [brand] => Hafele
+                                    [quantity] => 1
+                                    [rate] => 95000
+                                    [amount] => 95000
+                                )
+
+                        )
+
+                )
+
+            [1] => Array
+                (
+                    [name] => Living Room TV Unit & Wall Fluting
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Floor Standing TV Console Unit in Veneer Polish Finish with Drawers
+                                    [brand] => Livincart Custom
+                                    [quantity] => 1
+                                    [rate] => 110000
+                                    [amount] => 110000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Charcoal Panel Backdrop Wall Cladding with Warm White Backlit LED Strips
+                                    [brand] => Euro Pratik
+                                    [quantity] => 1
+                                    [rate] => 75000
+                                    [amount] => 75000
+                                )
+
+                            [2] => Array
+                                (
+                                    [particulars] => Display Shelves with Toughened Glass Doors & Concealed Spotlight Fittings
+                                    [brand] => Hettich
+                                    [quantity] => 1
+                                    [rate] => 45000
+                                    [amount] => 45000
+                                )
+
+                        )
+
+                )
+
+            [2] => Array
+                (
+                    [name] => Master Bedroom Wardrobe & Dresser
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Floor to Ceiling Sliding Wardrobe with Tinted Glass & Aluminum Profile Frames
+                                    [brand] => Aristo
+                                    [quantity] => 1
+                                    [rate] => 245000
+                                    [amount] => 245000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Integrated Vanity Dresser Unit with LED Round Mirror & Pull-out Organizers
+                                    [brand] => Livincart Custom
+                                    [quantity] => 1
+                                    [rate] => 65000
+                                    [amount] => 65000
+                                )
+
+                            [2] => Array
+                                (
+                                    [particulars] => King Size Bed Outer Frame with Hydraulic Storage Box & Cushioned Headboard
+                                    [brand] => Livincart Custom
+                                    [quantity] => 1
+                                    [rate] => 95000
+                                    [amount] => 95000
+                                )
+
+                        )
+
+                )
+
+            [3] => Array
+                (
+                    [name] => Foyer & Shoe Storage Unit
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Full Height Shoe Rack Storage with Seating Console Bench & Key Holder Niche
+                                    [brand] => Livincart Custom
+                                    [quantity] => 1
+                                    [rate] => 68000
+                                    [amount] => 68000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Acoustic Wooden Louvers Partition Screen between Foyer & Living Area
+                                    [brand] => Livincart Custom
+                                    [quantity] => 1
+                                    [rate] => 42000
+                                    [amount] => 42000
+                                )
+
+                        )
+
+                )
+
+            [4] => Array
+                (
+                    [name] => Dining Room & Bar Counter
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Crockery Unit with Glass Shutters & Interior Sensor Lighting
+                                    [brand] => Hettich
+                                    [quantity] => 1
+                                    [rate] => 88000
+                                    [amount] => 88000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Wall Mounted Bar Counter with Stemware Glass Holders & Mirror Backing
+                                    [brand] => Livincart Custom
+                                    [quantity] => 1
+                                    [rate] => 52000
+                                    [amount] => 52000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 13:13:07
+Array
+(
+    [project_id] => 637191
+    [client_name] => Mr. Salman Shaik - Full Summary Test
+    [subtitle] => Mr. Salman Shaik - Full Financial Summary Test
+    [total_amount] => 500000
+    [status] => proposal_sent
+    [category_discounts] => Array
+        (
+            [Wood work] => Array
+                (
+                    [type] => percent
+                    [value] => 10
+                )
+
+        )
+
+    [applied_coupon] => Array
+        (
+            [code] => FESTIVE10
+            [discountType] => percent
+            [discountValue] => 5
+        )
+
+    [additional_charges] => Array
+        (
+            [amount] => 15000
+            [withGst] => 1
+            [gstRate] => 18
+        )
+
+    [overall_gst_enabled] => 1
+    [round_off_enabled] => 1
+    [hidden_fields] => Array
+        (
+            [shutterMaterial] => 
+            [carcassMaterial] => 
+            [dimensions] => 
+            [rate] => 
+            [gst] => 
+            [categoryDiscount] => 
+            [promoCode] => 
+            [additionalCharges] => 
+            [roundOff] => 
+        )
+
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Modular Kitchen
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Kitchen Base Cabinets HDMR
+                                    [category] => Wood work
+                                    [brand] => Hafele
+                                    [quantity] => 1
+                                    [rate] => 200000
+                                    [amount] => 200000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Wall Cabinets Soft Close
+                                    [category] => Wood work
+                                    [brand] => Hettich
+                                    [quantity] => 1
+                                    [rate] => 150000
+                                    [amount] => 150000
+                                )
+
+                        )
+
+                )
+
+            [1] => Array
+                (
+                    [name] => Living Room TV Unit
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Console Veneer Panel
+                                    [category] => Wood work
+                                    [brand] => Livincart Custom
+                                    [quantity] => 1
+                                    [rate] => 150000
+                                    [amount] => 150000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 13:13:38
+Array
+(
+    [project_id] => 637191
+    [client_name] => Mr. Salman Shaik - Full Summary Test
+    [subtitle] => Mr. Salman Shaik - Full Financial Summary Test
+    [total_amount] => 500000
+    [status] => proposal_sent
+    [category_discounts] => Array
+        (
+            [Wood work] => Array
+                (
+                    [type] => percent
+                    [value] => 10
+                )
+
+        )
+
+    [applied_coupon] => Array
+        (
+            [code] => FESTIVE10
+            [discountType] => percent
+            [discountValue] => 5
+        )
+
+    [additional_charges] => Array
+        (
+            [amount] => 15000
+            [withGst] => 1
+            [gstRate] => 18
+        )
+
+    [overall_gst_enabled] => 1
+    [round_off_enabled] => 1
+    [hidden_fields] => Array
+        (
+            [shutterMaterial] => 1
+            [carcassMaterial] => 
+            [dimensions] => 
+            [rate] => 1
+            [gst] => 1
+            [categoryDiscount] => 
+            [promoCode] => 
+            [additionalCharges] => 
+            [roundOff] => 
+        )
+
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Modular Kitchen
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Kitchen Base Cabinets HDMR
+                                    [category] => Wood work
+                                    [brand] => Hafele
+                                    [quantity] => 1
+                                    [rate] => 200000
+                                    [amount] => 200000
+                                )
+
+                            [1] => Array
+                                (
+                                    [particulars] => Wall Cabinets Soft Close
+                                    [category] => Wood work
+                                    [brand] => Hettich
+                                    [quantity] => 1
+                                    [rate] => 150000
+                                    [amount] => 150000
+                                )
+
+                        )
+
+                )
+
+            [1] => Array
+                (
+                    [name] => Living Room TV Unit
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => TV Console Veneer Panel
+                                    [category] => Wood work
+                                    [brand] => Livincart Custom
+                                    [quantity] => 1
+                                    [rate] => 150000
+                                    [amount] => 150000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 13:34:32
+Array
+(
+    [project_id] => 745038
+    [client_name] => Custom 12% GST Test Client
+    [subtitle] => Custom 12% GST Test Client
+    [total_amount] => 100000
+    [status] => proposal_sent
+    [overall_gst_enabled] => 1
+    [overall_gst_rate] => 12
+    [round_off_enabled] => 1
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => False Ceiling
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Gypsum Ceiling
+                                    [brand] => Saint Gobain
+                                    [unit] => SFT
+                                    [quantity] => 100
+                                    [rate] => 1000
+                                    [amount] => 100000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 13:37:59
+Array
+(
+    [project_id] => 862513
+    [client_name] => Zero Percent GST Client
+    [subtitle] => Zero Percent GST Client
+    [total_amount] => 100000
+    [status] => proposal_sent
+    [overall_gst_enabled] => 1
+    [overall_gst_rate] => 0
+    [round_off_enabled] => 1
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Wood Work
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Modular Wardrobe
+                                    [brand] => Greenply
+                                    [unit] => SFT
+                                    [quantity] => 100
+                                    [rate] => 1000
+                                    [amount] => 100000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 13:40:45
+Array
+(
+    [project_id] => 927747
+    [client_name] => 5 Percent GST Dynamic Calculation Client
+    [subtitle] => 5 Percent GST Dynamic Calculation Client
+    [total_amount] => 105000
+    [status] => proposal_sent
+    [overall_gst_enabled] => 1
+    [overall_gst_rate] => 5
+    [round_off_enabled] => 1
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Wood Work
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Living Room Wall Panel
+                                    [brand] => Greenply
+                                    [unit] => SFT
+                                    [quantity] => 100
+                                    [rate] => 1000
+                                    [amount] => 100000
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+SAVE CALLED: 2026-09-01 13:44:55
+Array
+(
+    [project_id] => 955399
+    [client_name] => 5 Percent Table GST Column Client
+    [subtitle] => 5 Percent Table GST Column Client
+    [total_amount] => 105000
+    [status] => proposal_sent
+    [overall_gst_enabled] => 1
+    [overall_gst_rate] => 5
+    [round_off_enabled] => 1
+    [sections] => Array
+        (
+            [0] => Array
+                (
+                    [name] => Wood Work
+                    [items] => Array
+                        (
+                            [0] => Array
+                                (
+                                    [particulars] => Custom Cabinetry
+                                    [brand] => Greenply
+                                    [unit] => SFT
+                                    [quantity] => 100
+                                    [rate] => 1000
+                                    [amount] => 100000
+                                    [gst_rate] => 5
+                                )
+
+                        )
+
+                )
+
+        )
+
+)

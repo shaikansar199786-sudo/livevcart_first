@@ -1,0 +1,25 @@
+[2026-09-04 10:02:54] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 10:03:50] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 10:04:59] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 11:30:40] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 11:33:39] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 11:35:49] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 12:00:11] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 12:04:03] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 12:08:22] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 12:15:56] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 12:27:33] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 12:51:27] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 13:06:33] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 13:57:46] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 14:11:02] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 14:53:36] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 14:58:47] getAgreementPdfForEmail called with ID: 52
+[2026-09-04 14:58:54] getAgreementPdfForEmail called with ID: "QTN-klo-045vsp"
+[2026-09-04 14:58:54] Upserted agreement to DB ID: 53
+[2026-09-04 15:08:46] getAgreementPdfForEmail called with ID: 53
+[2026-09-04 15:08:54] getAgreementPdfForEmail called with ID: "PR_1788526734"
+[2026-09-04 15:08:54] Upserted agreement to DB ID: 54
+[2026-09-04 15:14:29] getAgreementPdfForEmail called with ID: 54
+[2026-09-04 15:14:37] getAgreementPdfForEmail called with ID: "PR_1788527334"
+[2026-09-04 15:14:37] Upserted agreement to DB ID: 55

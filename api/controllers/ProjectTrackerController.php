@@ -21,6 +21,10 @@ class ProjectTrackerController {
             INDEX idx_category (category)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
         $this->conn->exec($sql);
+        try {
+            $this->conn->exec("ALTER TABLE project_trackers MODIFY COLUMN category VARCHAR(50) NOT NULL");
+        } catch (Exception $e) {
+        }
     }
 
     public function getByCategory($category) {
@@ -29,6 +33,16 @@ class ProjectTrackerController {
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Decode JSON for each row
+        foreach ($results as &$row) {
+            $row['column_data'] = json_decode($row['column_data'], true);
+        }
+        return $results;
+    }
+
+    public function getByProjectId($projectId) {
+        $stmt = $this->conn->prepare("SELECT * FROM project_trackers WHERE project_id = :pid OR project_id LIKE :pid_like ORDER BY id DESC");
+        $stmt->execute([':pid' => $projectId, ':pid_like' => "%{$projectId}%"]);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($results as &$row) {
             $row['column_data'] = json_decode($row['column_data'], true);
         }
@@ -57,6 +71,21 @@ class ProjectTrackerController {
                         ':column_data'  => json_encode($row['column_data'] ?? []),
                         ':sort_order'   => $idx,
                     ]);
+
+                    // Sync latest active stage to projects table if project_id is present
+                    if (!empty($row['project_id']) && !empty($row['column_data'])) {
+                        $colData = $row['column_data'];
+                        $latestStage = null;
+                        foreach ($colData as $stageName => $stVal) {
+                            if (in_array($stVal, ['ongoing', 'in_progress', 'pending_approval', 'done', 'completed'])) {
+                                $latestStage = $stageName;
+                            }
+                        }
+                        if ($latestStage) {
+                            $updateStmt = $this->conn->prepare("UPDATE projects SET project_stage = :stage WHERE project_id = :pid OR id = :pid");
+                            $updateStmt->execute([':stage' => $latestStage, ':pid' => $row['project_id']]);
+                        }
+                    }
                 }
             }
 

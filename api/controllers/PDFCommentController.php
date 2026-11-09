@@ -29,6 +29,13 @@ class PDFCommentController {
                 // Column might already exist
             }
 
+            // Add position_data column if it doesn't exist
+            try {
+                $this->conn->exec("ALTER TABLE pdf_comments ADD COLUMN position_data LONGTEXT DEFAULT NULL");
+            } catch (Exception $e) {
+                // Column might already exist
+            }
+
             $sql2 = "CREATE TABLE IF NOT EXISTS pdf_comment_history (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 comment_id INT NOT NULL,
@@ -56,6 +63,10 @@ class PDFCommentController {
                 $h_stmt = $this->conn->prepare("SELECT * FROM pdf_comment_history WHERE comment_id = :comment_id ORDER BY created_at ASC");
                 $h_stmt->execute(['comment_id' => $c['id']]);
                 $c['history'] = $h_stmt->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($c['position_data'])) {
+                    $decoded = json_decode($c['position_data'], true);
+                    $c['position_data'] = $decoded !== null ? $decoded : $c['position_data'];
+                }
             }
 
             return ["success" => true, "data" => $comments];
@@ -70,6 +81,10 @@ class PDFCommentController {
             $page_number = intval($data['page_number'] ?? 1);
             $comment_text = trim($data['comment_text'] ?? '');
             $selected_text = isset($data['selected_text']) ? trim($data['selected_text']) : null;
+            $position_data = isset($data['position_data']) ? $data['position_data'] : null;
+            if (is_array($position_data)) {
+                $position_data = json_encode($position_data);
+            }
             $user_name = trim($data['user_name'] ?? 'User');
             $user_role = trim($data['user_role'] ?? 'staff');
 
@@ -83,12 +98,13 @@ class PDFCommentController {
 
             $this->conn->beginTransaction();
 
-            $stmt = $this->conn->prepare("INSERT INTO pdf_comments (file_id, page_number, comment_text, selected_text, status) VALUES (:file_id, :page_number, :comment_text, :selected_text, 'open')");
+            $stmt = $this->conn->prepare("INSERT INTO pdf_comments (file_id, page_number, comment_text, selected_text, position_data, status) VALUES (:file_id, :page_number, :comment_text, :selected_text, :position_data, 'open')");
             $stmt->execute([
                 'file_id' => $file_id,
                 'page_number' => $page_number,
                 'comment_text' => $comment_text,
-                'selected_text' => $selected_text
+                'selected_text' => $selected_text,
+                'position_data' => $position_data
             ]);
             $comment_id = $this->conn->lastInsertId();
 

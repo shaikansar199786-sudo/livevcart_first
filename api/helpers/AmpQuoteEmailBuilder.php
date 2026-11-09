@@ -1,0 +1,478 @@
+<?php
+// api/helpers/AmpQuoteEmailBuilder.php
+
+class AmpQuoteEmailBuilder
+{
+    /**
+     * Build Google AMP for Email document (text/x-amp-html)
+     * 100% compliant with AMP for Email specification:
+     * - amp-form with action-xhr
+     * - amp-mustache for dynamic template rendering
+     * - submit-success & submit-error
+     * - Replaces buttons inside the same email in real-time upon clicking ACCEPT
+     */
+    public static function buildAmpEmail($quoteData, $token, $ampEndpoint)
+    {
+        $refId        = htmlspecialchars($quoteData['quote_number'] ?? ('QT-' . ($quoteData['quote_id'] ?? '')));
+        $clientName   = htmlspecialchars($quoteData['client_name'] ?? $quoteData['subtitle'] ?? 'Valued Client');
+        $rawAmount    = floatval($quoteData['total_amount'] ?? 0);
+        $totalAmount  = '₹' . number_format($rawAmount, 2);
+        $dateStr      = !empty($quoteData['created_at']) ? date('d M Y', strtotime($quoteData['created_at'])) : date('d M Y');
+        $sections     = $quoteData['sections'] ?? [];
+
+        // Build scope tags if available
+        $scopeTagsHtml = '';
+        if (!empty($sections) && is_array($sections)) {
+            $scopeTagsHtml .= '<div class="scope-tags">';
+            foreach (array_slice($sections, 0, 8) as $sec) {
+                $secName = htmlspecialchars($sec['section_name'] ?? 'Scope Item');
+                $scopeTagsHtml .= '<span class="scope-tag">' . $secName . '</span>';
+            }
+            $scopeTagsHtml .= '</div>';
+        }
+
+        return '<!doctype html>
+<html ⚡4email data-css-strict>
+<head>
+  <meta charset="utf-8">
+  <script async src="https://cdn.ampproject.org/v0.js"></script>
+  <script async custom-element="amp-form" src="https://cdn.ampproject.org/v0/amp-form-0.1.js"></script>
+  <script async custom-template="amp-mustache" src="https://cdn.ampproject.org/v0/amp-mustache-0.2.js"></script>
+  <style amp4email-boilerplate>body{visibility:hidden}</style>
+  <style amp-custom>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 24px 12px;
+      color: #0f172a;
+    }
+    .wrapper {
+      max-width: 620px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      border: 1.5px solid #ffe8c2;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+    .header {
+      background: #0c1527;
+      padding: 20px 24px;
+      border-bottom: 3px solid #fca412;
+      display: flex;
+      align-items: center;
+    }
+    .header-logo {
+      width: 42px;
+      height: 42px;
+      background: #fca412;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0c1527;
+      font-weight: 900;
+      font-size: 20px;
+      margin-right: 14px;
+    }
+    .header-text h1 {
+      margin: 0;
+      color: #ffffff;
+      font-size: 19px;
+      font-weight: 800;
+    }
+    .header-text h1 span {
+      color: #fca412;
+    }
+    .header-text p {
+      margin: 2px 0 0 0;
+      color: #94a3b8;
+      font-size: 11px;
+    }
+    .body-content {
+      padding: 28px 24px;
+    }
+    .salutation {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 10px 0;
+    }
+    .intro-p {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.6;
+      margin: 0 0 20px 0;
+    }
+    .summary-card {
+      background: #fffbf5;
+      border: 1.5px solid #fed7aa;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 22px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px dashed #fed7aa;
+      font-size: 13.5px;
+    }
+    .summary-row:last-child {
+      border-bottom: none;
+      padding-top: 10px;
+    }
+    .summary-label {
+      color: #7c2d12;
+      font-weight: 600;
+    }
+    .summary-val {
+      color: #0f172a;
+      font-weight: 800;
+      text-align: right;
+    }
+    .total-val {
+      font-size: 18px;
+      font-weight: 900;
+      color: #16a34a;
+    }
+    .scope-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #fed7aa;
+    }
+    .scope-tag {
+      background: #ffffff;
+      border: 1px solid #fed7aa;
+      color: #7c2d12;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 8px;
+    }
+    .action-container {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 24px 20px;
+      text-align: center;
+      margin: 22px 0;
+    }
+    .pending-badge {
+      background: #fff7ed;
+      border: 1.5px solid #fed7aa;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin: 0 auto 16px auto;
+      max-width: 440px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pending-text {
+      color: #c2410c;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .action-req-pill {
+      background: #ea580c;
+      color: #ffffff;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .action-title {
+      font-size: 17px;
+      font-weight: 900;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+    .action-desc {
+      font-size: 13px;
+      color: #475569;
+      margin: 0 auto 18px auto;
+      line-height: 1.5;
+    }
+    .btn-group {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 0 auto;
+      max-width: 460px;
+    }
+    .btn-accept {
+      background: #16a34a;
+      color: #ffffff;
+      font-size: 13.5px;
+      font-weight: 800;
+      padding: 12px 26px;
+      border-radius: 8px;
+      border: 1px solid #14532d;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .btn-reject {
+      background: #ffffff;
+      color: #dc2626;
+      font-size: 13.5px;
+      font-weight: 800;
+      padding: 12px 22px;
+      border-radius: 8px;
+      border: 1.5px solid #ef4444;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .secure-note {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 14px;
+      line-height: 1.4;
+    }
+    /* Hide buttons as soon as form submits or succeeds */
+    form.amp-form-submitting .action-container,
+    form.amp-form-submit-success .action-container {
+      display: none;
+    }
+    /* In-place Confirmed Card (Replaces Buttons Upon Accept) */
+    .confirmed-card {
+      background: #f0fdf4;
+      border: 2px solid #16a34a;
+      border-radius: 14px;
+      padding: 24px 20px;
+      text-align: center;
+      margin: 10px 0;
+    }
+    .confirmed-pill-row {
+      background: #ffffff;
+      border: 1.5px solid #86efac;
+      border-radius: 10px;
+      padding: 9px 14px;
+      margin: 0 auto 14px auto;
+      max-width: 440px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .confirmed-pill-text {
+      color: #16a34a;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .confirmed-pill {
+      background: #16a34a;
+      color: #ffffff;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .confirmed-heading {
+      font-size: 18px;
+      font-weight: 900;
+      color: #14532d;
+      margin-bottom: 6px;
+    }
+    .confirmed-msg {
+      font-size: 13px;
+      color: #166534;
+      margin: 0 auto 12px auto;
+      line-height: 1.55;
+    }
+    .confirmed-locked {
+      font-size: 12px;
+      color: #15803d;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .declined-card {
+      background: #fef2f2;
+      border: 2px solid #ef4444;
+      border-radius: 14px;
+      padding: 24px 20px;
+      text-align: center;
+      margin: 10px 0;
+    }
+    .declined-heading {
+      font-size: 17px;
+      font-weight: 900;
+      color: #dc2626;
+      margin-bottom: 6px;
+    }
+    .declined-msg {
+      font-size: 13px;
+      color: #991b1b;
+      margin: 0 auto;
+      line-height: 1.55;
+    }
+    .submitting-box {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .footer {
+      background: #f8fafc;
+      padding: 16px 24px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="header">
+    <div class="header-logo">L</div>
+    <div class="header-text">
+      <h1>LivinCart <span>Interiors</span></h1>
+      <p>Official Quotation Proposal &bull; Instant In-Email Decision</p>
+    </div>
+  </div>
+
+  <div class="body-content">
+    <div class="salutation">Dear ' . $clientName . ',</div>
+    <p class="intro-p">
+      Thank you for considering LivinCart. We are pleased to share your official Quotation Proposal. Please review the estimate below and submit your decision directly within this email:
+    </p>
+
+    <div class="summary-card">
+      <div class="summary-row">
+        <span class="summary-label">Proposal Date:</span>
+        <span class="summary-val">' . $dateStr . '</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Total Estimated Value:</span>
+        <span class="summary-val total-val">' . $totalAmount . '</span>
+      </div>
+      ' . $scopeTagsHtml . '
+    </div>
+
+    <!-- AMP FORM: In-Email Decision without Page Redirect -->
+    <form method="post" action-xhr="' . htmlspecialchars($ampEndpoint) . '" id="quoteDecisionForm">
+      <input type="hidden" name="token" value="' . htmlspecialchars($token) . '">
+
+      <!-- Buttons are rendered initially; replaced upon submit-success -->
+      <div class="action-container" id="decisionSection">
+        <div class="pending-badge">
+          <span class="pending-text">&#9203; Decision Pending: Review &amp; Authorize</span>
+          <span class="action-req-pill">ACTION REQ.</span>
+        </div>
+        <div class="action-title">Review &amp; Authorize Quotation</div>
+        <p class="action-desc">
+          Tap your official response below. Your decision will be recorded instantly:
+        </p>
+
+        <div class="btn-group">
+          <button type="submit" name="action" value="accept" class="btn-accept">
+            &#10003;&nbsp; ACCEPT QUOTATION
+          </button>
+          <button type="submit" name="action" value="reject" class="btn-reject">
+            &#10005;&nbsp; REJECT QUOTATION
+          </button>
+        </div>
+
+        <div class="secure-note">
+          🔒 Secure real-time decision &bull; Confirmed directly inside this email without leaving Gmail.
+        </div>
+      </div>
+
+      <!-- AMP Form Submitting State -->
+      <div submitting>
+        <div class="submitting-box">
+          ⏳ Submitting your official decision securely...
+        </div>
+      </div>
+
+      <!-- AMP Form Submit Success: Shows ACCEPTED or REJECTED button and confirmation -->
+      <div submit-success>
+        <template type="amp-mustache">
+          {{#accepted}}
+          <div style="margin-bottom: 16px; text-align: center;">
+            <div style="display: inline-block; background: #16a34a; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 800; padding: 12px 30px; border-radius: 10px; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4); text-transform: uppercase;">
+              &#10003;&nbsp; ACCEPTED
+            </div>
+          </div>
+          <div class="confirmed-card">
+            <div class="confirmed-pill-row">
+              <span class="confirmed-pill-text">&#10004;&nbsp; Quotation Accepted Successfully &#10003;</span>
+              <span class="confirmed-pill">CONFIRMED</span>
+            </div>
+            <div class="confirmed-heading">Quotation Proposal Officially Confirmed</div>
+            <p class="confirmed-msg">
+              Thank you! You have accepted the quotation proposal. Your project has been officially confirmed and our Admin, Design, and Sales teams have been notified!
+            </p>
+            <div class="confirmed-locked">
+              🔒 Locked as Initial Quotation &bull; Project Onboarding in Progress
+            </div>
+            <div class="summary-card" style="margin: 0 auto; max-width: 440px;">
+              <div class="summary-row">
+                <span class="summary-label">Confirmed Amount:</span>
+                <span class="summary-val total-val">{{totalAmount}}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Status:</span>
+                <span class="summary-val" style="color: #16a34a;">Locked as Initial Quotation</span>
+              </div>
+            </div>
+          </div>
+          {{/accepted}}
+
+          {{#rejected}}
+          <div style="margin-bottom: 16px; text-align: center;">
+            <div style="display: inline-block; background: #dc2626; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 800; padding: 12px 30px; border-radius: 10px; box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3); text-transform: uppercase;">
+              &#10005;&nbsp; REJECTED
+            </div>
+          </div>
+          <div class="declined-card">
+            <div class="declined-heading">&#10005;&nbsp; Quotation Declined</div>
+            <p class="declined-msg">
+              Your response has been recorded. We appreciate your consideration and hope to assist you in the future.
+            </p>
+          </div>
+          {{/rejected}}
+        </template>
+      </div>
+
+      <!-- AMP Form Submit Error -->
+      <div submit-error>
+        <template type="amp-mustache">
+          <div class="declined-card">
+            <div class="declined-heading">Submission Notice</div>
+            <p class="declined-msg">{{message}}</p>
+          </div>
+        </template>
+      </div>
+    </form>
+
+    <p style="font-size: 12.5px; color: #64748b; line-height: 1.6; margin-top: 24px;">
+      <b>Project Onboarding &amp; QC Notice:</b><br>
+      Upon quotation confirmation, your initial quotation amount is officially locked as the project budget. Design stage and 3D drawings will commence immediately. Production and factory fabrication will follow QC approval of final production version.
+    </p>
+  </div>
+
+  <div class="footer">
+    &copy; ' . date('Y') . ' LivinCart Private Limited &bull; Luxury Interiors &amp; Modulars<br>
+    Official In-Email Interactive Document
+  </div>
+</div>
+
+</body>
+</html>';
+    }
+}

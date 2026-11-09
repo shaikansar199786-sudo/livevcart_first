@@ -1,11 +1,11 @@
 // src/config.ts
 
-// Change this to your hosted API URL when deploying (e.g., 'https://yourdomain.com/api')
-export const API_BASE_URL = 'http://localhost/livrcart/demoark/api';
-// export const API_BASE_URL = 'https://livincart.bizools.in/api';
-// export const API_BASE_URL = 'https://palevioletred-spider-955052.hostingersite.com/api';
+const isLocalhost = typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
+export const API_BASE_URL = isLocalhost
 
-// export const API_BASE_URL = 'https://software.arkarchitects.co.in/api';
-// export const API_BASE_URL = 'https://shaikansar.com/api';
-
+  ? 'http://localhost/livrcart/demoark/api'
+  : (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes(':5173')
+    ? `${window.location.origin}/api`
+    : 'https://livincart.bizools.in/api');

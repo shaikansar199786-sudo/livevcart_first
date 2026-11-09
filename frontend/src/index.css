@@ -46,23 +46,36 @@ button {
 
 /* Premium Sidebar Styles */
 .sidebar-container {
-  background-color: #111827 !important; /* Premium Dark */
+  background-color: #111827 !important;
   border-right: none !important;
+  width: 280px;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+  overflow-x: hidden;
+}
+
+.sidebar-container.collapsed {
+  width: 80px !important;
+}
+
+.sidebar-container.collapsed:hover {
+  width: 280px !important;
+  box-shadow: 12px 0 35px rgba(0, 0, 0, 0.4) !important;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
-  color: #9ca3af; /* gray-400 */
+  padding: 14px 18px;
+  color: #9ca3af;
   text-decoration: none;
   border-radius: 8px;
-  transition: all 0.2s ease;
-  margin-bottom: 6px;
-  margin-left: 16px;
-  margin-right: 16px;
-  position: relative;
-  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease, padding 0.3s ease;
+  margin: 0 14px 6px 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  height: 48px;
+  box-sizing: border-box;
 }
 
 .sidebar-link:hover {
@@ -71,7 +84,7 @@ button {
 }
 
 .sidebar-link.active {
-  background: #f59e0b; /* Vibrant Orange */
+  background: #f59e0b;
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
@@ -80,55 +93,79 @@ button {
 .sidebar-icon {
   margin-right: 16px;
   color: #9ca3af;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, margin-right 0.3s ease;
+  flex-shrink: 0;
 }
 
-.sidebar-link:hover .sidebar-icon {
-  color: #ffffff;
-}
-
+.sidebar-link:hover .sidebar-icon,
 .sidebar-link.active .sidebar-icon {
   color: #ffffff;
 }
 
-/* Collapsible Sidebar States */
-.sidebar-container {
-  width: 280px;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.sidebar-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.sidebar-container.collapsed {
-  width: 80px !important;
+.sidebar-container.collapsed:not(:hover) .sidebar-text,
+.sidebar-container.collapsed:not(:hover) .sidebar-header-text,
+.sidebar-container.collapsed:not(:hover) .sidebar-help-card {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-8px);
+}
+
+.sidebar-container.collapsed:hover .sidebar-text,
+.sidebar-container.collapsed:hover .sidebar-header-text,
+.sidebar-container.collapsed:hover .sidebar-help-card {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+.sidebar-container.collapsed:not(:hover) .sidebar-link {
+  padding: 14px 0;
+  justify-content: center;
+  margin: 0 10px 6px 10px;
+}
+
+.sidebar-container.collapsed:not(:hover) .sidebar-icon {
+  margin-right: 0;
 }
 
 .main-content {
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 125vh;
+  margin-left: 280px;
+  transition: margin-left 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 100vh;
 }
 
 .main-content.collapsed {
   margin-left: 80px !important;
 }
 
-.sidebar-container.collapsed .sidebar-link {
-  justify-content: center;
-  padding: 14px 0;
-}
-
 /* Custom scrollbar for sidebar navigation */
 .sidebar-nav::-webkit-scrollbar {
   width: 4px;
 }
+
 .sidebar-nav::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: #27272a; /* zinc-800 */
+  background: #27272a;
+  /* zinc-800 */
   border-radius: 4px;
 }
+
 .sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46; /* zinc-700 */
+  background: #3f3f46;
+  /* zinc-700 */
 }
+
 .sidebar-nav {
   scrollbar-width: thin;
   scrollbar-color: #27272a transparent;
@@ -261,7 +298,61 @@ button {
   display: none !important;
 }
 
+.agreement-quote-pdf-layout {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+/* Quote page & print root global white background overrides (Screen + Print) */
+html:has(.quote-tab-root),
+body:has(.quote-tab-root),
+html:has(.print-quote-page-root),
+body:has(.print-quote-page-root),
+html:has(.printable-vendor-quota),
+body:has(.printable-vendor-quota),
+.quote-tab-root,
+.print-quote-page-root {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+}
+
 @media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html,
+  body,
+  #root,
+  #main-layout-content,
+  .main-content,
+  .layout-container,
+  .quotes-management-page,
+  .quotes-workspace-page,
+  .vendor-quota-workspace-page,
+  .quote-tab-root,
+  .quote-container,
+  .print-area,
+  .print-only,
+  .agreement-quote-pdf-layout {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
   * {
     -webkit-print-color-adjust: exact !important;
     color-adjust: exact !important;
@@ -271,29 +362,60 @@ button {
     filter: none !important;
   }
 
-  @page {
-    size: A4;
-    margin: 0mm;
-  }
-
-  html, body, #root, div {
-    background: #ffffff !important;
-    background-color: #ffffff !important;
-  }
-
-  body {
-    color: #000000 !important;
+  .no-print,
+  div.no-print,
+  .print-running-footer,
+  header,
+  nav,
+  .quote-tab-header,
+  .tabs,
+  .version-tab-bar {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
     margin: 0 !important;
     padding: 0 !important;
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
   }
 
-  .no-print,
-  .print-running-footer {
+  .print-only,
+  div.print-only {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Running header for module pages */
+  .print-running-header {
     display: none !important;
   }
 
-  .print-only {
-    display: block !important;
+  .module-pages-wrapper .print-running-header {
+    display: flex !important;
+    position: relative !important;
+    width: 100% !important;
+    background-color: #ffffff !important;
+    border-bottom: 2px solid #ea580c !important;
+    padding: 6px 0px 10px 0px !important;
+    margin-bottom: 16px !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .page-break-cover {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
   /* Root print area takes up full page without side margins */
@@ -301,7 +423,8 @@ button {
   .quote-container,
   .quote-tab-root,
   .merged-package-wrapper,
-  .agreements-print-preview {
+  .agreements-print-preview,
+  .agreement-quote-pdf-layout {
     display: block !important;
     position: relative !important;
     width: 100% !important;
@@ -316,16 +439,79 @@ button {
 
   /* Force background colors to print for ALL elements in agreement */
   .agreements-print-preview *,
-  .print-area * {
+  .print-area *,
+  .print-only * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
     box-shadow: none !important;
   }
 
-  /* Quote PDF page breaks - Stretch to 100% width without side margins */
+  /* Quote PDF page breaks - Stretch to 100% width */
   .page-break-cover,
   .page-break-project-info,
+  .page-break-terms-conditions {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 12px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force background colors for cover page bottom contact card in print PDF */
+  .cover-card-orange-strip {
+    background-color: #ea580c !important;
+    background: #ea580c !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .cover-card-orange-strip div,
+  .cover-card-orange-strip span {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .cover-card-light-strip {
+    background-color: #fff7ed !important;
+    background: #fff7ed !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .cover-card-light-strip div,
+  .cover-card-light-strip span {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure table cell inner elements never get forced white background in print */
+  .page-break-section td,
+  .page-break-section td div,
+  .page-break-section td span,
+  .page-break-section td p,
+  .page-break-modules-summary td,
+  .page-break-modules-summary td div,
+  .page-break-modules-summary td span {
+    background-color: transparent !important;
+    background: transparent !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .page-break-modules-summary,
   .page-break-section,
   .page-break-summary {
@@ -338,6 +524,7 @@ button {
     box-shadow: none !important;
     border-radius: 0 !important;
   }
+
 
   /* Quote PDF page breaks */
   .quote-pdf-page {
@@ -353,27 +540,63 @@ button {
     break-before: avoid;
   }
 
-  .quote-pdf-table tr {
-    page-break-inside: avoid;
-    break-inside: avoid;
+  .quote-pdf-table tr,
+  .quote-pdf-table td,
+  .quote-pdf-table th,
+  .page-break-section tr,
+  .page-break-section td,
+  .page-break-section th {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Page break helper classes */
   .page-break-cover,
   .page-break-project-info,
-  .page-break-modules-summary,
-  .page-break-section,
-  .page-break-summary {
-    page-break-after: always;
-    break-after: page;
-    page-break-inside: avoid;
-    break-inside: avoid;
+  .page-break-modules-summary {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
-  .page-break-section:last-child,
-  .page-break-summary:last-child {
-    page-break-after: auto;
-    break-after: auto;
+  .page-break-terms-conditions {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    margin-top: 16px !important;
+    padding-top: 12px !important;
+    width: 100% !important;
+    min-height: auto !important;
+    background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .page-break-detail-tables,
+  .page-break-first-module,
+  .page-break-modules-summary+.page-break-detail-tables {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .page-break-section,
+  .page-break-summary {
+    page-break-after: auto !important;
+    break-after: auto !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    margin-bottom: 28px !important;
+    padding-top: 12px !important;
+  }
+
+  .page-break-first-module {
+    page-break-before: always !important;
+    break-before: page !important;
   }
 
 }
@@ -453,44 +676,134 @@ button {
   color: #000;
 }
 
-/* ============================================
-   PRINT / PDF - Force All Backgrounds White
-   ============================================ */
-@media print {
-  :root {
-    --bg-main: #ffffff !important;
-    --bg-card: #ffffff !important;
-    --border: #e5e7eb !important;
-  }
+/* End of index.css */
 
-  html,
-  body,
-  #root,
-  #main-layout-content,
-  .main-content,
-  .app-wrapper,
-  .content-wrapper,
-  .page-content {
-    background: #ffffff !important;
-    background-color: #ffffff !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   GLOBAL MODAL STICKY HEADER — header + X stays fixed at top,
+   content scrolls below.
+   ═══════════════════════════════════════════════════════════════════ */
 
-  html {
-    zoom: 1 !important;
-  }
+/* Modal outer box: flex column, no overflow on the box itself */
+.modal-box {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  max-height: 90vh !important;
+}
 
-  body {
-    zoom: 1 !important;
-  }
+/* Modal header: never scrolls — sticks to top */
+.modal-header {
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background: inherit;
+}
 
-  aside,
-  .sidebar-container,
-  nav,
-  header {
-    display: none !important;
+/* Modal body: scrolls independently */
+.modal-body {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Auto-pattern: direct children of fixed overlays ───────────────
+   Targets modal boxes that are direct children of fixed overlay divs.
+   Makes them flex-column and prevents the whole box from scrolling. */
+.modal-overlay-auto > div {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  max-height: 90vh !important;
+}
+
+/* first child of a modal-overlay-auto box = sticky header */
+.modal-overlay-auto > div > div:first-child {
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: inherit;
+  background: inherit;
+}
+
+/* Scrollbar styling for modal bodies */
+.modal-body::-webkit-scrollbar,
+.modal-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.modal-body::-webkit-scrollbar-track,
+.modal-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+.modal-body::-webkit-scrollbar-thumb,
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.modal-body::-webkit-scrollbar-thumb:hover,
+.modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes livePulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+.stat-card-clickable {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card-clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slide-over-right {
+  animation: slideInFromRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform;
 }

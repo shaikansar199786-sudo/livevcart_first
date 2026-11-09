@@ -13,6 +13,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { API_BASE_URL } from '../config';
+import { DashboardFilterBar } from '../components/DashboardFilterBar';
+import type { StatementPeriodType, ProjectTypeFilter } from '../components/DashboardFilterBar';
 
 export const MBDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -26,6 +28,8 @@ export const MBDashboard: React.FC = () => {
     });
     const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [statementPeriod, setStatementPeriod] = useState<StatementPeriodType>('all');
+    const [projectType, setProjectType] = useState<ProjectTypeFilter>('all');
 
     useEffect(() => {
         fetchDashboardData();
@@ -61,7 +65,7 @@ export const MBDashboard: React.FC = () => {
 
     return (
         <div style={{ color: '#1e293b' }}>
-            <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
                     <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#253b50', margin: 0 }}>
                         Welcome back, {user?.name}
@@ -79,16 +83,23 @@ export const MBDashboard: React.FC = () => {
                         borderRadius: '8px',
                         padding: '10px 20px',
                         fontWeight: 700,
-                        fontSize: '0.88rem',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px'
                     }}
                 >
-                    <ListTodo size={18} /> Manage Task List <ArrowRight size={16} />
+                    <ListTodo size={18} /> View All M&B Tasks
                 </button>
             </div>
+
+            {/* UNIFIED STATEMENT PERIOD & PROJECT TYPE FILTER BAR */}
+            <DashboardFilterBar
+                statementPeriod={statementPeriod}
+                onStatementPeriodChange={(period) => setStatementPeriod(period)}
+                projectType={projectType}
+                onProjectTypeChange={(type) => setProjectType(type)}
+            />
 
             {loading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', fontWeight: 600, color: '#475569' }}>

@@ -23,7 +23,7 @@ class MBTaskController
             duration_days INT DEFAULT 1,
             start_date DATE DEFAULT NULL,
             end_date DATE DEFAULT NULL,
-            status ENUM('pending_admin_review', 'accepted', 'rejected', 'ongoing', 'pending_completion_review', 'completed') DEFAULT 'pending_admin_review',
+            status ENUM('pending_admin_review', 'accepted', 'rejected', 'ongoing', 'pending_completion_review', 'completed', 'cancelled') DEFAULT 'pending_admin_review',
             rejection_reason TEXT DEFAULT NULL,
             admin_notes TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -49,13 +49,25 @@ class MBTaskController
             $this->conn->exec($subSql);
             // Run ALTER columns safely if they do not exist
             try {
-                $this->conn->exec("ALTER TABLE mb_tasks MODIFY COLUMN status ENUM('pending_admin_review', 'accepted', 'rejected', 'ongoing', 'pending_completion_review', 'completed') DEFAULT 'pending_admin_review'");
+                $this->conn->exec("ALTER TABLE mb_tasks MODIFY COLUMN status ENUM('pending_admin_review', 'accepted', 'rejected', 'ongoing', 'pending_completion_review', 'completed', 'cancelled') DEFAULT 'pending_admin_review'");
             } catch (Exception $e) {}
             try {
                 $this->conn->exec("ALTER TABLE mb_sub_tasks ADD COLUMN start_date DATE DEFAULT NULL AFTER status");
             } catch (Exception $e) {}
             try {
                 $this->conn->exec("ALTER TABLE mb_sub_tasks ADD COLUMN duration_days INT DEFAULT 1 AFTER start_date");
+            } catch (Exception $e) {}
+            try {
+                $this->conn->exec("ALTER TABLE mb_tasks ADD COLUMN project_type VARCHAR(50) DEFAULT 'interior'");
+            } catch (Exception $e) {}
+            try {
+                $this->conn->exec("ALTER TABLE mb_tasks ADD COLUMN project_name VARCHAR(255) DEFAULT NULL");
+            } catch (Exception $e) {}
+            try {
+                $this->conn->exec("ALTER TABLE mb_tasks ADD COLUMN start_time VARCHAR(20) DEFAULT '09:00'");
+            } catch (Exception $e) {}
+            try {
+                $this->conn->exec("ALTER TABLE mb_tasks ADD COLUMN end_time VARCHAR(20) DEFAULT '18:00'");
             } catch (Exception $e) {}
         } catch (Exception $e) {
             // Table already exists or creation failed
@@ -119,13 +131,12 @@ class MBTaskController
     {
         try {
             $start_date = $data['start_date'] ?? date('Y-m-d');
-            $duration_days = intval($data['duration_days'] ?? 1);
-            
-            // Calculate end date
-            $end_date = date('Y-m-d', strtotime($start_date . " + " . ($duration_days - 1) . " days"));
+            $end_date = !empty($data['end_date']) ? $data['end_date'] : date('Y-m-d', strtotime($start_date . " + " . (intval($data['duration_days'] ?? 1) - 1) . " days"));
+            $diffSecs = strtotime($end_date) - strtotime($start_date);
+            $duration_days = max(1, round($diffSecs / 86400) + 1);
 
-            $sql = "INSERT INTO mb_tasks (user_id, employee_name, role, task_title, description, duration_days, start_date, end_date, status) 
-                    VALUES (:user_id, :employee_name, :role, :task_title, :description, :duration_days, :start_date, :end_date, 'pending_admin_review')";
+            $sql = "INSERT INTO mb_tasks (user_id, employee_name, role, task_title, description, duration_days, start_date, end_date, start_time, end_time, project_type, project_name, status) 
+                    VALUES (:user_id, :employee_name, :role, :task_title, :description, :duration_days, :start_date, :end_date, :start_time, :end_time, :project_type, :project_name, 'pending_admin_review')";
             
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
@@ -136,7 +147,11 @@ class MBTaskController
                 'description' => $data['description'] ?? '',
                 'duration_days' => $duration_days,
                 'start_date' => $start_date,
-                'end_date' => $end_date
+                'end_date' => $end_date,
+                'start_time' => $data['start_time'] ?? '09:00',
+                'end_time' => $data['end_time'] ?? '18:00',
+                'project_type' => $data['project_type'] ?? 'interior',
+                'project_name' => $data['project_name'] ?? ''
             ]);
 
             $task_id = $this->conn->lastInsertId();
@@ -208,6 +223,10 @@ class MBTaskController
                 $status = 'rejected';
                 $rejection_reason = $notes;
                 $admin_notes = null;
+            } elseif ($action === 'cancel') {
+                $status = 'cancelled';
+                $rejection_reason = $notes ?: 'Cancelled by Admin';
+                $admin_notes = $notes ?: 'Cancelled by Admin';
             } elseif ($action === 'approve_completion') {
                 $status = 'completed';
                 $rejection_reason = null;
@@ -235,6 +254,8 @@ class MBTaskController
                 $msg = "Your task request '{$task_row['task_title']}' was ACCEPTED by Admin! You can now start the task.";
             } elseif ($action === 'reject') {
                 $msg = "Your task request '{$task_row['task_title']}' was REJECTED by Admin. Reason: " . ($notes ?: 'Please revise and resubmit.');
+            } elseif ($action === 'cancel') {
+                $msg = "Your task '{$task_row['task_title']}' has been CANCELLED by Admin. Reason: " . ($notes ?: 'No reason specified.');
             } elseif ($action === 'approve_completion') {
                 $msg = "Your task completion for '{$task_row['task_title']}' was APPROVED by Admin!";
             } elseif ($action === 'reject_completion') {
@@ -276,14 +297,27 @@ class MBTaskController
                 return ["success" => false, "message" => "Only ongoing tasks can be submitted for completion review."];
             }
 
+            if ($status === 'cancelled') {
+                if ($curr['status'] === 'completed') {
+                    return ["success" => false, "message" => "Completed tasks cannot be cancelled."];
+                }
+            }
+
             // Note: direct status update to 'completed' is blocked on this endpoint to force admin review
             if ($status === 'completed') {
                 return ["success" => false, "message" => "Completion requires Admin approval."];
             }
 
-            $sql = "UPDATE mb_tasks SET status = :status WHERE id = :id";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->execute(['status' => $status, 'id' => $id]);
+            $notes = $data['notes'] ?? ($data['reason'] ?? 'Cancelled');
+            if ($status === 'cancelled') {
+                $sql = "UPDATE mb_tasks SET status = :status, rejection_reason = :notes WHERE id = :id";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->execute(['status' => $status, 'notes' => $notes, 'id' => $id]);
+            } else {
+                $sql = "UPDATE mb_tasks SET status = :status WHERE id = :id";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->execute(['status' => $status, 'id' => $id]);
+            }
 
             if ($status === 'pending_completion_review') {
                 $get_task = $this->conn->prepare("SELECT employee_name, task_title FROM mb_tasks WHERE id = :id");
@@ -309,11 +343,12 @@ class MBTaskController
     {
         try {
             $start_date = $data['start_date'] ?? date('Y-m-d');
-            $duration_days = intval($data['duration_days'] ?? 1);
-            $end_date = date('Y-m-d', strtotime($start_date . " + " . ($duration_days - 1) . " days"));
+            $end_date = !empty($data['end_date']) ? $data['end_date'] : date('Y-m-d', strtotime($start_date . " + " . (intval($data['duration_days'] ?? 1) - 1) . " days"));
+            $diffSecs = strtotime($end_date) - strtotime($start_date);
+            $duration_days = max(1, round($diffSecs / 86400) + 1);
 
-            $sql = "INSERT INTO mb_tasks (user_id, employee_name, role, task_title, description, duration_days, start_date, end_date, status, admin_notes) 
-                    VALUES (:user_id, :employee_name, :role, :task_title, :description, :duration_days, :start_date, :end_date, 'accepted', :admin_notes)";
+            $sql = "INSERT INTO mb_tasks (user_id, employee_name, role, task_title, description, duration_days, start_date, end_date, start_time, end_time, project_type, project_name, status, admin_notes) 
+                    VALUES (:user_id, :employee_name, :role, :task_title, :description, :duration_days, :start_date, :end_date, :start_time, :end_time, :project_type, :project_name, 'accepted', :admin_notes)";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
                 'user_id' => $data['user_id'],
@@ -324,6 +359,10 @@ class MBTaskController
                 'duration_days' => $duration_days,
                 'start_date' => $start_date,
                 'end_date' => $end_date,
+                'start_time' => $data['start_time'] ?? '09:00',
+                'end_time' => $data['end_time'] ?? '18:00',
+                'project_type' => $data['project_type'] ?? 'interior',
+                'project_name' => $data['project_name'] ?? '',
                 'admin_notes' => $data['admin_notes'] ?? 'Assigned directly by Admin'
             ]);
 
@@ -376,6 +415,11 @@ class MBTaskController
             $stmt_completed->execute($params);
             $completed = $stmt_completed->fetch(PDO::FETCH_ASSOC)['count'];
 
+            // Total cancelled
+            $stmt_cancelled = $this->conn->prepare("SELECT COUNT(*) as count FROM mb_tasks {$where} AND status = 'cancelled'");
+            $stmt_cancelled->execute($params);
+            $cancelled = $stmt_cancelled->fetch(PDO::FETCH_ASSOC)['count'];
+
             // Total delayed/deadline tasks (status in accepted, ongoing AND end_date < current_date)
             $stmt_delayed = $this->conn->prepare("SELECT COUNT(*) as count FROM mb_tasks {$where} AND status IN ('accepted', 'ongoing') AND end_date < CURDATE()");
             $stmt_delayed->execute($params);
@@ -388,7 +432,8 @@ class MBTaskController
                     "accepted" => intval($accepted),
                     "rejected" => intval($rejected),
                     "completed" => intval($completed),
-                    "delayed" => intval($delayed)
+                    "delayed" => intval($delayed),
+                    "cancelled" => intval($cancelled)
                 ]
             ];
         } catch (Exception $e) {

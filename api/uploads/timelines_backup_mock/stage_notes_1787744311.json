@@ -1,0 +1,163 @@
+[
+    {
+        "category": "DD",
+        "startDate": "2026-09-25",
+        "endDate": "2026-09-27",
+        "note": "casaas\n",
+        "source": "designer"
+    },
+    {
+        "category": "3D Approval",
+        "startDate": "2026-09-26",
+        "endDate": "2026-09-30",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "2D",
+        "startDate": "2026-09-26",
+        "endDate": "2026-11-28",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "QC1",
+        "startDate": "2026-09-26",
+        "endDate": "2026-10-10",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Masking",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Signoff",
+        "startDate": "2026-09-26",
+        "endDate": "2026-11-27",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Final 2D",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "QC2",
+        "startDate": "2026-09-26",
+        "endDate": "2026-12-12",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Final Quote",
+        "startDate": "2026-09-26",
+        "endDate": "2027-02-12",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "R2P",
+        "startDate": "2026-09-26",
+        "endDate": "2026-11-12",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "Product Distribution",
+        "startDate": "2026-09-26",
+        "endDate": "2026-10-06",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "Ready to Dispatch",
+        "startDate": "2026-09-26",
+        "endDate": "2026-10-07",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "In Transit",
+        "startDate": "2026-09-25",
+        "endDate": "2026-10-07",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "Delivery",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "Kickoff_M",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "HDS",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "Material Segregation",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "QC",
+        "startDate": "2026-09-26",
+        "endDate": "2026-10-08",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "Installation",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "Final QC",
+        "startDate": "2026-10-03",
+        "endDate": "2026-10-10",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "Handover",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm"
+    },
+    {
+        "category": "timeline_active_note_designer",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "designer"
+    },
+    {
+        "category": "timeline_active_note_pm",
+        "startDate": "",
+        "endDate": "",
+        "note": "",
+        "source": "pm"
+    }
+]

@@ -67,6 +67,18 @@ class Inventoryproject
         try {
             $conn->query("ALTER TABLE project_inventory ADD COLUMN payment_date DATE DEFAULT NULL AFTER payment_mode");
         } catch (Exception $e) {}
+        try {
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN invoice_image LONGTEXT DEFAULT NULL AFTER payment_date");
+        } catch (Exception $e) {}
+        try {
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN approval_status VARCHAR(50) DEFAULT 'approved'");
+        } catch (Exception $e) {}
+        try {
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN approved_by VARCHAR(100) NULL");
+        } catch (Exception $e) {}
+        try {
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN approved_at DATETIME NULL");
+        } catch (Exception $e) {}
 
         $keep_ids = [];
 
@@ -86,6 +98,9 @@ class Inventoryproject
             $payment_status = $conn->real_escape_string($item->payment_status ?? 'Unpaid');
             $payment_mode = $conn->real_escape_string($item->payment_mode ?? 'Cash');
             $payment_date = $conn->real_escape_string($item->payment_date ?? '');
+            $invoice_image = $conn->real_escape_string($item->invoice_image ?? '');
+            $approval_status = $conn->real_escape_string($item->approval_status ?? ($data->approval_status ?? 'approved'));
+            $approved_by = $conn->real_escape_string($item->approved_by ?? ($data->approved_by ?? ''));
 
             $subtotal = $rate * $qty;
             $discountAmt = $subtotal * ($discount / 100);
@@ -110,7 +125,10 @@ class Inventoryproject
                     paid = '$paid',
                     unpaid = '$unpaid',
                     payment_mode = '$payment_mode',
-                    payment_date = NULLIF('$payment_date', '')
+                    payment_date = NULLIF('$payment_date', ''),
+                    invoice_image = '$invoice_image',
+                    approval_status = '$approval_status',
+                    approved_by = NULLIF('$approved_by', '')
                     WHERE id = '$id' AND project_id = '$project_id'";
 
                 if ($conn->query($sql)) {
@@ -120,9 +138,9 @@ class Inventoryproject
                 }
             } else {
                 $sql = "INSERT INTO project_inventory
-                (project_id, invoice_no, invoice_date, vendor, category, item_name, rate, quantity, discount, amount, gst, total, payment_status, paid, unpaid, payment_mode, payment_date)
+                (project_id, invoice_no, invoice_date, vendor, category, item_name, rate, quantity, discount, amount, gst, total, payment_status, paid, unpaid, payment_mode, payment_date, invoice_image, approval_status, approved_by)
                 VALUES
-                ('$project_id', '$invoice_no', NULLIF('$invoice_date', ''), '$vendor', '$category', '$item_name', '$rate', '$qty', '$discount', '$amount', '$gst', '$total', '$payment_status', '$paid', '$unpaid', '$payment_mode', NULLIF('$payment_date', ''))";
+                ('$project_id', '$invoice_no', NULLIF('$invoice_date', ''), '$vendor', '$category', '$item_name', '$rate', '$qty', '$discount', '$amount', '$gst', '$total', '$payment_status', '$paid', '$unpaid', '$payment_mode', NULLIF('$payment_date', ''), '$invoice_image', '$approval_status', NULLIF('$approved_by', ''))";
 
                 if ($conn->query($sql)) {
                     $keep_ids[] = $conn->insert_id;
@@ -151,10 +169,41 @@ class Inventoryproject
 $method = $_SERVER['REQUEST_METHOD'];
 
 
-// 🔵 POST → SAVE
+// 🔵 POST → SAVE OR APPROVE/REJECT
 if ($method === 'POST') {
 
     $data = json_decode(file_get_contents("php://input"));
+    $conn = $GLOBALS['conn'];
+
+    if (isset($data->action) && in_array($data->action, ['approve_invoice', 'reject_invoice'])) {
+        $status = $data->action === 'approve_invoice' ? 'approved' : 'rejected';
+        $pId = intval($data->project_id ?? 0);
+        $invNo = $conn->real_escape_string($data->invoice_no ?? '');
+        $apprBy = $conn->real_escape_string($data->approved_by ?? '');
+
+        try {
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN approval_status VARCHAR(50) DEFAULT 'approved'");
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN approved_by VARCHAR(100) NULL");
+            $conn->query("ALTER TABLE project_inventory ADD COLUMN approved_at DATETIME NULL");
+        } catch (Exception $e) {}
+
+        $whereClause = "project_id = '$pId'";
+        if ($invNo !== '') {
+            $whereClause .= " AND invoice_no = '$invNo'";
+        }
+        if (isset($data->id) && intval($data->id) > 0) {
+            $itId = intval($data->id);
+            $whereClause .= " AND id = '$itId'";
+        }
+
+        $sql = "UPDATE project_inventory SET approval_status = '$status', approved_by = '$apprBy', approved_at = NOW() WHERE $whereClause";
+        if ($conn->query($sql)) {
+            echo json_encode(["status" => "success", "message" => "Invoice " . ($status === 'approved' ? 'approved and added to balance sheet' : 'rejected')]);
+        } else {
+            echo json_encode(["status" => "error", "message" => $conn->error]);
+        }
+        exit;
+    }
 
     $inventory = new Inventoryproject();
     echo json_encode($inventory->save($data));

@@ -22,19 +22,26 @@ class AuthController
 
         if ($stmt->rowCount() > 0) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $status = strtolower(trim((string)($row['status'] ?? 'active')));
+
+            // If account was deleted by admin
+            if ($status === 'deleted') {
+                return ["success" => false, "message" => "You are not an employee."];
+            }
+
             // Verify password
             if (empty($row['password']) || !password_verify($password, $row['password'])) {
                 return ["success" => false, "message" => "Invalid credentials"];
             }
+            
+            if ($status !== 'active') {
+                return ["success" => false, "message" => "Your account is inactive. Please contact the administrator."];
+            }
+
             $user_id = $row['user_id'];
             $name = $row['name'];
             $role = $row['role'];
             $username = $row['username'];
-            $status = $row['status'];
-            
-            if ($status !== 'active') {
-                return ["success" => false, "message" => "Account is inactive."];
-            }
         } else {
             return ["success" => false, "message" => "Invalid credentials"];
         }

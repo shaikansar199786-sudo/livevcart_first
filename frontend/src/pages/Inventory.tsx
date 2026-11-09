@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { useAuth } from '../hooks/useAuth';
@@ -8,7 +8,10 @@ import {
     CheckCircle2,
     XCircle,
     Clock,
-    Loader2
+    Loader2,
+    Search,
+    X,
+    RotateCcw
 } from 'lucide-react';
 
 interface MaterialRequest {
@@ -35,6 +38,10 @@ export const Inventory: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [showRequestModal, setShowRequestModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+
+    // Search and Status Filters
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const [formData, setFormData] = useState({
         project_id: '',
@@ -97,6 +104,22 @@ export const Inventory: React.FC = () => {
         }
     };
 
+    const resetFilters = () => {
+        setSearchQuery('');
+        setStatusFilter('all');
+    };
+
+    const filteredRequests = useMemo(() => {
+        return requests.filter((r) => {
+            const matchesSearch = !searchQuery.trim() ||
+                (r.item_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (r.project_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (r.requester_name || '').toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
+            return matchesSearch && matchesStatus;
+        });
+    }, [requests, searchQuery, statusFilter]);
+
     const isAdmin = user?.role === 'admin' || user?.role === 'project_head';
 
     return (
@@ -134,7 +157,47 @@ export const Inventory: React.FC = () => {
             </div>
 
             <div className="premium-card">
-                <h3 style={{ marginBottom: '20px' }}>Recent Material Requests</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+                    <h3 style={{ margin: 0 }}>Recent Material Requests</h3>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ position: 'relative', width: '220px' }}>
+                            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: 10 }} />
+                            <input
+                                type="text"
+                                placeholder="Search item, project..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                style={{ width: '100%', paddingLeft: 36, paddingRight: 30, paddingTop: 7, paddingBottom: 7, borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none' }}
+                            />
+                            {searchQuery && (
+                                <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
+
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 600, outline: 'none', backgroundColor: '#ffffff' }}
+                        >
+                            <option value="all">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+
+                        {(searchQuery || statusFilter !== 'all') && (
+                            <button
+                                onClick={resetFilters}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid #ef4444', backgroundColor: '#fef2f2', color: '#ef4444', fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer' }}
+                            >
+                                <RotateCcw size={14} /> Reset
+                            </button>
+                        )}
+                    </div>
+                </div>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
@@ -150,7 +213,7 @@ export const Inventory: React.FC = () => {
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}><Loader2 className="animate-spin" style={{ margin: '0 auto' }} /></td></tr>
-                            ) : requests.map((req) => (
+                            ) : filteredRequests.map((req) => (
                                 <tr key={req.request_id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                                     <td style={{ padding: '16px' }}>
                                         <div style={{ fontWeight: 600 }}>{req.item_name}</div>

@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { API_BASE_URL } from '../config';
+import { DashboardFilterBar } from '../components/DashboardFilterBar';
+import type { StatementPeriodType, ProjectTypeFilter } from '../components/DashboardFilterBar';
 
 export const GDDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -26,6 +28,8 @@ export const GDDashboard: React.FC = () => {
     const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterTimeframe, setFilterTimeframe] = useState<'today' | 'weekly' | 'monthly' | 'all'>('all');
+    const [statementPeriod, setStatementPeriod] = useState<StatementPeriodType>('all');
+    const [projectType, setProjectType] = useState<ProjectTypeFilter>('all');
 
     useEffect(() => {
         fetchTasks();
@@ -106,27 +110,6 @@ export const GDDashboard: React.FC = () => {
 
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <button
-                        onClick={() => navigate('/gd-tasks')}
-                        style={{
-                            backgroundColor: '#f59e0b',
-                            color: '#0f172a',
-                            border: 'none',
-                            borderRadius: '10px',
-                            padding: '12px 20px',
-                            fontWeight: 700,
-                            fontSize: '0.88rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
-                            transition: 'transform 0.2s'
-                        }}
-                    >
-                        <PlusCircle size={18} /> Submit Target Work
-                    </button>
-
-                    <button
                         onClick={fetchTasks}
                         title="Refresh Data"
                         style={{
@@ -145,6 +128,14 @@ export const GDDashboard: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {/* UNIFIED STATEMENT PERIOD & PROJECT TYPE FILTER BAR */}
+            <DashboardFilterBar
+                statementPeriod={statementPeriod}
+                onStatementPeriodChange={(period) => setStatementPeriod(period)}
+                projectType={projectType}
+                onProjectTypeChange={(type) => setProjectType(type)}
+            />
 
             {/* Timeframe Filter Bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>

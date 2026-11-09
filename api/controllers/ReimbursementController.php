@@ -1,5 +1,6 @@
 <?php
 // api/controllers/ReimbursementController.php
+require_once __DIR__ . '/../helpers/MailHelper.php';
 
 class ReimbursementController
 {
@@ -32,28 +33,55 @@ class ReimbursementController
 
         try {
             $this->conn->exec($sql);
+            $this->conn->exec("ALTER TABLE reimbursements ADD COLUMN project_id VARCHAR(100) DEFAULT NULL");
         } catch (Exception $e) {
-            // table already exists — ignore
+            // table already exists — ignore error if column already present
         }
     }
 
     // GET: list reimbursements
-    public function getAll($user_id, $user_role)
+    public function getAll($user_id, $user_role, $force_all = false)
     {
         try {
-            $isAdmin = strtolower($user_role ?? '') === 'admin';
-            if ($isAdmin) {
-                $sql = "SELECT * FROM reimbursements ORDER BY created_at DESC";
+            // If user_role not passed, look up from DB
+            if (empty($user_role) && !empty($user_id)) {
+                $uStmt = $this->conn->prepare("SELECT role FROM users WHERE user_id = :uid");
+                $uStmt->execute([':uid' => $user_id]);
+                $user_role = $uStmt->fetchColumn() ?: '';
+            }
+
+            $normRole = strtolower(trim($user_role ?? ''));
+            $canManage = $force_all || in_array($normRole, ['admin', 'super_admin', 'manager', 'accountant', 'management']);
+
+            if ($canManage) {
+                $sql = "SELECT r.*, 
+                               COALESCE(p.project_code, r.project_id) as project_code, 
+                               p.project_name, 
+                               p.project_id as matched_project_id 
+                        FROM reimbursements r 
+                        LEFT JOIN projects p ON (r.project_id = CAST(p.project_id AS CHAR) OR r.project_id = p.project_code OR r.project_id = CONCAT('PR_', p.project_id)) 
+                        ORDER BY r.created_at DESC";
                 $stmt = $this->conn->prepare($sql);
                 $stmt->execute();
             } else {
-                $sql = "SELECT * FROM reimbursements WHERE user_id = :uid ORDER BY created_at DESC";
+                $sql = "SELECT r.*, 
+                               COALESCE(p.project_code, r.project_id) as project_code, 
+                               p.project_name, 
+                               p.project_id as matched_project_id 
+                        FROM reimbursements r 
+                        LEFT JOIN projects p ON (r.project_id = CAST(p.project_id AS CHAR) OR r.project_id = p.project_code OR r.project_id = CONCAT('PR_', p.project_id)) 
+                        WHERE r.user_id = :uid 
+                        ORDER BY r.created_at DESC";
                 $stmt = $this->conn->prepare($sql);
                 $stmt->execute([':uid' => $user_id]);
             }
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as &$row) {
+                $year = !empty($row['created_at']) ? date('Y', strtotime($row['created_at'])) : date('Y');
+                $row['reimbursement_code'] = sprintf('LC-REIM-%s-%04d', $year, (int)$row['id']);
+            }
             return ['success' => true, 'data' => $rows];
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
@@ -62,6 +90,14 @@ class ReimbursementController
     public function submit($data, $files)
     {
         try {
+            if (empty(trim($data['reason'] ?? ''))) {
+                return ['success' => false, 'message' => 'Reason / Notes is required.'];
+            }
+
+            if (empty($files['image']) || $files['image']['error'] !== UPLOAD_ERR_OK) {
+                return ['success' => false, 'message' => 'Receipt image is required.'];
+            }
+
             $image_path = null;
 
             // Handle image upload
@@ -79,11 +115,12 @@ class ReimbursementController
             }
 
             $sql = "INSERT INTO reimbursements 
-                    (user_id, employee_name, role, category, reason, amount, image_path, status)
-                    VALUES (:uid, :name, :role, :cat, :reason, :amount, :img, 'pending')";
+                    (user_id, project_id, employee_name, role, category, reason, amount, image_path, status)
+                    VALUES (:uid, :pid, :name, :role, :cat, :reason, :amount, :img, 'pending')";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([
                 ':uid'    => $data['user_id'],
+                ':pid'    => !empty($data['project_id']) ? $data['project_id'] : null,
                 ':name'   => $data['employee_name'],
                 ':role'   => $data['role'],
                 ':cat'    => $data['category'],
@@ -91,9 +128,58 @@ class ReimbursementController
                 ':amount' => $data['amount'],
                 ':img'    => $image_path,
             ]);
+            $claimId = $this->conn->lastInsertId();
+
+            // Send Email Notification to Admin with clean HTML format
+            $this->sendAdminNotificationMail($claimId, $data, $image_path);
+
             return ['success' => true, 'message' => 'Reimbursement request submitted successfully.'];
         } catch (Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    // Helper: Send Clean HTML Email Notification to Admin
+    private function sendAdminNotificationMail($claimId, $data, $image_path = null)
+    {
+        try {
+            // Fetch project code if project_id provided
+            $project_code = 'General / Office';
+            if (!empty($data['project_id'])) {
+                $pStmt = $this->conn->prepare("SELECT project_code, project_name FROM projects WHERE project_id = :pid OR project_code = :pcode LIMIT 1");
+                $pStmt->execute([':pid' => $data['project_id'], ':pcode' => $data['project_id']]);
+                $proj = $pStmt->fetch(PDO::FETCH_ASSOC);
+                if ($proj) {
+                    $project_code = !empty($proj['project_code']) ? $proj['project_code'] : $proj['project_name'];
+                } else {
+                    $project_code = $data['project_id'];
+                }
+            }
+
+            $empName = $data['employee_name'] ?? '';
+            if (empty($empName) && !empty($data['user_id'])) {
+                $uStmt = $this->conn->prepare("SELECT name, username FROM users WHERE user_id = :uid LIMIT 1");
+                $uStmt->execute([':uid' => $data['user_id']]);
+                $uRow = $uStmt->fetch(PDO::FETCH_ASSOC);
+                if ($uRow) {
+                    $empName = !empty($uRow['name']) ? $uRow['name'] : $uRow['username'];
+                }
+            }
+            if (empty($empName)) $empName = 'Employee';
+
+            // Send notification via MailHelper using mailer.pdf template format
+            MailHelper::sendReimbursementNotification($this->conn, 'submitted', [
+                'reimbursement_code' => sprintf('LC-REIM-%s-%04d', date('Y'), (int)$claimId),
+                'employee_name'      => $empName,
+                'employee_id'        => $data['user_id'] ?? null,
+                'amount'             => $data['amount'] ?? 0,
+                'category'           => $data['category'] ?? 'Expense Claim',
+                'project_id'         => $project_code,
+                'date'               => date('d M Y'),
+                'description'        => $data['reason'] ?? $data['category'] ?? 'Expense Claim'
+            ]);
+        } catch (Exception $e) {
+            error_log("Reimbursement Mail Notification Error: " . $e->getMessage());
         }
     }
 
@@ -116,50 +202,65 @@ class ReimbursementController
                 $claim = $claimStmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($claim) {
-                    $projStmt = $this->conn->prepare("SELECT project_id, project_name FROM projects");
-                    $projStmt->execute();
-                    $projects = $projStmt->fetchAll(PDO::FETCH_ASSOC);
+                    $projectIdToUse = $claim['project_id'] ?? null;
+                    if (!$projectIdToUse) {
+                        $projStmt = $this->conn->prepare("SELECT project_id, project_name FROM projects");
+                        $projStmt->execute();
+                        $projects = $projStmt->fetchAll(PDO::FETCH_ASSOC);
 
-                    $matchedProject = null;
-                    foreach ($projects as $p) {
-                        if (!empty($p['project_name']) && stripos($claim['reason'], $p['project_name']) !== false) {
-                            $matchedProject = $p;
-                            break;
+                        foreach ($projects as $p) {
+                            if (!empty($p['project_name']) && stripos($claim['reason'], $p['project_name']) !== false) {
+                                $projectIdToUse = $p['project_id'];
+                                break;
+                            }
                         }
                     }
 
-                    if ($matchedProject) {
+                    $approver = $data['approved_by'] ?? 'Manager/Admin';
+                    if ($projectIdToUse) {
                         $finSql = "INSERT INTO finance_transactions 
-                                   (project_id, type, amount, payment_mode, category, person_name, description, transaction_date, recorded_by) 
-                                   VALUES (:pid, 'debit', :amt, 'Reimbursement', 'Other', :pname, :desc, CURDATE(), :uid)";
+                                   (project_id, type, amount, payment_mode, category, person_name, description, transaction_date, recorded_by, approval_status, approved_by, approved_at) 
+                                   VALUES (:pid, 'debit', :amt, 'Reimbursement', 'Other', :pname, :desc, CURDATE(), :uid, 'approved', :appby, NOW())";
                         $finStmt = $this->conn->prepare($finSql);
                         $finStmt->execute([
-                            ':pid'   => $matchedProject['project_id'],
+                            ':pid'   => $projectIdToUse,
                             ':amt'   => $claim['amount'],
                             ':pname' => $claim['employee_name'],
                             ':desc'  => 'Reimbursement (' . $claim['category'] . '): ' . $claim['reason'],
-                            ':uid'   => $claim['user_id']
+                            ':uid'   => $claim['user_id'],
+                            ':appby' => $approver
                         ]);
                     } else {
                         // Office General Reimbursement -> goes to Company Expenses & Overheads
                         $finSql = "INSERT INTO finance_transactions 
-                                   (project_id, type, amount, payment_mode, category, person_name, description, transaction_date, recorded_by) 
-                                   VALUES (NULL, 'debit', :amt, 'Reimbursement', 'Staff Expense', :pname, :desc, CURDATE(), :uid)";
+                                   (project_id, type, amount, payment_mode, category, person_name, description, transaction_date, recorded_by, approval_status, approved_by, approved_at) 
+                                   VALUES (NULL, 'debit', :amt, 'Reimbursement', 'Staff Expense', :pname, :desc, CURDATE(), :uid, 'approved', :appby, NOW())";
                         $finStmt = $this->conn->prepare($finSql);
                         $finStmt->execute([
                             ':amt'   => $claim['amount'],
                             ':pname' => $claim['employee_name'],
                             ':desc'  => 'Office Reimbursement (' . $claim['category'] . '): ' . $claim['reason'],
-                            ':uid'   => $claim['user_id']
+                            ':uid'   => $claim['user_id'],
+                            ':appby' => $approver
                         ]);
                     }
+
+                    // Send approval email notification
+                    MailHelper::sendReimbursementNotification($this->conn, 'approved', [
+                        'employee_name' => $claim['employee_name'] ?? 'Employee',
+                        'employee_id'   => $claim['user_id'] ?? null,
+                        'amount'        => $claim['amount'] ?? 0,
+                        'project_id'    => $claim['project_id'] ?? 'General',
+                        'date'          => date('d M Y', strtotime($claim['created_at'] ?? 'now')),
+                        'description'   => $claim['reason'] ?? ''
+                    ]);
                 }
-            } catch (Exception $ex) {
-                // Ignore if finance_transactions fails
+            } catch (\Throwable $ex) {
+                // Ignore if finance_transactions or mail fails
             }
 
             return ['success' => true, 'message' => 'Reimbursement approved.'];
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
@@ -175,8 +276,27 @@ class ReimbursementController
                 ':id'   => $data['id'],
                 ':note' => $data['admin_note'] ?? null,
             ]);
+
+            try {
+                $claimStmt = $this->conn->prepare("SELECT * FROM reimbursements WHERE id = :id");
+                $claimStmt->execute([':id' => $data['id']]);
+                $claim = $claimStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($claim) {
+                    MailHelper::sendReimbursementNotification($this->conn, 'rejected', [
+                        'employee_name' => $claim['employee_name'] ?? 'Employee',
+                        'employee_id'   => $claim['user_id'] ?? null,
+                        'amount'        => $claim['amount'] ?? 0,
+                        'project_id'    => $claim['project_id'] ?? 'General',
+                        'date'          => date('d M Y', strtotime($claim['created_at'] ?? 'now')),
+                        'description'   => $claim['reason'] ?? '',
+                        'reason'        => $data['admin_note'] ?? 'Not specified'
+                    ]);
+                }
+            } catch (\Throwable $ex) {}
+
             return ['success' => true, 'message' => 'Reimbursement rejected.'];
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }

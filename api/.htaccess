@@ -1,6 +1,5 @@
 Options -Indexes
 RewriteEngine On
-# Removed RewriteBase for better compatibility across servers
 
 # Allow real files and directories to pass through
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -8,3 +7,14 @@ RewriteCond %{REQUEST_FILENAME} !-d
 
 # Route everything else to index.php
 RewriteRule ^ index.php [QSA,L]
+
+# Prevent duplicate CORS headers and ensure PUT/DELETE allowed
+<IfModule mod_headers.c>
+    SetEnvIf Request_URI "acknowledge\.php" IS_ACKNOWLEDGE
+    Header unset Access-Control-Allow-Origin env=!IS_ACKNOWLEDGE
+    Header set Access-Control-Allow-Origin "*" env=!IS_ACKNOWLEDGE
+    Header unset Access-Control-Allow-Methods env=!IS_ACKNOWLEDGE
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE, PATCH" env=!IS_ACKNOWLEDGE
+    Header unset Access-Control-Allow-Headers env=!IS_ACKNOWLEDGE
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-User-Id, X-User-Role, *" env=!IS_ACKNOWLEDGE
+</IfModule>

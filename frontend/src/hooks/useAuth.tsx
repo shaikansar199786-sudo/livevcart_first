@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-interface User {
+export interface User {
     user_id: string;
     name: string;
     username: string;
     role: 'admin' | 'accountant' | 'project_head' | 'site_engineer' | 'sales' | 'd1' | 'd2' | 'mmt' | 'site_inspection' | 'site_inspector' | 'project_manager' | 'manager' | 'graphic_designer' | 'gd' | 'business_associate';
     token: string;
+    is_admin?: boolean | number;
+    [key: string]: any;
 }
 
 interface AuthContextType {
